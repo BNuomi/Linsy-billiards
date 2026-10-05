@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>会员详情</title>
+    <script>
+    /* 主题初始化：localStorage 优先，其次跟随系统深浅色偏好（在渲染前执行，避免闪白） */
+    (function () {
+      var saved = null
+      try { saved = localStorage.getItem('billiards-theme') } catch (e) {}
+      var theme = saved === 'dark' || saved === 'light'
+        ? saved
+        : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+      var root = document.documentElement
+      root.classList.remove('light', 'dark')
+      root.classList.add(theme)
+    })()
+    </script>
+    <style id="theme-vars">
+/*
+ * Pinguo design tokens
+ * Brand: Pinguo
+ * Domain: Consumer imaging product
+ * Style: Restrained, elegant, Apple-inspired
+ * Theme mode: light-dark
+ * Source language: zh
+ * Output language: en
+ *
+ * Color architecture (two layers):
+ *   1. Primitive palette - six categories. brand / background / text / icon
+ *      are each a 10-step scale (50 lightest to 900 darkest). state-success and
+ *      state-error are functional colors anchored on Apple system colors.
+ *      Anchors follow Apple Human Interface Guidelines system colors
+ *      (System Blue #007AFF, System Green #34C759, System Red #FF3B30,
+ *      system grays / label / background colors).
+ *   2. Semantic tokens - :root (light) and .dark map roles onto primitives.
+ *      Components and UI kits must only consume the semantic tokens below.
+ */
+
+/* @group-priority: brand, background, text, icon, state-success, state-error */
+
+:root {
+  
+  /* solo-design consumption aliases: explicit prefix for fill-html-head.mjs */
+  --apple-background: var(--background, #ffffff);
+  --apple-foreground: var(--foreground, #0f172a);
+  --apple-card: var(--card, var(--background));
+  --apple-card-foreground: var(--card-foreground, var(--foreground));
+  --apple-popover: var(--popover, var(--card));
+  --apple-popover-foreground: var(--popover-foreground, var(--card-foreground, var(--foreground)));
+  --apple-primary: var(--primary, #111827);
+  --apple-primary-foreground: var(--primary-foreground, #ffffff);
+  --apple-secondary: var(--secondary, var(--muted, var(--card)));
+  --apple-secondary-foreground: var(--secondary-foreground, var(--foreground));
+  --apple-muted: var(--muted, var(--card));
+  --apple-muted-foreground: var(--muted-foreground, var(--foreground));
+  --apple-accent: var(--accent, var(--secondary, var(--muted, var(--card))));
+  --apple-accent-foreground: var(--accent-foreground, var(--foreground));
+  --apple-destructive: var(--destructive, #ef4444);
+  --apple-destructive-foreground: var(--destructive-foreground, #ffffff);
+  --apple-border: var(--border, currentColor);
+  --apple-input: var(--input, var(--border));
+  --apple-ring: var(--ring, var(--primary));
+  --apple-chart-1: var(--chart-1, var(--primary));
+  --apple-chart-2: var(--chart-2, var(--secondary, var(--primary)));
+  --apple-chart-3: var(--chart-3, var(--accent, var(--primary)));
+  --apple-chart-4: var(--chart-4, var(--muted-foreground, var(--foreground)));
+  --apple-chart-5: var(--chart-5, var(--foreground));
+  --apple-sidebar: var(--sidebar, var(--background));
+  --apple-sidebar-foreground: var(--sidebar-foreground, var(--foreground));
+  --apple-sidebar-primary: var(--sidebar-primary, var(--primary));
+  --apple-sidebar-primary-foreground: var(--sidebar-primary-foreground, var(--primary-foreground));
+  --apple-sidebar-accent: var(--sidebar-accent, var(--accent, var(--muted, var(--card))));
+  --apple-sidebar-accent-foreground: var(--sidebar-accent-foreground, var(--accent-foreground, var(--foreground)));
+  --apple-sidebar-border: var(--sidebar-border, var(--border));
+  --apple-sidebar-ring: var(--ring, var(--primary));
+  --apple-radius: var(--radius, 1.2rem);
+  --apple-radius-sm: var(--radius-sm, 0.6rem);
+  --apple-radius-md: var(--radius-md, 1.2rem);
+  --apple-radius-lg: var(--radius-lg, 2rem);
+
+/* ===== PRIMITIVE PALETTE ===== */
+
+  /* brand */
+  --brand-50: #e8f2ff;
+  --brand-100: #cfe5ff;
+  --brand-200: #9fcbff;
+  --brand-300: #66abff;
+  --brand-400: #2e8dff;
+  --brand-500: #007aff; /* @primary */
+  --brand-600: #0064d6;
+  --brand-700: #004fad;
+  --brand-800: #003b82;
+  --brand-900: #00275a;
+
+  /* background */
+  --background-50: #ffffff;
+  --background-100: #f7f7fa;
+  --background-200: #f2f2f7;
+  --background-300: #e5e5ea;
+  --background-400: #d1d1d6;
+  --background-500: #aeaeb2;
+  --background-600: #8e8e93;
+  --background-700: #3a3a3c;
+  --background-800: #1c1c1e;
+  --background-900: #000000;
+
+  /* text */
+  --text-50: #f5f5f7;
+  --text-100: #e3e3e8;
+  --text-200: #c7c7cc;
+  --text-300: #aeaeb2;
+  --text-400: #8e8e93;
+  --text-500: #6e6e73;
+  --text-600: #48484a;
+  --text-700: #3c3c43;
+  --text-800: #1d1d1f;
+  --text-900: #000000;
+
+  /* icon */
+  --icon-50: #f5f5f7;
+  --icon-100: #e5e5ea;
+  --icon-200: #d1d1d6;
+  --icon-300: #c7c7cc;
+  --icon-400: #aeaeb2;
+  --icon-500: #8e8e93;
+  --icon-600: #6e6e73;
+  --icon-700: #48484a;
+  --icon-800: #2c2c2e;
+  --icon-900: #1d1d1f;
+
+  /* state-success */
+  --state-success: #34c759; /* @primary */
+  --state-success-dark: #30d158;
+  --state-success-surface: #e9f9ee;
+  --state-success-foreground: #ffffff;
+
+  /* state-error */
+  --state-error: #ff3b30; /* @primary */
+  --state-error-dark: #ff453a;
+  --state-error-surface: #ffecea;
+  --state-error-foreground: #ffffff;
+
+  /* ===== SEMANTIC ROLES ===== */
+
+  /* semantic */
+  --background: var(--background-50);
+  --foreground: var(--text-800);
+  --card: var(--background-50);
+  --card-foreground: var(--text-800);
+  --popover: var(--background-50);
+  --popover-foreground: var(--text-900);
+
+  --primary: var(--brand-500);
+  --primary-foreground: var(--background-50);
+  --secondary: var(--background-200);
+  --secondary-foreground: var(--text-800);
+  --muted: var(--background-200);
+  --muted-foreground: var(--text-400);
+  --accent: var(--background-100);
+  --accent-foreground: var(--text-800);
+  --destructive: var(--state-error);
+  --destructive-foreground: var(--state-error-foreground);
+  --success: var(--state-success);
+  --success-foreground: var(--state-success-foreground);
+  --border: var(--background-300);
+  --input: var(--background-400);
+  --ring: var(--brand-500);
+
+  --icon: var(--icon-900);
+  --icon-muted: var(--icon-500);
+
+  /* chart */
+  --chart-1: var(--state-success);
+  --chart-2: var(--brand-500);
+  --chart-3: #ff9500;
+  --chart-4: #5856d6;
+  --chart-5: #af52de;
+
+  /* sidebar */
+  --sidebar: var(--background-200);
+  --sidebar-foreground: var(--text-800);
+  --sidebar-primary: var(--brand-500);
+  --sidebar-primary-foreground: var(--background-50);
+  --sidebar-accent: var(--background-300);
+  --sidebar-accent-foreground: var(--text-800);
+  --sidebar-border: var(--background-300);
+  --sidebar-ring: var(--brand-500);
+
+  /* TYPOGRAPHY */
+  --font-sans: DM Sans, ui-sans-serif, sans-serif, system-ui;
+  --font-serif: DM Sans, ui-sans-serif, sans-serif, system-ui;
+  --font-mono: JetBrains Mono, monospace;
+  --tracking-normal: 0em;
+
+  /* RADIUS */
+  --radius: 1.2rem;
+  --radius-sm: 0.6rem;
+  --radius-md: 1.2rem;
+  --radius-lg: 2rem;
+
+  /* SHADOWS */
+  --shadow-2xs: 0 1px 2px -1px rgba(0, 0, 0, 0.04); /* Hairline */
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.04); /* Subtle */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05), 0 1px 3px -1px rgba(0, 0, 0, 0.05); /* Card */
+  --shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.06), 0 1px 2px -1px rgba(0, 0, 0, 0.05); /* Raised */
+  --shadow-md: 0 4px 8px -2px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.05); /* Card Hover */
+  --shadow-lg: 0 8px 24px -8px rgba(0, 0, 0, 0.08), 0 4px 8px -4px rgba(0, 0, 0, 0.05); /* Float */
+  --shadow-xl: 0 16px 40px -10px rgba(0, 0, 0, 0.10), 0 8px 16px -8px rgba(0, 0, 0, 0.06); /* Overlay */
+  --shadow-2xl: 0 24px 64px -12px rgba(0, 0, 0, 0.12); /* Modal */
+
+  /* SPACING */
+  --spacing: 0.24rem;
+}
+
+/* ===== SEMANTIC ROLES - dark（台球绿暗色主题，参考 dark-theme 设计方案） ===== */
+.dark {
+  --background: #1c1c1e;
+  --foreground: #f5f5f7;
+  --card: #2c2c2e;
+  --card-foreground: #f5f5f7;
+  --popover: #3a3a3c;
+  --popover-foreground: #f5f5f7;
+  --primary: #3dd685;
+  --primary-foreground: #0a1f14;
+  --secondary: #2c2c2e;
+  --secondary-foreground: #e5e5ea;
+  --muted: #2c2c2e;
+  --muted-foreground: #8e8e93;
+  --accent: #3a3a3c;
+  --accent-foreground: #e5e5ea;
+  --destructive: #ff453a;
+  --destructive-foreground: #ffffff;
+  --success: #30d158;
+  --success-foreground: #ffffff;
+  --border: #3a3a3c;
+  --input: #3a3a3c;
+  --ring: #3dd685;
+  --icon: #f5f5f7;
+  --icon-muted: #8e8e93;
+  --chart-1: #30d158;
+  --chart-2: #3dd685;
+  --chart-3: #ff9f0a;
+  --chart-4: #5e5ce6;
+  --chart-5: #bf5af2;
+  --sidebar: #1c1c1e;
+  --sidebar-foreground: #f5f5f7;
+  --sidebar-primary: #3dd685;
+  --sidebar-primary-foreground: #0a1f14;
+  --sidebar-accent: #2c2c2e;
+  --sidebar-accent-foreground: #e5e5ea;
+  --sidebar-border: #3a3a3c;
+  --sidebar-ring: #3dd685;
+  --shadow-2xs: 0 1px 2px -1px rgba(0,0,0,0.25);
+  --shadow-xs: 0 1px 2px 0 rgba(0,0,0,0.25);
+  --shadow-sm: 0 1px 3px 0 rgba(0,0,0,0.3), 0 1px 2px -1px rgba(0,0,0,0.2);
+  --shadow: 0 2px 6px -1px rgba(0,0,0,0.3), 0 1px 3px -1px rgba(0,0,0,0.2);
+  --shadow-md: 0 4px 12px -2px rgba(0,0,0,0.35), 0 2px 6px -2px rgba(0,0,0,0.25);
+  --shadow-lg: 0 12px 28px -8px rgba(0,0,0,0.4), 0 6px 12px -4px rgba(0,0,0,0.3);
+  --shadow-xl: 0 16px 40px -10px rgba(0,0,0,0.45), 0 8px 16px -8px rgba(0,0,0,0.35);
+  --shadow-2xl: 0 24px 56px -12px rgba(0,0,0,0.5);
+}
+
+    </style>
+    <style id="component-vars">
+/* ═══════════════════════════════════════════════════════════════
+   components.css — Design System Component Definitions
+   Auto-extracted from preview/component-*.html
+   DO NOT EDIT MANUALLY — regenerate via extract-components-css.mjs
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Button ────────────────────────────────────────────────── */
+/* @anatomy
+   <div class="row"><span class="label">Primary 56</span><button class="btn btn-primary btn-lg">Buy now</button><button class="btn btn-primary btn-lg" disabled>Buy now</button></div>
+   <hr class="divider">
+   <div class="row"><span class="label">Secondary 48</span><button class="btn btn-secondary">Shop the latest</button><button class="btn btn-secondary" disabled>Shop the latest</button></div>
+   <div class="row"><span class="label">Text 48</span><button class="btn btn-text">Learn more ›</button><button class="btn btn-text" disabled>Learn more ›</button></div>
+*/
+body{margin:0;padding:12px;background:var(--background);color:var(--foreground);font-family:var(--font-sans);letter-spacing:var(--tracking-normal)}.row{display:flex;align-items:center;gap:calc(var(--spacing)*3);flex-wrap:wrap;margin:0 0 calc(var(--spacing)*3)}.label{min-width:72px;color:var(--muted-foreground);font:600 10px/1 var(--font-mono);letter-spacing:.12em;text-transform:uppercase}.btn{display:inline-flex;align-items:center;justify-content:center;gap:calc(var(--spacing)*1.5);height:40px;padding:0 20px;border:none;border-radius:calc(var(--radius)*2);background:transparent;color:var(--foreground);font:600 14px/1 var(--font-sans);letter-spacing:var(--tracking-normal);white-space:nowrap;box-shadow:var(--shadow-sm);cursor:pointer;transition:background-color .18s ease,color .18s ease,opacity .18s ease,filter .18s ease}.btn:focus-visible{outline:2px solid var(--ring);outline-offset:2px}.btn:disabled{opacity:.42;cursor:not-allowed}.btn-primary{background:var(--primary);color:var(--primary-foreground)}.btn-primary:hover{filter:brightness(.96)}.btn-secondary{height:48px;padding:0 24px;background:var(--secondary);color:var(--secondary-foreground)}.btn-secondary:hover{background:var(--muted)}.btn-text{height:48px;padding:0 4px;box-shadow:none}.btn-text:hover{color:var(--primary)}.btn-lg{height:56px;padding:0 28px;font-size:16px}.divider{border:0;border-top:1px solid var(--border);margin:calc(var(--spacing)*4) 0}
+
+/* ── Card ──────────────────────────────────────────────────── */
+/* @anatomy
+   <div class="row">
+   <span class="label">Info</span>
+   <article class="card">
+   <div><div class="eyebrow">Pinguo Apple</div><h1 class="title">Built for creators</h1><p class="body-copy">A calm surface for comparing cameras, storage tiers, and bundle benefits across the ecosystem.</p></div>
+   <a class="cta" href="#">Compare models</a>
+   </article>
+   <article class="card disabled" aria-disabled="true">
+   <div><div class="eyebrow">Campus Store</div><h1 class="title">Education pricing</h1><p class="body-copy">Student bundles stay visible while unavailable purchase actions remain clearly disabled.</p></div>
+   <span class="cta">Compare models</span>
+   </article>
+   </div>
+   <hr class="divider">
+   <div class="row">
+   <span class="label">Media</span>
+   <article class="card media-card">
+   <div class="media"></div>
+   <div><div class="meta">Creator bundle</div><h1 class="title">Studio kit with Lens Sync</h1><div class="price">From $799 with Education pricing</div></div>
+   </article>
+   <article class="card media-card dark">
+   <div class="media"></div>
+   <div><div class="meta">Consumer imaging ecosystem</div><h1 class="title">Built for creators</h1><div class="price">Compare models across camera, app, and cloud plans</div></div>
+   </article>
+   </div>
+*/
+body{margin:0;padding:12px;background:var(--background);color:var(--foreground);font:500 14px/1.45 var(--font-sans);letter-spacing:var(--tracking-normal)}.row{display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap}.label{width:72px;padding-top:10px;color:var(--muted-foreground);font:700 10px/1 var(--font-sans);letter-spacing:.12em;text-transform:uppercase}.divider{margin:12px 0;border:0;border-top:1px solid var(--border)}.card{width:188px;min-height:148px;padding:calc(var(--spacing)*5);display:flex;flex-direction:column;justify-content:space-between;background:var(--card);color:var(--card-foreground);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-md);transition:transform .18s ease,box-shadow .18s ease}.card:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg)}.card.disabled,.card.disabled:hover{opacity:.5;transform:none;box-shadow:var(--shadow-md)}.eyebrow,.meta{color:var(--muted-foreground);font-size:11px;letter-spacing:.08em;text-transform:uppercase}.title{margin:6px 0 8px;font-size:18px;line-height:1.15}.body-copy{margin:0;color:var(--muted-foreground);font-size:13px}.cta{display:inline-flex;align-items:center;justify-content:center;width:max-content;margin-top:12px;padding:calc(var(--spacing)*2) calc(var(--spacing)*3.5);border-radius:999px;background:var(--primary);color:var(--primary-foreground);font-size:12px;font-weight:700;text-decoration:none}.media{aspect-ratio:4/3;border-radius:calc(var(--radius) - 4px);background:linear-gradient(135deg,var(--secondary),var(--accent));border:1px solid var(--border)}.media-card{min-height:212px;padding:calc(var(--spacing)*4)}.media-card .title{font-size:16px;margin:10px 0 6px}.price{font-size:12px;color:var(--muted-foreground)}.dark{background:var(--card);color:var(--card-foreground)}
+
+/* ── Comparison Table ──────────────────────────────────────── */
+/* @anatomy
+   <div class="row"><span class="label">Default</span><div class="t"><div class="c m">Compare models</div><div class="c h"><span class="k">Mini</span><span class="s">Pinguo Apple</span></div><div class="c h"><span class="k">Air</span><span class="s">Popular</span></div><div class="c h b"><span class="k">Pro</span><span class="s">Creator</span></div><div class="c m">Battery life</div><div class="c v">12h</div><div class="c v">16h</div><div class="c v">20h</div><div class="c m">Storage</div><div class="c v">256GB</div><div class="c v">512GB</div><div class="c v">1TB</div><div class="c m">Camera system</div><div class="c n">Dual</div><div class="c n">48MP</div><div class="c n">48MP+T</div></div><div class="t x" aria-disabled="true"><div class="c m">Compare models</div><div class="c h"><span class="k">Mini</span><span class="s">Pinguo Apple</span></div><div class="c h"><span class="k">Air</span><span class="s">Popular</span></div><div class="c h b"><span class="k">Pro</span><span class="s">Creator</span></div><div class="c m">Battery life</div><div class="c v">12h</div><div class="c v">16h</div><div class="c v">20h</div><div class="c m">Storage</div><div class="c v">256GB</div><div class="c v">512GB</div><div class="c v">1TB</div><div class="c m">Camera system</div><div class="c n">Dual</div><div class="c n">48MP</div><div class="c n">48MP+T</div></div></div>
+   <hr class="divider">
+   <div class="row"><span class="label">Compact</span><div class="t q dark"><div class="c m">Compare models</div><div class="c h"><span class="k">Mini</span></div><div class="c h"><span class="k">Air</span></div><div class="c h b"><span class="k">Pro</span></div><div class="c h"><span class="k">Ultra</span></div><div class="c m">Battery life</div><div class="c v">12h</div><div class="c v">16h</div><div class="c v">20h</div><div class="c v">24h</div><div class="c m">Storage</div><div class="c v">256GB</div><div class="c v">512GB</div><div class="c v">1TB</div><div class="c v">2TB</div><div class="c m">Camera system</div><div class="c n">Dual</div><div class="c n">48MP</div><div class="c n">48MP+T</div><div class="c n">Triple</div></div></div>
+*/
+body{margin:0;padding:12px;background:var(--background);color:var(--foreground);font:500 13px/1.4 var(--font-sans);letter-spacing:var(--tracking-normal)}.row{display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:8px}.label{width:72px;padding-top:10px;color:var(--muted-foreground);font:700 10px/1 var(--font-mono);letter-spacing:.12em;text-transform:uppercase}.divider{margin:12px 0;border:0;border-top:1px solid var(--border)}.t{display:grid;grid-template-columns:96px repeat(3,1fr);overflow:hidden;border:1px solid var(--border);border-radius:var(--radius);background:var(--card);color:var(--card-foreground);box-shadow:var(--shadow-sm)}.q{grid-template-columns:82px repeat(4,1fr)}.c{padding:10px;border-right:1px solid var(--border);border-bottom:1px solid var(--border)}.t>.c:nth-child(4n),.q>.c:nth-child(5n){border-right:0}.t>.c:nth-last-child(-n+4),.q>.c:nth-last-child(-n+5){border-bottom:0}.m{background:var(--background);color:var(--muted-foreground);font:700 10px/1 var(--font-mono);letter-spacing:.12em;text-transform:uppercase}.h{background:var(--background);font-weight:700}.k{display:block;font-size:14px;line-height:1.1}.s{display:block;margin-top:4px;color:var(--chart-2);font-size:11px;font-weight:700}.b .k{color:var(--chart-2)}.v{font-weight:600}.n{color:var(--muted-foreground);font-size:12px}.x{opacity:.45}
+
+/* ── Input ─────────────────────────────────────────────────── */
+/* @anatomy
+   <div class="row">
+   <span class="label">Search 44</span>
+   <div class="field">
+   <span class="icon">⌕</span>
+   <input class="control" aria-label="Search products" placeholder="Search products">
+   <button class="clear" type="button" aria-label="Clear search">×</button>
+   </div>
+   <div class="field disabled">
+   <span class="icon">⌕</span>
+   <input class="control" aria-label="Search products disabled" placeholder="Search products" disabled>
+   <button class="clear" type="button" aria-label="Clear search disabled" disabled>×</button>
+   </div>
+   </div>
+   <hr class="divider">
+   <div class="row">
+   <span class="label">Dark 40</span>
+   <div class="surface dark">
+   <div class="field small">
+   <input class="control" aria-label="Email address" placeholder="Email address">
+   </div>
+   </div>
+   <div class="surface dark">
+   <div class="field small disabled">
+   <input class="control" aria-label="Track your order disabled" placeholder="Track your order" disabled>
+   </div>
+   </div>
+   </div>
+*/
+body{margin:0;padding:12px;background:var(--background);color:var(--foreground);font:500 13px/1.4 var(--font-sans)}.row{display:flex;align-items:center;gap:calc(var(--spacing)*3);flex-wrap:wrap;margin-bottom:8px}.label{min-width:58px;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted-foreground)}.divider{border:0;border-top:1px solid var(--border);margin:10px 0}.surface{display:flex;gap:calc(var(--spacing)*2);padding:calc(var(--spacing)*3);border:1px solid var(--border);border-radius:var(--radius);background:var(--card);box-shadow:var(--shadow-sm)}.dark{background:var(--background);color:var(--foreground)}.field{display:flex;align-items:center;gap:calc(var(--spacing)*2);min-width:240px;height:44px;padding:0 calc(var(--spacing)*3);border:1px solid var(--input);border-radius:var(--radius);background:var(--background);color:var(--foreground);box-shadow:var(--shadow-xs)}.field.small{height:40px}.field:focus-within{border-color:var(--ring);box-shadow:0 0 0 1px var(--ring)}.field.disabled{opacity:.55}.icon,.clear{padding:0;border:0;background:transparent;color:var(--icon-muted);font:inherit}.icon{font-size:13px}.control{flex:1;border:0;outline:0;background:transparent;color:inherit;font:inherit}.control::placeholder{color:var(--muted-foreground)}
+
+/* ── Navigation ────────────────────────────────────────────── */
+/* @anatomy
+   <div class="row"><span class="label">Global 44</span><nav class="webbar dark" aria-label="Pinguo Apple global navigation"><span class="brand">Pinguo Apple</span><div class="rail"><a class="link" href="#">Store</a><a class="link" href="#">Explore</a><a class="link" href="#">Community</a><a class="link" href="#">Support</a></div></nav><nav class="webbar dark disabled" aria-label="Pinguo Apple global navigation disabled"><span class="brand">Pinguo Apple</span><div class="rail"><span class="link">Store</span><span class="link">Explore</span><span class="link">Community</span><span class="link">Support</span></div></nav></div>
+   <hr class="divider">
+   <div class="row"><span class="label">Tab Bar</span><div class="mobile"><div class="screen"><nav class="tabbar" aria-label="Pinguo Apple tab bar"><a class="tab" href="#"><span class="dot"></span><span>Store</span></a><a class="tab" href="#"><span class="dot"></span><span>Explore</span></a><a class="tab" href="#"><span class="dot"></span><span>Community</span></a><a class="tab" href="#"><span class="dot"></span><span>Support</span></a></nav></div></div><div class="mobile disabled"><div class="screen"><nav class="tabbar" aria-label="Pinguo Apple tab bar disabled"><span class="tab"><span class="dot"></span><span>Store</span></span><span class="tab"><span class="dot"></span><span>Explore</span></span><span class="tab"><span class="dot"></span><span>Community</span></span><span class="tab"><span class="dot"></span><span>Support</span></span></nav></div></div></div>
+*/
+body{margin:0;padding:12px;background:var(--background);color:var(--foreground);font:500 13px/1.4 var(--font-sans);letter-spacing:var(--tracking-normal)}.row{display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:8px}.label{width:72px;padding-top:10px;color:var(--muted-foreground);font:700 10px/1 var(--font-mono);letter-spacing:.12em;text-transform:uppercase}.divider{margin:12px 0;border:0;border-top:1px solid var(--border)}.webbar,.mobile{border:1px solid var(--border);box-shadow:var(--shadow-sm)}.webbar{display:flex;align-items:center;gap:calc(var(--spacing)*2);min-width:320px;height:44px;padding:0 calc(var(--spacing)*3);border-radius:var(--radius);background:var(--sidebar)}.brand{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}.rail{display:flex;gap:calc(var(--spacing)*1.5);margin-left:auto}.link,.tab{display:inline-flex;align-items:center;justify-content:center;border-radius:999px;color:inherit;text-decoration:none;white-space:nowrap;transition:background-color .18s ease,color .18s ease,opacity .18s ease}.link{height:32px;padding:0 calc(var(--spacing)*2.5)}.link:hover,.tab:hover{background:var(--secondary)}.link:focus-visible,.tab:focus-visible{outline:2px solid var(--ring);outline-offset:2px}.dark{background:var(--sidebar);color:var(--foreground)}.disabled{opacity:.48}.disabled .link,.disabled .tab{pointer-events:none}.mobile{padding:calc(var(--spacing)*2);border-radius:calc(var(--radius)*1.1);background:var(--card)}.screen{display:flex;align-items:flex-end;justify-content:center;width:188px;height:164px;padding:calc(var(--spacing)*3);border-radius:calc(var(--radius)*.9);background:linear-gradient(180deg,var(--background),var(--secondary))}.tabbar{display:flex;gap:calc(var(--spacing)*1.5);padding:calc(var(--spacing)*1.5);border:1px solid var(--border);border-radius:999px;background:var(--card);box-shadow:var(--shadow-md)}.tab{flex-direction:column;gap:2px;min-width:56px;height:56px;padding:0 calc(var(--spacing)*1.5);font-size:11px;text-align:center}.dot{width:18px;height:18px;border-radius:999px;background:var(--secondary);box-shadow:inset 0 0 0 1px var(--border)}.tab:hover .dot{background:var(--primary)}
+
+/* ── Product Grid ──────────────────────────────────────────── */
+/* @anatomy
+   <div class="row">
+   <span class="label">4-up</span>
+   <div class="grid grid-4">
+   <article class="card"><div class="media"></div><span class="eyebrow">New this season</span><strong class="title">Pinguo Lens Pro</strong><span class="price">From $999</span><a class="cta" href="/">Compare all models</a></article>
+   <article class="card"><div class="media"></div><span class="eyebrow">Creator kit</span><strong class="title">Pinguo Air Cam</strong><span class="price">From $749</span><a class="cta" href="/">Build your setup</a></article>
+   <article class="card"><div class="media"></div><span class="eyebrow">Studio ready</span><strong class="title">Pinguo Dock One</strong><span class="price">From $299</span><a class="cta" href="/">See accessories</a></article>
+   <article class="card is-disabled"><div class="media"></div><span class="eyebrow">Coming soon</span><strong class="title">Pinguo Vision Mini</strong><span class="price muted">Notify me</span><span class="cta">Unavailable</span></article>
+   </div>
+   </div>
+   <hr class="divider">
+   <div class="row">
+   <span class="label">Story</span>
+   <div class="grid grid-2">
+   <article class="card story"><div class="media"></div><span class="eyebrow">Consumer imaging product ecosystem</span><strong class="title">Travel light with one camera, one dock, and one cloud-ready edit flow.</strong><span class="price muted">Pinguo Apple picks for weekend shoots</span><a class="cta" href="/">Shop the story</a></article>
+   <article class="card story"><div class="media"></div><span class="eyebrow">Compare lineup</span><strong class="title">Choose between compact capture, pro optics, and desktop-grade finishing tools.</strong><span class="price muted">Made for photo-first households</span><a class="cta" href="/">Compare all models</a></article>
+   </div>
+   </div>
+*/
+body{margin:0;padding:12px;background:var(--background);color:var(--foreground);font:500 14px/1.4 var(--font-sans)}.row{display:flex;align-items:flex-start;gap:8px;margin-bottom:8px}.label{width:72px;padding-top:6px;color:var(--muted-foreground);font-size:10px;letter-spacing:.12em;text-transform:uppercase;flex:0 0 auto}.grid{display:grid;gap:8px;flex:1}.grid-4{grid-template-columns:repeat(4,minmax(0,1fr))}.grid-2{grid-template-columns:repeat(2,minmax(0,1fr))}.card{display:flex;flex-direction:column;gap:8px;padding:10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--card);color:var(--card-foreground);box-shadow:var(--shadow-xs);transition:border-color .2s ease,transform .2s ease}.card:hover{border-color:var(--primary);transform:translateY(-1px)}.media{aspect-ratio:1;border-radius:calc(var(--radius) - 4px);background:linear-gradient(135deg,var(--secondary),var(--background));border:1px solid var(--border)}.story .media{aspect-ratio:1.25;background:linear-gradient(135deg,var(--foreground),var(--secondary))}.eyebrow{color:var(--muted-foreground);font-size:10px;letter-spacing:.08em;text-transform:uppercase}.title{font-size:15px;line-height:1.25}.price{font-variant-numeric:tabular-nums}.cta{display:inline-flex;align-self:flex-start;padding:7px 10px;border-radius:999px;background:var(--primary);color:var(--primary-foreground);font-size:12px;text-decoration:none}.muted{color:var(--muted-foreground)}.is-disabled{opacity:.55}.divider{margin:10px 0;border:0;border-top:1px solid var(--border)}
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.1/dist/index.global.js"></script>
+    <script src="https://unpkg.com/lucide@1.8.0/dist/umd/lucide.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+    <style type="text/tailwindcss">
+  @theme inline {
+    --color-background: var(--apple-background);
+    --color-foreground: var(--apple-foreground);
+    --color-card: var(--apple-card);
+    --color-card-foreground: var(--apple-card-foreground);
+    --color-popover: var(--apple-popover);
+    --color-popover-foreground: var(--apple-popover-foreground);
+    --color-primary: var(--apple-primary);
+    --color-primary-foreground: var(--apple-primary-foreground);
+    --color-secondary: var(--apple-secondary);
+    --color-secondary-foreground: var(--apple-secondary-foreground);
+    --color-muted: var(--apple-muted);
+    --color-muted-foreground: var(--apple-muted-foreground);
+    --color-accent: var(--apple-accent);
+    --color-accent-foreground: var(--apple-accent-foreground);
+    --color-destructive: var(--apple-destructive);
+    --color-destructive-foreground: var(--apple-destructive-foreground);
+    --color-border: var(--apple-border);
+    --color-input: var(--apple-input);
+    --color-ring: var(--apple-ring);
+    --color-chart-1: var(--apple-chart-1);
+    --color-chart-2: var(--apple-chart-2);
+    --color-chart-3: var(--apple-chart-3);
+    --color-chart-4: var(--apple-chart-4);
+    --color-chart-5: var(--apple-chart-5);
+    --color-sidebar: var(--apple-sidebar);
+    --color-sidebar-foreground: var(--apple-sidebar-foreground);
+    --color-sidebar-primary: var(--apple-sidebar-primary);
+    --color-sidebar-primary-foreground: var(--apple-sidebar-primary-foreground);
+    --color-sidebar-accent: var(--apple-sidebar-accent);
+    --color-sidebar-accent-foreground: var(--apple-sidebar-accent-foreground);
+    --radius-sm: var(--apple-radius-sm);
+    --radius-md: var(--apple-radius-md);
+    --radius-lg: var(--apple-radius-lg);
+  }
+  @layer base {
+    body { background: var(--apple-background); color: var(--apple-foreground); }
+    td, th { @apply break-words; word-break: break-all; word-break: auto-phrase; }
+    th { @apply whitespace-nowrap; }
+  }
+    </style>
+    <style id="semantic-token-fallback">
+      .bg-background { background-color: var(--apple-background); }
+      .text-background { color: var(--apple-background); }
+      .border-background { border-color: var(--apple-background); }
+      .ring-background { --tw-ring-color: var(--apple-background); }
+      .bg-foreground { background-color: var(--apple-foreground); }
+      .text-foreground { color: var(--apple-foreground); }
+      .border-foreground { border-color: var(--apple-foreground); }
+      .ring-foreground { --tw-ring-color: var(--apple-foreground); }
+      .bg-card { background-color: var(--apple-card); }
+      .text-card { color: var(--apple-card); }
+      .border-card { border-color: var(--apple-card); }
+      .ring-card { --tw-ring-color: var(--apple-card); }
+      .bg-card-foreground { background-color: var(--apple-card-foreground); }
+      .text-card-foreground { color: var(--apple-card-foreground); }
+      .border-card-foreground { border-color: var(--apple-card-foreground); }
+      .ring-card-foreground { --tw-ring-color: var(--apple-card-foreground); }
+      .bg-popover { background-color: var(--apple-popover); }
+      .text-popover { color: var(--apple-popover); }
+      .border-popover { border-color: var(--apple-popover); }
+      .ring-popover { --tw-ring-color: var(--apple-popover); }
+      .bg-popover-foreground { background-color: var(--apple-popover-foreground); }
+      .text-popover-foreground { color: var(--apple-popover-foreground); }
+      .border-popover-foreground { border-color: var(--apple-popover-foreground); }
+      .ring-popover-foreground { --tw-ring-color: var(--apple-popover-foreground); }
+      .bg-primary { background-color: var(--apple-primary); }
+      .text-primary { color: var(--apple-primary); }
+      .border-primary { border-color: var(--apple-primary); }
+      .ring-primary { --tw-ring-color: var(--apple-primary); }
+      .bg-primary-foreground { background-color: var(--apple-primary-foreground); }
+      .text-primary-foreground { color: var(--apple-primary-foreground); }
+      .border-primary-foreground { border-color: var(--apple-primary-foreground); }
+      .ring-primary-foreground { --tw-ring-color: var(--apple-primary-foreground); }
+      .bg-secondary { background-color: var(--apple-secondary); }
+      .text-secondary { color: var(--apple-secondary); }
+      .border-secondary { border-color: var(--apple-secondary); }
+      .ring-secondary { --tw-ring-color: var(--apple-secondary); }
+      .bg-secondary-foreground { background-color: var(--apple-secondary-foreground); }
+      .text-secondary-foreground { color: var(--apple-secondary-foreground); }
+      .border-secondary-foreground { border-color: var(--apple-secondary-foreground); }
+      .ring-secondary-foreground { --tw-ring-color: var(--apple-secondary-foreground); }
+      .bg-muted { background-color: var(--apple-muted); }
+      .text-muted { color: var(--apple-muted); }
+      .border-muted { border-color: var(--apple-muted); }
+      .ring-muted { --tw-ring-color: var(--apple-muted); }
+      .bg-muted-foreground { background-color: var(--apple-muted-foreground); }
+      .text-muted-foreground { color: var(--apple-muted-foreground); }
+      .border-muted-foreground { border-color: var(--apple-muted-foreground); }
+      .ring-muted-foreground { --tw-ring-color: var(--apple-muted-foreground); }
+      .bg-accent { background-color: var(--apple-accent); }
+      .text-accent { color: var(--apple-accent); }
+      .border-accent { border-color: var(--apple-accent); }
+      .ring-accent { --tw-ring-color: var(--apple-accent); }
+      .bg-accent-foreground { background-color: var(--apple-accent-foreground); }
+      .text-accent-foreground { color: var(--apple-accent-foreground); }
+      .border-accent-foreground { border-color: var(--apple-accent-foreground); }
+      .ring-accent-foreground { --tw-ring-color: var(--apple-accent-foreground); }
+      .bg-destructive { background-color: var(--apple-destructive); }
+      .text-destructive { color: var(--apple-destructive); }
+      .border-destructive { border-color: var(--apple-destructive); }
+      .ring-destructive { --tw-ring-color: var(--apple-destructive); }
+      .bg-destructive-foreground { background-color: var(--apple-destructive-foreground); }
+      .text-destructive-foreground { color: var(--apple-destructive-foreground); }
+      .border-destructive-foreground { border-color: var(--apple-destructive-foreground); }
+      .ring-destructive-foreground { --tw-ring-color: var(--apple-destructive-foreground); }
+      .bg-border { background-color: var(--apple-border); }
+      .text-border { color: var(--apple-border); }
+      .border-border { border-color: var(--apple-border); }
+      .ring-border { --tw-ring-color: var(--apple-border); }
+      .bg-input { background-color: var(--apple-input); }
+      .text-input { color: var(--apple-input); }
+      .border-input { border-color: var(--apple-input); }
+      .ring-input { --tw-ring-color: var(--apple-input); }
+      .bg-ring { background-color: var(--apple-ring); }
+      .text-ring { color: var(--apple-ring); }
+      .border-ring { border-color: var(--apple-ring); }
+      .ring-ring { --tw-ring-color: var(--apple-ring); }
+      .bg-chart-1 { background-color: var(--apple-chart-1); }
+      .text-chart-1 { color: var(--apple-chart-1); }
+      .border-chart-1 { border-color: var(--apple-chart-1); }
+      .ring-chart-1 { --tw-ring-color: var(--apple-chart-1); }
+      .bg-chart-2 { background-color: var(--apple-chart-2); }
+      .text-chart-2 { color: var(--apple-chart-2); }
+      .border-chart-2 { border-color: var(--apple-chart-2); }
+      .ring-chart-2 { --tw-ring-color: var(--apple-chart-2); }
+      .bg-chart-3 { background-color: var(--apple-chart-3); }
+      .text-chart-3 { color: var(--apple-chart-3); }
+      .border-chart-3 { border-color: var(--apple-chart-3); }
+      .ring-chart-3 { --tw-ring-color: var(--apple-chart-3); }
+      .bg-chart-4 { background-color: var(--apple-chart-4); }
+      .text-chart-4 { color: var(--apple-chart-4); }
+      .border-chart-4 { border-color: var(--apple-chart-4); }
+      .ring-chart-4 { --tw-ring-color: var(--apple-chart-4); }
+      .bg-chart-5 { background-color: var(--apple-chart-5); }
+      .text-chart-5 { color: var(--apple-chart-5); }
+      .border-chart-5 { border-color: var(--apple-chart-5); }
+      .ring-chart-5 { --tw-ring-color: var(--apple-chart-5); }
+      .bg-sidebar { background-color: var(--apple-sidebar); }
+      .text-sidebar { color: var(--apple-sidebar); }
+      .border-sidebar { border-color: var(--apple-sidebar); }
+      .ring-sidebar { --tw-ring-color: var(--apple-sidebar); }
+      .bg-sidebar-foreground { background-color: var(--apple-sidebar-foreground); }
+      .text-sidebar-foreground { color: var(--apple-sidebar-foreground); }
+      .border-sidebar-foreground { border-color: var(--apple-sidebar-foreground); }
+      .ring-sidebar-foreground { --tw-ring-color: var(--apple-sidebar-foreground); }
+      .bg-sidebar-primary { background-color: var(--apple-sidebar-primary); }
+      .text-sidebar-primary { color: var(--apple-sidebar-primary); }
+      .border-sidebar-primary { border-color: var(--apple-sidebar-primary); }
+      .ring-sidebar-primary { --tw-ring-color: var(--apple-sidebar-primary); }
+      .bg-sidebar-primary-foreground { background-color: var(--apple-sidebar-primary-foreground); }
+      .text-sidebar-primary-foreground { color: var(--apple-sidebar-primary-foreground); }
+      .border-sidebar-primary-foreground { border-color: var(--apple-sidebar-primary-foreground); }
+      .ring-sidebar-primary-foreground { --tw-ring-color: var(--apple-sidebar-primary-foreground); }
+      .bg-sidebar-accent { background-color: var(--apple-sidebar-accent); }
+      .text-sidebar-accent { color: var(--apple-sidebar-accent); }
+      .border-sidebar-accent { border-color: var(--apple-sidebar-accent); }
+      .ring-sidebar-accent { --tw-ring-color: var(--apple-sidebar-accent); }
+      .bg-sidebar-accent-foreground { background-color: var(--apple-sidebar-accent-foreground); }
+      .text-sidebar-accent-foreground { color: var(--apple-sidebar-accent-foreground); }
+      .border-sidebar-accent-foreground { border-color: var(--apple-sidebar-accent-foreground); }
+      .ring-sidebar-accent-foreground { --tw-ring-color: var(--apple-sidebar-accent-foreground); }
+    </style>
+    <style>
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      [data-icon] {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-position: center;
+        background-color: currentColor;
+      }
+    </style>
+    <style id="billiards-theme">
+      /* ═══ 台球暗色主题（参考 dark-theme 设计方案）：深灰底 + 台球绿强调 ═══ */
+      /* 页面背景：深灰 + 顶部柔和绿色光晕（模拟台球桌上方吊灯） */
+      html.dark body {
+        background: #1c1c1e;
+        background-image: radial-gradient(ellipse 90% 50% at 50% -8%, rgba(61, 214, 133, 0.07), transparent 60%);
+        background-attachment: fixed;
+      }
+
+      /* 导航栏：毛玻璃 */
+      html.dark .rk-nav {
+        background: rgba(28, 28, 30, 0.85);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border-bottom: 1px solid rgba(58, 58, 60, 0.6);
+      }
+      html.dark .rk-nav .brand { gap: 12px; }
+      html.dark .brand-icon { filter: drop-shadow(0 2px 8px rgba(61, 214, 133, 0.25)); }
+      html.dark .rk-nav .link { border-radius: 999px; transition: all 0.2s ease; }
+      html.dark .rk-nav .link.is-active {
+        background: var(--primary);
+        color: var(--primary-foreground);
+        box-shadow: 0 2px 12px rgba(61, 214, 133, 0.25);
+      }
+
+      /* 会员头像：台球造型 */
+      html.dark .avatar {
+        background: radial-gradient(circle at 35% 30%, #4eb884, #3dd685 50%, #2da065);
+        box-shadow: 0 4px 20px rgba(61, 214, 133, 0.25), inset 0 -4px 8px rgba(0,0,0,0.15);
+        border: 3px solid rgba(255,255,255,0.08);
+      }
+
+      /* 排名徽章 */
+      html.dark .rank-badge {
+        background: rgba(61, 214, 133, 0.12);
+        border: 1px solid rgba(61, 214, 133, 0.25);
+        color: var(--primary);
+        backdrop-filter: blur(8px);
+      }
+
+      /* 统计卡片 */
+      html.dark .stat-card {
+        border-radius: 14px !important;
+        background: linear-gradient(145deg, #2c2c2e, #262628) !important;
+        border: 1px solid rgba(58, 58, 60, 0.5) !important;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.2) !important;
+        transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+      }
+      html.dark .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.3), 0 0 0 1px rgba(61, 214, 133, 0.15) !important;
+      }
+      html.dark .stat-icon {
+        background: rgba(61, 214, 133, 0.12);
+        border: 1px solid rgba(61, 214, 133, 0.2);
+        color: var(--primary);
+        border-radius: 12px;
+      }
+
+      /* 图表容器 */
+      html.dark .chart-container {
+        background: linear-gradient(145deg, #2c2c2e, #262628);
+        border: 1px solid rgba(58, 58, 60, 0.5);
+        border-radius: 14px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+      }
+
+      /* 对战列表 */
+      html.dark .match-list {
+        background: linear-gradient(145deg, #2c2c2e, #262628);
+        border: 1px solid rgba(58, 58, 60, 0.5);
+        border-radius: 14px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+      }
+      html.dark .match-row { transition: background-color 0.15s ease; }
+      html.dark .match-row:hover { background: rgba(61, 214, 133, 0.04); }
+
+      /* 对比表格 */
+      html.dark .h2h-table {
+        background: linear-gradient(145deg, #2c2c2e, #262628);
+        border: 1px solid rgba(58, 58, 60, 0.5);
+        border-radius: 14px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+      }
+      html.dark .h2h-table .c { border-color: rgba(58, 58, 60, 0.5); }
+
+      /* 按钮 */
+      html.dark .btn-primary {
+        background: var(--primary);
+        color: var(--primary-foreground);
+        border-radius: 14px;
+        box-shadow: 0 2px 12px rgba(61, 214, 133, 0.2);
+      }
+      html.dark .btn-primary:hover {
+        filter: brightness(1.08);
+        box-shadow: 0 4px 16px rgba(61, 214, 133, 0.3);
+      }
+      html.dark .btn-secondary {
+        background: var(--secondary);
+        color: var(--secondary-foreground);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+      }
+      html.dark #md-edit { border-radius: 14px; }
+
+      /* Section eyebrow */
+      html.dark .section-eyebrow { color: var(--primary); opacity: 0.85; }
+
+      /* 页脚 */
+      html.dark .site-footer {
+        background: rgba(28, 28, 30, 0.6);
+        border-top: 1px solid rgba(58, 58, 60, 0.5);
+      }
+
+      /* 滚动条 */
+      html.dark ::-webkit-scrollbar { width: 8px; }
+      html.dark ::-webkit-scrollbar-track { background: #1c1c1e; }
+      html.dark ::-webkit-scrollbar-thumb { background: #3a3a3c; border-radius: 4px; }
+      html.dark ::-webkit-scrollbar-thumb:hover { background: #4a4a4c; }
+
+      /* ═══ 主题切换按钮（浅色 / 深色通用） ═══ */
+      .theme-toggle {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        margin-left: 4px;
+        padding: 0;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: var(--card);
+        color: var(--muted-foreground);
+        cursor: pointer;
+        flex: none;
+        transition: background-color .18s ease, color .18s ease, border-color .18s ease, transform .25s ease, box-shadow .18s ease;
+      }
+      .theme-toggle:hover {
+        background: var(--secondary);
+        color: var(--foreground);
+        transform: rotate(15deg);
+      }
+      .theme-toggle:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+      .theme-toggle .icon-sun { display: none; }
+      .theme-toggle .icon-moon { display: inline-flex; }
+      html.dark .theme-toggle {
+        background: #2c2c2e;
+        border-color: rgba(58, 58, 60, 0.6);
+        color: #f5f5f7;
+      }
+      html.dark .theme-toggle:hover {
+        background: #3a3a3c;
+        box-shadow: 0 2px 12px rgba(61, 214, 133, 0.2);
+      }
+      html.dark .theme-toggle .icon-sun { display: inline-flex; }
+      html.dark .theme-toggle .icon-moon { display: none; }
+    </style>
+</head>
+<body class="min-h-screen font-sans antialiased">
+    <main>
+    <style id="critical-layout">
+      body { margin: 0; padding: 12px; background: var(--background); color: var(--foreground); font-family: var(--font-sans); }
+      .page-container { max-width: 1200px; margin: 0 auto; padding: 0 calc(var(--spacing) * 6); }
+
+      /* Nav: unified with rankings page */
+      .rk-nav {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        display: flex;
+        align-items: center;
+        gap: calc(var(--spacing) * 2);
+        width: 100%;
+        height: 52px;
+        padding: 0 max(16px, calc((100% - 1200px) / 2));
+        background: var(--sidebar);
+        border-bottom: 1px solid var(--border);
+        box-shadow: var(--shadow-sm);
+      }
+      .rk-nav .brand {
+        color: var(--foreground);
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 18px;
+        font-weight: 800;
+        letter-spacing: 0.02em;
+      }
+      .brand-icon {
+        width: 30px;
+        height: 30px;
+        flex: none;
+        display: block;
+      }
+      .rk-nav .rail { margin-left: auto; }
+      .rk-nav .link.is-active {
+        background: var(--primary);
+        color: var(--primary-foreground);
+      }
+      .rk-nav .link.is-active:hover { background: var(--primary); }
+      @media (max-width: 600px) {
+        .rk-nav { height: auto; flex-wrap: wrap; padding: 8px 16px; }
+        .rk-nav .rail { margin-left: 0; flex-wrap: wrap; }
+      }
+
+      /* Profile header */
+      .profile-header { display: flex; align-items: center; gap: calc(var(--spacing) * 8); padding: calc(var(--spacing) * 12) 0; flex-wrap: wrap; }
+      .avatar { width: 88px; height: 88px; border-radius: 999px; background: var(--primary); color: var(--primary-foreground); display: flex; align-items: center; justify-content: center; font-size: 36px; font-weight: 700; flex-shrink: 0; }
+      .profile-info { flex: 1; min-width: 240px; }
+      .profile-name { font-size: 28px; font-weight: 700; line-height: 1.2; margin: 0; }
+      .rank-badge { display: inline-flex; align-items: center; gap: calc(var(--spacing) * 1); margin-top: calc(var(--spacing) * 2); padding: calc(var(--spacing) * 1.5) calc(var(--spacing) * 3); border-radius: 999px; background: var(--accent); color: var(--chart-2); font-size: 13px; font-weight: 700; }
+      .rank-badge [data-lucide] { width: 16px; height: 16px; }
+      .profile-meta { display: flex; gap: calc(var(--spacing) * 4); margin-top: calc(var(--spacing) * 2); flex-wrap: wrap; }
+      .profile-meta span { color: var(--muted-foreground); font-size: 13px; }
+      .profile-meta .member-id { font-family: var(--font-mono); }
+
+      /* Stats grid */
+      .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: calc(var(--spacing) * 4); margin-bottom: calc(var(--spacing) * 12); }
+      @media (max-width: 768px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } }
+      .stat-card { width: auto !important; min-height: auto !important; padding: calc(var(--spacing) * 5); display: flex; flex-direction: column; gap: calc(var(--spacing) * 2); }
+      .stat-icon { width: 36px; height: 36px; border-radius: var(--radius-sm); background: var(--accent); color: var(--chart-2); display: flex; align-items: center; justify-content: center; }
+      .stat-icon [data-lucide] { width: 20px; height: 20px; }
+      .stat-label { color: var(--muted-foreground); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 600; }
+      .stat-value { font-family: var(--font-mono); font-size: 32px; font-weight: 700; line-height: 1; color: var(--foreground); margin-top: calc(var(--spacing) * 1); }
+
+      /* Section */
+      .section { margin-bottom: calc(var(--spacing) * 12); }
+      .section-eyebrow { color: var(--muted-foreground); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 700; margin-bottom: calc(var(--spacing) * 4); }
+
+      /* Chart */
+      .chart-container { padding: calc(var(--spacing) * 6); background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-sm); }
+      .chart-wrap { position: relative; height: 320px; }
+
+      /* Match list */
+      .match-list { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-sm); overflow: hidden; }
+      .match-row { display: grid; grid-template-columns: 110px 1fr auto auto 60px; align-items: center; gap: calc(var(--spacing) * 4); padding: calc(var(--spacing) * 4) calc(var(--spacing) * 5); border-bottom: 1px solid var(--border); }
+      .match-row:last-child { border-bottom: none; }
+      .match-date { font-family: var(--font-mono); font-size: 13px; color: var(--muted-foreground); }
+      .match-opponent { font-size: 14px; font-weight: 600; }
+      .match-score { font-family: var(--font-mono); font-size: 16px; font-weight: 700; }
+      .match-result { display: inline-flex; align-items: center; justify-content: center; padding: calc(var(--spacing) * 1) calc(var(--spacing) * 3); border-radius: 999px; font-size: 12px; font-weight: 700; min-width: 40px; }
+      .match-result.win { background: var(--success); color: var(--success-foreground); }
+      .match-result.lose { background: var(--destructive); color: var(--destructive-foreground); }
+      .match-points { font-family: var(--font-mono); font-size: 14px; font-weight: 700; text-align: right; }
+      .match-points.positive { color: var(--success); }
+      .match-points.negative { color: var(--destructive); }
+      @media (max-width: 768px) {
+        .match-row { grid-template-columns: 1fr 1fr; gap: calc(var(--spacing) * 2); padding: calc(var(--spacing) * 3); }
+      }
+
+      /* Comparison table */
+      .h2h-table { grid-template-columns: minmax(90px, 1.2fr) repeat(4, 1fr); }
+      .h2h-table .c { padding: 12px 14px; }
+      .h2h-table .c.h .k { font-size: 12px; color: var(--muted-foreground); }
+      .h2h-table .c.v { font-family: var(--font-mono); font-size: 14px; text-align: center; }
+      .h2h-table .c.opp { font-weight: 700; font-size: 14px; }
+      .h2h-table-wrap { overflow-x: auto; }
+      .h2h-table-wrap .t { min-width: 480px; }
+
+      /* Footer */
+      .site-footer { border-top: 1px solid var(--border); margin-top: calc(var(--spacing) * 16); padding: calc(var(--spacing) * 8) 0; background: var(--card); }
+      .footer-inner { display: flex; align-items: center; justify-content: space-between; gap: calc(var(--spacing) * 4); flex-wrap: wrap; }
+      .footer-brand { font-size: 14px; font-weight: 700; }
+      .footer-links { display: flex; gap: calc(var(--spacing) * 4); flex-wrap: wrap; }
+      .footer-links a { color: var(--muted-foreground); text-decoration: none; font-size: 13px; }
+      .footer-links a:hover { color: var(--primary); }
+      .footer-copy { color: var(--muted-foreground); font-size: 12px; }
+    </style>
+
+    <!-- Top Navigation Bar -->
+    <nav class="webbar rk-nav" aria-label="台球协会主导航">
+      <span class="brand"><svg class="brand-icon" viewBox="0 0 36 36" aria-hidden="true"><rect width="36" height="36" rx="9" style="fill:var(--primary)"/><circle cx="18" cy="18" r="10.5" style="fill:#ffffff"/><circle cx="18" cy="18" r="5" style="fill:var(--primary)"/></svg>台球协会</span>
+      <div class="rail">
+        <a class="link" href="#">积分排行</a>
+        <a class="link" href="#">对战记录</a>
+        <a class="link is-active" href="#" aria-current="page">会员详情</a>
+        <button class="theme-toggle" id="theme-toggle" type="button" aria-label="切换深色/浅色主题" title="切换深色/浅色主题">
+          <i data-lucide="moon" class="icon-moon" style="width:16px;height:16px;"></i>
+          <i data-lucide="sun" class="icon-sun" style="width:16px;height:16px;"></i>
+        </button>
+      </div>
+    </nav>
+
+    <div class="page-container">
+      <!-- Member Profile Header -->
+      <section class="profile-header">
+        <div class="avatar" id="md-avatar">-</div>
+        <div class="profile-info">
+          <h1 class="profile-name" id="md-name">加载中…</h1>
+          <div class="rank-badge" id="md-rank-badge">
+            <i data-lucide="trophy"></i>
+            <span id="md-rank">排名 -</span>
+          </div>
+          <div class="profile-meta" id="md-profile-meta">
+            <span id="md-join"></span>
+            <span class="member-id" id="md-id"></span>
+          </div>
+        </div>
+        <!-- 网页版只读浏览：编辑资料入口隐藏（编辑仅在小程序端进行） -->
+        <button class="btn btn-secondary" id="md-edit" style="display:none;">
+          <i data-lucide="pencil" style="width:16px;height:16px;"></i>
+          编辑资料
+        </button>
+      </section>
+
+      <!-- 未公开信息提示（默认隐藏，infoHidden 时显示） -->
+      <section class="section" id="md-hidden-tip" style="display:none;">
+        <div class="card" style="padding:48px 32px;text-align:center;color:var(--muted-foreground);">该会员未公开个人信息</div>
+      </section>
+
+      <!-- Stats Overview Cards -->
+      <div class="stats-grid" id="md-stats-grid">
+        <article class="card stat-card">
+          <div class="stat-icon"><i data-lucide="star"></i></div>
+          <div>
+            <div class="stat-label">总积分</div>
+            <div class="stat-value" id="md-points">-</div>
+          </div>
+        </article>
+        <article class="card stat-card">
+          <div class="stat-icon"><i data-lucide="bar-chart-3"></i></div>
+          <div>
+            <div class="stat-label">胜场 / 总场次</div>
+            <div class="stat-value" id="md-wins">-</div>
+          </div>
+        </article>
+        <article class="card stat-card">
+          <div class="stat-icon"><i data-lucide="thumbs-up"></i></div>
+          <div>
+            <div class="stat-label">胜率</div>
+            <div class="stat-value" id="md-winrate">-</div>
+          </div>
+        </article>
+        <article class="card stat-card">
+          <div class="stat-icon"><i data-lucide="zap"></i></div>
+          <div>
+            <div class="stat-label">一杆清台</div>
+            <div class="stat-value" id="md-clears">-</div>
+          </div>
+        </article>
+      </div>
+
+      <!-- Points Trend Chart -->
+      <section class="section" id="md-trend-section">
+        <div class="section-eyebrow">积分趋势</div>
+        <div class="chart-container">
+          <div class="chart-wrap">
+            <canvas id="pointsChart"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <!-- Recent Matches -->
+      <section class="section" id="md-matches-section">
+        <div class="section-eyebrow">近期对战</div>
+        <div class="match-list" id="md-matches">
+          <div style="padding:32px;text-align:center;color:var(--muted-foreground);">加载中…</div>
+        </div>
+      </section>
+
+      <!-- Head-to-Head Comparison Table -->
+      <section class="section" id="md-h2h-section">
+        <div class="section-eyebrow">对战记录对比</div>
+        <div class="h2h-table-wrap">
+          <div class="t q h2h-table" id="md-h2h">
+            <div class="c h"><span class="k">对手</span></div>
+            <div class="c h"><span class="k">对战场次</span></div>
+            <div class="c h"><span class="k">胜场</span></div>
+            <div class="c h"><span class="k">负场</span></div>
+            <div class="c h b"><span class="k">胜率</span></div>
+            <div class="c" style="grid-column:1/-1;text-align:center;color:var(--muted-foreground);">加载中…</div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Footer -->
+    <footer class="site-footer">
+      <div class="page-container">
+        <div class="footer-inner">
+          <span class="footer-brand">台球协会</span>
+          <div class="footer-links">
+            <a href="./rules.html">赛事规则</a>
+            <a href="./points.html">积分说明</a>
+            <a href="javascript:void(0)" data-contact-qr role="button">联系我们</a>
+          </div>
+          <span class="footer-copy">© 2026 台球协会. 保留所有权利.</span>
+        </div>
+      </div>
+    </footer>
+
+    </main>
+    <script src="./js/cloud.js?v=20260919c"></script>
+    <script src="./js/fallback-data.js?v=20260919c"></script>
+    <script src="./js/common.js?v=20260919e"></script>
+    <script src="./js/member-detail.js?v=20260919e"></script>
+    <script>lucide.createIcons();</script>
+    <script>
+    /* 主题切换：更新 <html> class + localStorage 记忆，并广播 themechange 事件 */
+    (function () {
+      var btn = document.getElementById('theme-toggle')
+      if (!btn) return
+      btn.addEventListener('click', function () {
+        var root = document.documentElement
+        var next = root.classList.contains('dark') ? 'light' : 'dark'
+        root.classList.remove('light', 'dark')
+        root.classList.add(next)
+        try { localStorage.setItem('billiards-theme', next) } catch (e) {}
+        document.dispatchEvent(new CustomEvent('themechange', { detail: { theme: next } }))
+      })
+    })()
+    </script>
+</body>
+</html>

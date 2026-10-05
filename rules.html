@@ -1,0 +1,1026 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>赛事规则 - 台球协会</title>
+    <script>
+    /* 主题初始化：localStorage 优先，其次跟随系统深浅色偏好（在渲染前执行，避免闪白） */
+    (function () {
+      var saved = null
+      try { saved = localStorage.getItem('billiards-theme') } catch (e) {}
+      var theme = saved === 'dark' || saved === 'light'
+        ? saved
+        : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+      var root = document.documentElement
+      root.classList.remove('light', 'dark')
+      root.classList.add(theme)
+    })()
+    </script>
+    <style id="theme-vars">
+/*
+ * Pinguo design tokens
+ * Brand: Pinguo
+ * Domain: Consumer imaging product
+ * Style: Restrained, elegant, Apple-inspired
+ * Theme mode: light-dark
+ * Source language: zh
+ * Output language: en
+ *
+ * Color architecture (two layers):
+ *   1. Primitive palette - six categories. brand / background / text / icon
+ *      are each a 10-step scale (50 lightest to 900 darkest). state-success and
+ *      state-error are functional colors anchored on Apple system colors.
+ *      Anchors follow Apple Human Interface Guidelines system colors
+ *      (System Blue #007AFF, System Green #34C759, System Red #FF3B30,
+ *      system grays / label / background colors).
+ *   2. Semantic tokens - :root (light) and .dark map roles onto primitives.
+ *      Components and UI kits must only consume the semantic tokens below.
+ */
+
+/* @group-priority: brand, background, text, icon, state-success, state-error */
+
+:root {
+  
+  /* solo-design consumption aliases: explicit prefix for fill-html-head.mjs */
+  --apple-background: var(--background, #ffffff);
+  --apple-foreground: var(--foreground, #0f172a);
+  --apple-card: var(--card, var(--background));
+  --apple-card-foreground: var(--card-foreground, var(--foreground));
+  --apple-popover: var(--popover, var(--card));
+  --apple-popover-foreground: var(--popover-foreground, var(--card-foreground, var(--foreground)));
+  --apple-primary: var(--primary, #111827);
+  --apple-primary-foreground: var(--primary-foreground, #ffffff);
+  --apple-secondary: var(--secondary, var(--muted, var(--card)));
+  --apple-secondary-foreground: var(--secondary-foreground, var(--foreground));
+  --apple-muted: var(--muted, var(--card));
+  --apple-muted-foreground: var(--muted-foreground, var(--foreground));
+  --apple-accent: var(--accent, var(--secondary, var(--muted, var(--card))));
+  --apple-accent-foreground: var(--accent-foreground, var(--foreground));
+  --apple-destructive: var(--destructive, #ef4444);
+  --apple-destructive-foreground: var(--destructive-foreground, #ffffff);
+  --apple-border: var(--border, currentColor);
+  --apple-input: var(--input, var(--border));
+  --apple-ring: var(--ring, var(--primary));
+  --apple-chart-1: var(--chart-1, var(--primary));
+  --apple-chart-2: var(--chart-2, var(--secondary, var(--primary)));
+  --apple-chart-3: var(--chart-3, var(--accent, var(--primary)));
+  --apple-chart-4: var(--chart-4, var(--muted-foreground, var(--foreground)));
+  --apple-chart-5: var(--chart-5, var(--foreground));
+  --apple-sidebar: var(--sidebar, var(--background));
+  --apple-sidebar-foreground: var(--sidebar-foreground, var(--foreground));
+  --apple-sidebar-primary: var(--sidebar-primary, var(--primary));
+  --apple-sidebar-primary-foreground: var(--sidebar-primary-foreground, var(--primary-foreground));
+  --apple-sidebar-accent: var(--sidebar-accent, var(--accent, var(--muted, var(--card))));
+  --apple-sidebar-accent-foreground: var(--sidebar-accent-foreground, var(--accent-foreground, var(--foreground)));
+  --apple-sidebar-border: var(--sidebar-border, var(--border));
+  --apple-sidebar-ring: var(--ring, var(--primary));
+  --apple-radius: var(--radius, 1.2rem);
+  --apple-radius-sm: var(--radius-sm, 0.6rem);
+  --apple-radius-md: var(--radius-md, 1.2rem);
+  --apple-radius-lg: var(--radius-lg, 2rem);
+
+/* ===== PRIMITIVE PALETTE ===== */
+
+  /* brand */
+  --brand-50: #e8f2ff;
+  --brand-100: #cfe5ff;
+  --brand-200: #9fcbff;
+  --brand-300: #66abff;
+  --brand-400: #2e8dff;
+  --brand-500: #007aff; /* @primary */
+  --brand-600: #0064d6;
+  --brand-700: #004fad;
+  --brand-800: #003b82;
+  --brand-900: #00275a;
+
+  /* background */
+  --background-50: #ffffff;
+  --background-100: #f7f7fa;
+  --background-200: #f2f2f7;
+  --background-300: #e5e5ea;
+  --background-400: #d1d1d6;
+  --background-500: #aeaeb2;
+  --background-600: #8e8e93;
+  --background-700: #3a3a3c;
+  --background-800: #1c1c1e;
+  --background-900: #000000;
+
+  /* text */
+  --text-50: #f5f5f7;
+  --text-100: #e3e3e8;
+  --text-200: #c7c7cc;
+  --text-300: #aeaeb2;
+  --text-400: #8e8e93;
+  --text-500: #6e6e73;
+  --text-600: #48484a;
+  --text-700: #3c3c43;
+  --text-800: #1d1d1f;
+  --text-900: #000000;
+
+  /* icon */
+  --icon-50: #f5f5f7;
+  --icon-100: #e5e5ea;
+  --icon-200: #d1d1d6;
+  --icon-300: #c7c7cc;
+  --icon-400: #aeaeb2;
+  --icon-500: #8e8e93;
+  --icon-600: #6e6e73;
+  --icon-700: #48484a;
+  --icon-800: #2c2c2e;
+  --icon-900: #1d1d1f;
+
+  /* state-success */
+  --state-success: #34c759; /* @primary */
+  --state-success-dark: #30d158;
+  --state-success-surface: #e9f9ee;
+  --state-success-foreground: #ffffff;
+
+  /* state-error */
+  --state-error: #ff3b30; /* @primary */
+  --state-error-dark: #ff453a;
+  --state-error-surface: #ffecea;
+  --state-error-foreground: #ffffff;
+
+  /* ===== SEMANTIC ROLES ===== */
+
+  /* semantic */
+  --background: var(--background-50);
+  --foreground: var(--text-800);
+  --card: var(--background-50);
+  --card-foreground: var(--text-800);
+  --popover: var(--background-50);
+  --popover-foreground: var(--text-900);
+
+  --primary: var(--brand-500);
+  --primary-foreground: var(--background-50);
+  --secondary: var(--background-200);
+  --secondary-foreground: var(--text-800);
+  --muted: var(--background-200);
+  --muted-foreground: var(--text-400);
+  --accent: var(--background-100);
+  --accent-foreground: var(--text-800);
+  --destructive: var(--state-error);
+  --destructive-foreground: var(--state-error-foreground);
+  --success: var(--state-success);
+  --success-foreground: var(--state-success-foreground);
+  --border: var(--background-300);
+  --input: var(--background-400);
+  --ring: var(--brand-500);
+
+  --icon: var(--icon-900);
+  --icon-muted: var(--icon-500);
+
+  /* chart */
+  --chart-1: var(--state-success);
+  --chart-2: var(--brand-500);
+  --chart-3: #ff9500;
+  --chart-4: #5856d6;
+  --chart-5: #af52de;
+
+  /* sidebar */
+  --sidebar: var(--background-200);
+  --sidebar-foreground: var(--text-800);
+  --sidebar-primary: var(--brand-500);
+  --sidebar-primary-foreground: var(--background-50);
+  --sidebar-accent: var(--background-300);
+  --sidebar-accent-foreground: var(--text-800);
+  --sidebar-border: var(--background-300);
+  --sidebar-ring: var(--brand-500);
+
+  /* TYPOGRAPHY */
+  --font-sans: DM Sans, ui-sans-serif, sans-serif, system-ui;
+  --font-serif: DM Sans, ui-sans-serif, sans-serif, system-ui;
+  --font-mono: JetBrains Mono, monospace;
+  --tracking-normal: 0em;
+
+  /* RADIUS */
+  --radius: 1.2rem;
+  --radius-sm: 0.6rem;
+  --radius-md: 1.2rem;
+  --radius-lg: 2rem;
+
+  /* SHADOWS */
+  --shadow-2xs: 0 1px 2px -1px rgba(0, 0, 0, 0.04); /* Hairline */
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.04); /* Subtle */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05), 0 1px 3px -1px rgba(0, 0, 0, 0.05); /* Card */
+  --shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.06), 0 1px 2px -1px rgba(0, 0, 0, 0.05); /* Raised */
+  --shadow-md: 0 4px 8px -2px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.05); /* Card Hover */
+  --shadow-lg: 0 8px 24px -8px rgba(0, 0, 0, 0.08), 0 4px 8px -4px rgba(0, 0, 0, 0.05); /* Float */
+  --shadow-xl: 0 16px 40px -10px rgba(0, 0, 0, 0.10), 0 8px 16px -8px rgba(0, 0, 0, 0.06); /* Overlay */
+  --shadow-2xl: 0 24px 64px -12px rgba(0, 0, 0, 0.12); /* Modal */
+
+  /* SPACING */
+  --spacing: 0.24rem;
+}
+
+/* ===== SEMANTIC ROLES - dark（台球绿暗色主题，参考 dark-theme 设计方案） ===== */
+.dark {
+  --background: #1c1c1e;
+  --foreground: #f5f5f7;
+  --card: #2c2c2e;
+  --card-foreground: #f5f5f7;
+  --popover: #3a3a3c;
+  --popover-foreground: #f5f5f7;
+  --primary: #3dd685;
+  --primary-foreground: #0a1f14;
+  --secondary: #2c2c2e;
+  --secondary-foreground: #e5e5ea;
+  --muted: #2c2c2e;
+  --muted-foreground: #8e8e93;
+  --accent: #3a3a3c;
+  --accent-foreground: #e5e5ea;
+  --destructive: #ff453a;
+  --destructive-foreground: #ffffff;
+  --success: #30d158;
+  --success-foreground: #ffffff;
+  --border: #3a3a3c;
+  --input: #3a3a3c;
+  --ring: #3dd685;
+  --icon: #f5f5f7;
+  --icon-muted: #8e8e93;
+  --chart-1: #30d158;
+  --chart-2: #3dd685;
+  --chart-3: #ff9f0a;
+  --chart-4: #5e5ce6;
+  --chart-5: #bf5af2;
+  --sidebar: #1c1c1e;
+  --sidebar-foreground: #f5f5f7;
+  --sidebar-primary: #3dd685;
+  --sidebar-primary-foreground: #0a1f14;
+  --sidebar-accent: #2c2c2e;
+  --sidebar-accent-foreground: #e5e5ea;
+  --sidebar-border: #3a3a3c;
+  --sidebar-ring: #3dd685;
+  --shadow-2xs: 0 1px 2px -1px rgba(0,0,0,0.25);
+  --shadow-xs: 0 1px 2px 0 rgba(0,0,0,0.25);
+  --shadow-sm: 0 1px 3px 0 rgba(0,0,0,0.3), 0 1px 2px -1px rgba(0,0,0,0.2);
+  --shadow: 0 2px 6px -1px rgba(0,0,0,0.3), 0 1px 3px -1px rgba(0,0,0,0.2);
+  --shadow-md: 0 4px 12px -2px rgba(0,0,0,0.35), 0 2px 6px -2px rgba(0,0,0,0.25);
+  --shadow-lg: 0 12px 28px -8px rgba(0,0,0,0.4), 0 6px 12px -4px rgba(0,0,0,0.3);
+  --shadow-xl: 0 16px 40px -10px rgba(0,0,0,0.45), 0 8px 16px -8px rgba(0,0,0,0.35);
+  --shadow-2xl: 0 24px 56px -12px rgba(0,0,0,0.5);
+}
+
+    </style>
+    <style id="component-vars">
+/* ═══════════════════════════════════════════════════════════════
+   components.css — Design System Component Definitions
+   Auto-extracted from preview/component-*.html
+   DO NOT EDIT MANUALLY — regenerate via extract-components-css.mjs
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Button ────────────────────────────────────────────────── */
+/* @anatomy
+   <div class="row"><span class="label">Primary 56</span><button class="btn btn-primary btn-lg">Buy now</button><button class="btn btn-primary btn-lg" disabled>Buy now</button></div>
+   <hr class="divider">
+   <div class="row"><span class="label">Secondary 48</span><button class="btn btn-secondary">Shop the latest</button><button class="btn btn-secondary" disabled>Shop the latest</button></div>
+   <div class="row"><span class="label">Text 48</span><button class="btn btn-text">Learn more ›</button><button class="btn btn-text" disabled>Learn more ›</button></div>
+*/
+body{margin:0;padding:12px;background:var(--background);color:var(--foreground);font-family:var(--font-sans);letter-spacing:var(--tracking-normal)}.row{display:flex;align-items:center;gap:calc(var(--spacing)*3);flex-wrap:wrap;margin:0 0 calc(var(--spacing)*3)}.label{min-width:72px;color:var(--muted-foreground);font:600 10px/1 var(--font-mono);letter-spacing:.12em;text-transform:uppercase}.btn{display:inline-flex;align-items:center;justify-content:center;gap:calc(var(--spacing)*1.5);height:40px;padding:0 20px;border:none;border-radius:calc(var(--radius)*2);background:transparent;color:var(--foreground);font:600 14px/1 var(--font-sans);letter-spacing:var(--tracking-normal);white-space:nowrap;box-shadow:var(--shadow-sm);cursor:pointer;transition:background-color .18s ease,color .18s ease,opacity .18s ease,filter .18s ease}.btn:focus-visible{outline:2px solid var(--ring);outline-offset:2px}.btn:disabled{opacity:.42;cursor:not-allowed}.btn-primary{background:var(--primary);color:var(--primary-foreground)}.btn-primary:hover{filter:brightness(.96)}.btn-secondary{height:48px;padding:0 24px;background:var(--secondary);color:var(--secondary-foreground)}.btn-secondary:hover{background:var(--muted)}.btn-text{height:48px;padding:0 4px;box-shadow:none}.btn-text:hover{color:var(--primary)}.btn-lg{height:56px;padding:0 28px;font-size:16px}.divider{border:0;border-top:1px solid var(--border);margin:calc(var(--spacing)*4) 0}
+
+/* ── Card ──────────────────────────────────────────────────── */
+/* @anatomy
+   <div class="row">
+   <span class="label">Info</span>
+   <article class="card">
+   <div><div class="eyebrow">Pinguo Apple</div><h1 class="title">Built for creators</h1><p class="body-copy">A calm surface for comparing cameras, storage tiers, and bundle benefits across the ecosystem.</p></div>
+   <a class="cta" href="#">Compare models</a>
+   </article>
+   <article class="card disabled" aria-disabled="true">
+   <div><div class="eyebrow">Campus Store</div><h1 class="title">Education pricing</h1><p class="body-copy">Student bundles stay visible while unavailable purchase actions remain clearly disabled.</p></div>
+   <span class="cta">Compare models</span>
+   </article>
+   </div>
+   <hr class="divider">
+   <div class="row">
+   <span class="label">Media</span>
+   <article class="card media-card">
+   <div class="media"></div>
+   <div><div class="meta">Creator bundle</div><h1 class="title">Studio kit with Lens Sync</h1><div class="price">From $799 with Education pricing</div></div>
+   </article>
+   <article class="card media-card dark">
+   <div class="media"></div>
+   <div><div class="meta">Consumer imaging ecosystem</div><h1 class="title">Built for creators</h1><div class="price">Compare models across camera, app, and cloud plans</div></div>
+   </article>
+   </div>
+*/
+body{margin:0;padding:12px;background:var(--background);color:var(--foreground);font:500 14px/1.45 var(--font-sans);letter-spacing:var(--tracking-normal)}.row{display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap}.label{width:72px;padding-top:10px;color:var(--muted-foreground);font:700 10px/1 var(--font-sans);letter-spacing:.12em;text-transform:uppercase}.divider{margin:12px 0;border:0;border-top:1px solid var(--border)}.card{width:188px;min-height:148px;padding:calc(var(--spacing)*5);display:flex;flex-direction:column;justify-content:space-between;background:var(--card);color:var(--card-foreground);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-md);transition:transform .18s ease,box-shadow .18s ease}.card:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg)}.card.disabled,.card.disabled:hover{opacity:.5;transform:none;box-shadow:var(--shadow-md)}.eyebrow,.meta{color:var(--muted-foreground);font-size:11px;letter-spacing:.08em;text-transform:uppercase}.title{margin:6px 0 8px;font-size:18px;line-height:1.15}.body-copy{margin:0;color:var(--muted-foreground);font-size:13px}.cta{display:inline-flex;align-items:center;justify-content:center;width:max-content;margin-top:12px;padding:calc(var(--spacing)*2) calc(var(--spacing)*3.5);border-radius:999px;background:var(--primary);color:var(--primary-foreground);font-size:12px;font-weight:700;text-decoration:none}.media{aspect-ratio:4/3;border-radius:calc(var(--radius) - 4px);background:linear-gradient(135deg,var(--secondary),var(--accent));border:1px solid var(--border)}.media-card{min-height:212px;padding:calc(var(--spacing)*4)}.media-card .title{font-size:16px;margin:10px 0 6px}.price{font-size:12px;color:var(--muted-foreground)}.dark{background:var(--card);color:var(--card-foreground)}
+
+/* ── Comparison Table ──────────────────────────────────────── */
+/* @anatomy
+   <div class="row"><span class="label">Default</span><div class="t"><div class="c m">Compare models</div><div class="c h"><span class="k">Mini</span><span class="s">Pinguo Apple</span></div><div class="c h"><span class="k">Air</span><span class="s">Popular</span></div><div class="c h b"><span class="k">Pro</span><span class="s">Creator</span></div><div class="c m">Battery life</div><div class="c v">12h</div><div class="c v">16h</div><div class="c v">20h</div><div class="c m">Storage</div><div class="c v">256GB</div><div class="c v">512GB</div><div class="c v">1TB</div><div class="c m">Camera system</div><div class="c n">Dual</div><div class="c n">48MP</div><div class="c n">48MP+T</div></div><div class="t x" aria-disabled="true"><div class="c m">Compare models</div><div class="c h"><span class="k">Mini</span><span class="s">Pinguo Apple</span></div><div class="c h"><span class="k">Air</span><span class="s">Popular</span></div><div class="c h b"><span class="k">Pro</span><span class="s">Creator</span></div><div class="c m">Battery life</div><div class="c v">12h</div><div class="c v">16h</div><div class="c v">20h</div><div class="c m">Storage</div><div class="c v">256GB</div><div class="c v">512GB</div><div class="c v">1TB</div><div class="c m">Camera system</div><div class="c n">Dual</div><div class="c n">48MP</div><div class="c n">48MP+T</div></div></div>
+   <hr class="divider">
+   <div class="row"><span class="label">Compact</span><div class="t q dark"><div class="c m">Compare models</div><div class="c h"><span class="k">Mini</span></div><div class="c h"><span class="k">Air</span></div><div class="c h b"><span class="k">Pro</span></div><div class="c h"><span class="k">Ultra</span></div><div class="c m">Battery life</div><div class="c v">12h</div><div class="c v">16h</div><div class="c v">20h</div><div class="c v">24h</div><div class="c m">Storage</div><div class="c v">256GB</div><div class="c v">512GB</div><div class="c v">1TB</div><div class="c v">2TB</div><div class="c m">Camera system</div><div class="c n">Dual</div><div class="c n">48MP</div><div class="c n">48MP+T</div><div class="c n">Triple</div></div></div>
+*/
+body{margin:0;padding:12px;background:var(--background);color:var(--foreground);font:500 13px/1.4 var(--font-sans);letter-spacing:var(--tracking-normal)}.row{display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:8px}.label{width:72px;padding-top:10px;color:var(--muted-foreground);font:700 10px/1 var(--font-mono);letter-spacing:.12em;text-transform:uppercase}.divider{margin:12px 0;border:0;border-top:1px solid var(--border)}.t{display:grid;grid-template-columns:96px repeat(3,1fr);overflow:hidden;border:1px solid var(--border);border-radius:var(--radius);background:var(--card);color:var(--card-foreground);box-shadow:var(--shadow-sm)}.q{grid-template-columns:82px repeat(4,1fr)}.c{padding:10px;border-right:1px solid var(--border);border-bottom:1px solid var(--border)}.t>.c:nth-child(4n),.q>.c:nth-child(5n){border-right:0}.t>.c:nth-last-child(-n+4),.q>.c:nth-last-child(-n+5){border-bottom:0}.m{background:var(--background);color:var(--muted-foreground);font:700 10px/1 var(--font-mono);letter-spacing:.12em;text-transform:uppercase}.h{background:var(--background);font-weight:700}.k{display:block;font-size:14px;line-height:1.1}.s{display:block;margin-top:4px;color:var(--chart-2);font-size:11px;font-weight:700}.b .k{color:var(--chart-2)}.v{font-weight:600}.n{color:var(--muted-foreground);font-size:12px}.x{opacity:.45}
+
+/* ── Input ─────────────────────────────────────────────────── */
+/* @anatomy
+   <div class="row">
+   <span class="label">Search 44</span>
+   <div class="field">
+   <span class="icon">⌕</span>
+   <input class="control" aria-label="Search products" placeholder="Search products">
+   <button class="clear" type="button" aria-label="Clear search">×</button>
+   </div>
+   <div class="field disabled">
+   <span class="icon">⌕</span>
+   <input class="control" aria-label="Search products disabled" placeholder="Search products" disabled>
+   <button class="clear" type="button" aria-label="Clear search disabled" disabled>×</button>
+   </div>
+   </div>
+   <hr class="divider">
+   <div class="row">
+   <span class="label">Dark 40</span>
+   <div class="surface dark">
+   <div class="field small">
+   <input class="control" aria-label="Email address" placeholder="Email address">
+   </div>
+   </div>
+   <div class="surface dark">
+   <div class="field small disabled">
+   <input class="control" aria-label="Track your order disabled" placeholder="Track your order" disabled>
+   </div>
+   </div>
+   </div>
+*/
+body{margin:0;padding:12px;background:var(--background);color:var(--foreground);font:500 13px/1.4 var(--font-sans)}.row{display:flex;align-items:center;gap:calc(var(--spacing)*3);flex-wrap:wrap;margin-bottom:8px}.label{min-width:58px;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted-foreground)}.divider{border:0;border-top:1px solid var(--border);margin:10px 0}.surface{display:flex;gap:calc(var(--spacing)*2);padding:calc(var(--spacing)*3);border:1px solid var(--border);border-radius:var(--radius);background:var(--card);box-shadow:var(--shadow-sm)}.dark{background:var(--background);color:var(--foreground)}.field{display:flex;align-items:center;gap:calc(var(--spacing)*2);min-width:240px;height:44px;padding:0 calc(var(--spacing)*3);border:1px solid var(--input);border-radius:var(--radius);background:var(--background);color:var(--foreground);box-shadow:var(--shadow-xs)}.field.small{height:40px}.field:focus-within{border-color:var(--ring);box-shadow:0 0 0 1px var(--ring)}.field.disabled{opacity:.55}.icon,.clear{padding:0;border:0;background:transparent;color:var(--icon-muted);font:inherit}.icon{font-size:13px}.control{flex:1;border:0;outline:0;background:transparent;color:inherit;font:inherit}.control::placeholder{color:var(--muted-foreground)}
+
+/* ── Navigation ────────────────────────────────────────────── */
+/* @anatomy
+   <div class="row"><span class="label">Global 44</span><nav class="webbar dark" aria-label="Pinguo Apple global navigation"><span class="brand">Pinguo Apple</span><div class="rail"><a class="link" href="#">Store</a><a class="link" href="#">Explore</a><a class="link" href="#">Community</a><a class="link" href="#">Support</a></div></nav><nav class="webbar dark disabled" aria-label="Pinguo Apple global navigation disabled"><span class="brand">Pinguo Apple</span><div class="rail"><span class="link">Store</span><span class="link">Explore</span><span class="link">Community</span><span class="link">Support</span></div></nav></div>
+   <hr class="divider">
+   <div class="row"><span class="label">Tab Bar</span><div class="mobile"><div class="screen"><nav class="tabbar" aria-label="Pinguo Apple tab bar"><a class="tab" href="#"><span class="dot"></span><span>Store</span></a><a class="tab" href="#"><span class="dot"></span><span>Explore</span></a><a class="tab" href="#"><span class="dot"></span><span>Community</span></a><a class="tab" href="#"><span class="dot"></span><span>Support</span></a></nav></div></div><div class="mobile disabled"><div class="screen"><nav class="tabbar" aria-label="Pinguo Apple tab bar disabled"><span class="tab"><span class="dot"></span><span>Store</span></span><span class="tab"><span class="dot"></span><span>Explore</span></span><span class="tab"><span class="dot"></span><span>Community</span></span><span class="tab"><span class="dot"></span><span>Support</span></span></nav></div></div></div>
+*/
+body{margin:0;padding:12px;background:var(--background);color:var(--foreground);font:500 13px/1.4 var(--font-sans);letter-spacing:var(--tracking-normal)}.row{display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:8px}.label{width:72px;padding-top:10px;color:var(--muted-foreground);font:700 10px/1 var(--font-mono);letter-spacing:.12em;text-transform:uppercase}.divider{margin:12px 0;border:0;border-top:1px solid var(--border)}.webbar,.mobile{border:1px solid var(--border);box-shadow:var(--shadow-sm)}.webbar{display:flex;align-items:center;gap:calc(var(--spacing)*2);min-width:320px;height:44px;padding:0 calc(var(--spacing)*3);border-radius:var(--radius);background:var(--sidebar)}.brand{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}.rail{display:flex;gap:calc(var(--spacing)*1.5);margin-left:auto}.link,.tab{display:inline-flex;align-items:center;justify-content:center;border-radius:999px;color:inherit;text-decoration:none;white-space:nowrap;transition:background-color .18s ease,color .18s ease,opacity .18s ease}.link{height:32px;padding:0 calc(var(--spacing)*2.5)}.link:hover,.tab:hover{background:var(--secondary)}.link:focus-visible,.tab:focus-visible{outline:2px solid var(--ring);outline-offset:2px}.dark{background:var(--sidebar);color:var(--foreground)}.disabled{opacity:.48}.disabled .link,.disabled .tab{pointer-events:none}.mobile{padding:calc(var(--spacing)*2);border-radius:calc(var(--radius)*1.1);background:var(--card)}.screen{display:flex;align-items:flex-end;justify-content:center;width:188px;height:164px;padding:calc(var(--spacing)*3);border-radius:calc(var(--radius)*.9);background:linear-gradient(180deg,var(--background),var(--secondary))}.tabbar{display:flex;gap:calc(var(--spacing)*1.5);padding:calc(var(--spacing)*1.5);border:1px solid var(--border);border-radius:999px;background:var(--card);box-shadow:var(--shadow-md)}.tab{flex-direction:column;gap:2px;min-width:56px;height:56px;padding:0 calc(var(--spacing)*1.5);font-size:11px;text-align:center}.dot{width:18px;height:18px;border-radius:999px;background:var(--secondary);box-shadow:inset 0 0 0 1px var(--border)}.tab:hover .dot{background:var(--primary)}
+
+/* ── Product Grid ──────────────────────────────────────────── */
+/* @anatomy
+   <div class="row">
+   <span class="label">4-up</span>
+   <div class="grid grid-4">
+   <article class="card"><div class="media"></div><span class="eyebrow">New this season</span><strong class="title">Pinguo Lens Pro</strong><span class="price">From $999</span><a class="cta" href="/">Compare all models</a></article>
+   <article class="card"><div class="media"></div><span class="eyebrow">Creator kit</span><strong class="title">Pinguo Air Cam</strong><span class="price">From $749</span><a class="cta" href="/">Build your setup</a></article>
+   <article class="card"><div class="media"></div><span class="eyebrow">Studio ready</span><strong class="title">Pinguo Dock One</strong><span class="price">From $299</span><a class="cta" href="/">See accessories</a></article>
+   <article class="card is-disabled"><div class="media"></div><span class="eyebrow">Coming soon</span><strong class="title">Pinguo Vision Mini</strong><span class="price muted">Notify me</span><span class="cta">Unavailable</span></article>
+   </div>
+   </div>
+   <hr class="divider">
+   <div class="row">
+   <span class="label">Story</span>
+   <div class="grid grid-2">
+   <article class="card story"><div class="media"></div><span class="eyebrow">Consumer imaging product ecosystem</span><strong class="title">Travel light with one camera, one dock, and one cloud-ready edit flow.</strong><span class="price muted">Pinguo Apple picks for weekend shoots</span><a class="cta" href="/">Shop the story</a></article>
+   <article class="card story"><div class="media"></div><span class="eyebrow">Compare lineup</span><strong class="title">Choose between compact capture, pro optics, and desktop-grade finishing tools.</strong><span class="price muted">Made for photo-first households</span><a class="cta" href="/">Compare all models</a></article>
+   </div>
+   </div>
+*/
+body{margin:0;padding:12px;background:var(--background);color:var(--foreground);font:500 14px/1.4 var(--font-sans)}.row{display:flex;align-items:flex-start;gap:8px;margin-bottom:8px}.label{width:72px;padding-top:6px;color:var(--muted-foreground);font-size:10px;letter-spacing:.12em;text-transform:uppercase;flex:0 0 auto}.grid{display:grid;gap:8px;flex:1}.grid-4{grid-template-columns:repeat(4,minmax(0,1fr))}.grid-2{grid-template-columns:repeat(2,minmax(0,1fr))}.card{display:flex;flex-direction:column;gap:8px;padding:10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--card);color:var(--card-foreground);box-shadow:var(--shadow-xs);transition:border-color .2s ease,transform .2s ease}.card:hover{border-color:var(--primary);transform:translateY(-1px)}.media{aspect-ratio:1;border-radius:calc(var(--radius) - 4px);background:linear-gradient(135deg,var(--secondary),var(--background));border:1px solid var(--border)}.story .media{aspect-ratio:1.25;background:linear-gradient(135deg,var(--foreground),var(--secondary))}.eyebrow{color:var(--muted-foreground);font-size:10px;letter-spacing:.08em;text-transform:uppercase}.title{font-size:15px;line-height:1.25}.price{font-variant-numeric:tabular-nums}.cta{display:inline-flex;align-self:flex-start;padding:7px 10px;border-radius:999px;background:var(--primary);color:var(--primary-foreground);font-size:12px;text-decoration:none}.muted{color:var(--muted-foreground)}.is-disabled{opacity:.55}.divider{margin:10px 0;border:0;border-top:1px solid var(--border)}
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.1/dist/index.global.js"></script>
+    <script src="https://unpkg.com/lucide@1.8.0/dist/umd/lucide.min.js"></script>
+    <style type="text/tailwindcss">
+  @theme inline {
+    --color-background: var(--apple-background);
+    --color-foreground: var(--apple-foreground);
+    --color-card: var(--apple-card);
+    --color-card-foreground: var(--apple-card-foreground);
+    --color-popover: var(--apple-popover);
+    --color-popover-foreground: var(--apple-popover-foreground);
+    --color-primary: var(--apple-primary);
+    --color-primary-foreground: var(--apple-primary-foreground);
+    --color-secondary: var(--apple-secondary);
+    --color-secondary-foreground: var(--apple-secondary-foreground);
+    --color-muted: var(--apple-muted);
+    --color-muted-foreground: var(--apple-muted-foreground);
+    --color-accent: var(--apple-accent);
+    --color-accent-foreground: var(--apple-accent-foreground);
+    --color-destructive: var(--apple-destructive);
+    --color-destructive-foreground: var(--apple-destructive-foreground);
+    --color-border: var(--apple-border);
+    --color-input: var(--apple-input);
+    --color-ring: var(--apple-ring);
+    --color-chart-1: var(--apple-chart-1);
+    --color-chart-2: var(--apple-chart-2);
+    --color-chart-3: var(--apple-chart-3);
+    --color-chart-4: var(--apple-chart-4);
+    --color-chart-5: var(--apple-chart-5);
+    --color-sidebar: var(--apple-sidebar);
+    --color-sidebar-foreground: var(--apple-sidebar-foreground);
+    --color-sidebar-primary: var(--apple-sidebar-primary);
+    --color-sidebar-primary-foreground: var(--apple-sidebar-primary-foreground);
+    --color-sidebar-accent: var(--apple-sidebar-accent);
+    --color-sidebar-accent-foreground: var(--apple-sidebar-accent-foreground);
+    --radius-sm: var(--apple-radius-sm);
+    --radius-md: var(--apple-radius-md);
+    --radius-lg: var(--apple-radius-lg);
+  }
+  @layer base {
+    body { background: var(--apple-background); color: var(--apple-foreground); }
+    td, th { @apply break-words; word-break: break-all; word-break: auto-phrase; }
+    th { @apply whitespace-nowrap; }
+  }
+    </style>
+    <style id="semantic-token-fallback">
+      .bg-background { background-color: var(--apple-background); }
+      .text-background { color: var(--apple-background); }
+      .border-background { border-color: var(--apple-background); }
+      .ring-background { --tw-ring-color: var(--apple-background); }
+      .bg-foreground { background-color: var(--apple-foreground); }
+      .text-foreground { color: var(--apple-foreground); }
+      .border-foreground { border-color: var(--apple-foreground); }
+      .ring-foreground { --tw-ring-color: var(--apple-foreground); }
+      .bg-card { background-color: var(--apple-card); }
+      .text-card { color: var(--apple-card); }
+      .border-card { border-color: var(--apple-card); }
+      .ring-card { --tw-ring-color: var(--apple-card); }
+      .bg-card-foreground { background-color: var(--apple-card-foreground); }
+      .text-card-foreground { color: var(--apple-card-foreground); }
+      .border-card-foreground { border-color: var(--apple-card-foreground); }
+      .ring-card-foreground { --tw-ring-color: var(--apple-card-foreground); }
+      .bg-popover { background-color: var(--apple-popover); }
+      .text-popover { color: var(--apple-popover); }
+      .border-popover { border-color: var(--apple-popover); }
+      .ring-popover { --tw-ring-color: var(--apple-popover); }
+      .bg-popover-foreground { background-color: var(--apple-popover-foreground); }
+      .text-popover-foreground { color: var(--apple-popover-foreground); }
+      .border-popover-foreground { border-color: var(--apple-popover-foreground); }
+      .ring-popover-foreground { --tw-ring-color: var(--apple-popover-foreground); }
+      .bg-primary { background-color: var(--apple-primary); }
+      .text-primary { color: var(--apple-primary); }
+      .border-primary { border-color: var(--apple-primary); }
+      .ring-primary { --tw-ring-color: var(--apple-primary); }
+      .bg-primary-foreground { background-color: var(--apple-primary-foreground); }
+      .text-primary-foreground { color: var(--apple-primary-foreground); }
+      .border-primary-foreground { border-color: var(--apple-primary-foreground); }
+      .ring-primary-foreground { --tw-ring-color: var(--apple-primary-foreground); }
+      .bg-secondary { background-color: var(--apple-secondary); }
+      .text-secondary { color: var(--apple-secondary); }
+      .border-secondary { border-color: var(--apple-secondary); }
+      .ring-secondary { --tw-ring-color: var(--apple-secondary); }
+      .bg-secondary-foreground { background-color: var(--apple-secondary-foreground); }
+      .text-secondary-foreground { color: var(--apple-secondary-foreground); }
+      .border-secondary-foreground { border-color: var(--apple-secondary-foreground); }
+      .ring-secondary-foreground { --tw-ring-color: var(--apple-secondary-foreground); }
+      .bg-muted { background-color: var(--apple-muted); }
+      .text-muted { color: var(--apple-muted); }
+      .border-muted { border-color: var(--apple-muted); }
+      .ring-muted { --tw-ring-color: var(--apple-muted); }
+      .bg-muted-foreground { background-color: var(--apple-muted-foreground); }
+      .text-muted-foreground { color: var(--apple-muted-foreground); }
+      .border-muted-foreground { border-color: var(--apple-muted-foreground); }
+      .ring-muted-foreground { --tw-ring-color: var(--apple-muted-foreground); }
+      .bg-accent { background-color: var(--apple-accent); }
+      .text-accent { color: var(--apple-accent); }
+      .border-accent { border-color: var(--apple-accent); }
+      .ring-accent { --tw-ring-color: var(--apple-accent); }
+      .bg-accent-foreground { background-color: var(--apple-accent-foreground); }
+      .text-accent-foreground { color: var(--apple-accent-foreground); }
+      .border-accent-foreground { border-color: var(--apple-accent-foreground); }
+      .ring-accent-foreground { --tw-ring-color: var(--apple-accent-foreground); }
+      .bg-destructive { background-color: var(--apple-destructive); }
+      .text-destructive { color: var(--apple-destructive); }
+      .border-destructive { border-color: var(--apple-destructive); }
+      .ring-destructive { --tw-ring-color: var(--apple-destructive); }
+      .bg-destructive-foreground { background-color: var(--apple-destructive-foreground); }
+      .text-destructive-foreground { color: var(--apple-destructive-foreground); }
+      .border-destructive-foreground { border-color: var(--apple-destructive-foreground); }
+      .ring-destructive-foreground { --tw-ring-color: var(--apple-destructive-foreground); }
+      .bg-border { background-color: var(--apple-border); }
+      .text-border { color: var(--apple-border); }
+      .border-border { border-color: var(--apple-border); }
+      .ring-border { --tw-ring-color: var(--apple-border); }
+      .bg-input { background-color: var(--apple-input); }
+      .text-input { color: var(--apple-input); }
+      .border-input { border-color: var(--apple-input); }
+      .ring-input { --tw-ring-color: var(--apple-input); }
+      .bg-ring { background-color: var(--apple-ring); }
+      .text-ring { color: var(--apple-ring); }
+      .border-ring { border-color: var(--apple-ring); }
+      .ring-ring { --tw-ring-color: var(--apple-ring); }
+      .bg-chart-1 { background-color: var(--apple-chart-1); }
+      .text-chart-1 { color: var(--apple-chart-1); }
+      .border-chart-1 { border-color: var(--apple-chart-1); }
+      .ring-chart-1 { --tw-ring-color: var(--apple-chart-1); }
+      .bg-chart-2 { background-color: var(--apple-chart-2); }
+      .text-chart-2 { color: var(--apple-chart-2); }
+      .border-chart-2 { border-color: var(--apple-chart-2); }
+      .ring-chart-2 { --tw-ring-color: var(--apple-chart-2); }
+      .bg-chart-3 { background-color: var(--apple-chart-3); }
+      .text-chart-3 { color: var(--apple-chart-3); }
+      .border-chart-3 { border-color: var(--apple-chart-3); }
+      .ring-chart-3 { --tw-ring-color: var(--apple-chart-3); }
+      .bg-chart-4 { background-color: var(--apple-chart-4); }
+      .text-chart-4 { color: var(--apple-chart-4); }
+      .border-chart-4 { border-color: var(--apple-chart-4); }
+      .ring-chart-4 { --tw-ring-color: var(--apple-chart-4); }
+      .bg-chart-5 { background-color: var(--apple-chart-5); }
+      .text-chart-5 { color: var(--apple-chart-5); }
+      .border-chart-5 { border-color: var(--apple-chart-5); }
+      .ring-chart-5 { --tw-ring-color: var(--apple-chart-5); }
+      .bg-sidebar { background-color: var(--apple-sidebar); }
+      .text-sidebar { color: var(--apple-sidebar); }
+      .border-sidebar { border-color: var(--apple-sidebar); }
+      .ring-sidebar { --tw-ring-color: var(--apple-sidebar); }
+      .bg-sidebar-foreground { background-color: var(--apple-sidebar-foreground); }
+      .text-sidebar-foreground { color: var(--apple-sidebar-foreground); }
+      .border-sidebar-foreground { border-color: var(--apple-sidebar-foreground); }
+      .ring-sidebar-foreground { --tw-ring-color: var(--apple-sidebar-foreground); }
+      .bg-sidebar-primary { background-color: var(--apple-sidebar-primary); }
+      .text-sidebar-primary { color: var(--apple-sidebar-primary); }
+      .border-sidebar-primary { border-color: var(--apple-sidebar-primary); }
+      .ring-sidebar-primary { --tw-ring-color: var(--apple-sidebar-primary); }
+      .bg-sidebar-primary-foreground { background-color: var(--apple-sidebar-primary-foreground); }
+      .text-sidebar-primary-foreground { color: var(--apple-sidebar-primary-foreground); }
+      .border-sidebar-primary-foreground { border-color: var(--apple-sidebar-primary-foreground); }
+      .ring-sidebar-primary-foreground { --tw-ring-color: var(--apple-sidebar-primary-foreground); }
+      .bg-sidebar-accent { background-color: var(--apple-sidebar-accent); }
+      .text-sidebar-accent { color: var(--apple-sidebar-accent); }
+      .border-sidebar-accent { border-color: var(--apple-sidebar-accent); }
+      .ring-sidebar-accent { --tw-ring-color: var(--apple-sidebar-accent); }
+      .bg-sidebar-accent-foreground { background-color: var(--apple-sidebar-accent-foreground); }
+      .text-sidebar-accent-foreground { color: var(--apple-sidebar-accent-foreground); }
+      .border-sidebar-accent-foreground { border-color: var(--apple-sidebar-accent-foreground); }
+      .ring-sidebar-accent-foreground { --tw-ring-color: var(--apple-sidebar-accent-foreground); }
+    </style>
+    <style>
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      [data-icon] {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-position: center;
+        background-color: currentColor;
+      }
+    </style>
+    <style id="billiards-theme">
+      /* ═══ 台球暗色主题（参考 dark-theme 设计方案）：深灰底 + 台球绿强调 ═══ */
+      /* 页面背景：深灰 + 顶部柔和绿色光晕（模拟台球桌上方吊灯） */
+      html.dark body {
+        background: #1c1c1e;
+        background-image: radial-gradient(ellipse 90% 50% at 50% -8%, rgba(61, 214, 133, 0.07), transparent 60%);
+        background-attachment: fixed;
+      }
+
+      /* 导航栏：毛玻璃 */
+      html.dark .rk-nav {
+        background: rgba(28, 28, 30, 0.85);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border-bottom: 1px solid rgba(58, 58, 60, 0.6);
+      }
+      html.dark .brand-icon { filter: drop-shadow(0 2px 8px rgba(61, 214, 133, 0.25)); }
+      html.dark .rk-nav .link { border-radius: 999px; transition: all 0.2s ease; }
+      html.dark .rk-nav .link.is-active {
+        background: var(--primary);
+        color: var(--primary-foreground);
+        box-shadow: 0 2px 12px rgba(61, 214, 133, 0.25);
+      }
+
+      /* Hero */
+      html.dark .rk-hero .eyebrow { color: var(--primary) !important; }
+
+      /* 统计卡片 */
+      html.dark .rk-stat-card {
+        background: linear-gradient(145deg, #2c2c2e, #262628);
+        border: 1px solid rgba(58, 58, 60, 0.5);
+        border-radius: 14px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+      }
+      html.dark .rk-stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.3), 0 0 0 1px rgba(61, 214, 133, 0.15);
+      }
+
+      /* 搜索与筛选 */
+      html.dark .rk-filter-bar .field {
+        background: #2c2c2e;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+      }
+      html.dark .rk-pill {
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: #2c2c2e;
+        transition: all 0.2s ease;
+      }
+      html.dark .rk-pill.is-active {
+        background: var(--primary);
+        color: var(--primary-foreground);
+        border-color: var(--primary);
+        box-shadow: 0 2px 12px rgba(61, 214, 133, 0.2);
+      }
+
+      /* 前三领奖台：暗色卡片渐变 + 流光配色（交互结构见 critical-layout） */
+      html.dark .rk-podium-card {
+        background:
+          radial-gradient(350px circle at var(--x) var(--y), rgba(255,255,255,0.06), transparent 40%),
+          linear-gradient(160deg, #2c2c2e, #262628);
+        border: 1px solid rgba(58, 58, 60, 0.5);
+        border-radius: 16px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+      }
+      html.dark .rk-podium-card:hover { box-shadow: 0 12px 32px rgba(0,0,0,0.35); }
+      html.dark .rk-podium-card::before,
+      html.dark .rk-podium-card::after { border-radius: 16px; }
+      /* 暗色流光颜色：金 / 银 / 铜 */
+      html.dark .rk-podium-card.rank-1 {
+        --glow-color: #ffd700;
+        --glow-alpha: 0.12;
+        border-color: rgba(255, 215, 0, 0.3);
+        box-shadow: 0 4px 24px rgba(255, 215, 0, 0.08), 0 4px 20px rgba(0,0,0,0.25);
+      }
+      html.dark .rk-podium-card.rank-2 { --glow-color: #c0c0c8; }
+      html.dark .rk-podium-card.rank-3 { --glow-color: #cd7f32; }
+
+      /* 排名表格 */
+      html.dark .rk-table {
+        background: linear-gradient(145deg, #2c2c2e, #262628);
+        border: 1px solid rgba(58, 58, 60, 0.5);
+        border-radius: 14px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+      }
+      html.dark .rk-table thead th {
+        background: rgba(58, 58, 60, 0.3);
+        color: var(--muted-foreground);
+        border-bottom: 1px solid rgba(58, 58, 60, 0.6);
+      }
+      html.dark .rk-table tbody tr { transition: background-color 0.15s ease; }
+      html.dark .rk-table tbody tr:hover { background: rgba(61, 214, 133, 0.04); }
+
+      /* 页脚 */
+      html.dark .rk-footer {
+        background: rgba(28, 28, 30, 0.6);
+        border-top: 1px solid rgba(58, 58, 60, 0.5);
+      }
+
+      /* 滚动条 */
+      html.dark ::-webkit-scrollbar { width: 8px; }
+      html.dark ::-webkit-scrollbar-track { background: #1c1c1e; }
+      html.dark ::-webkit-scrollbar-thumb { background: #3a3a3c; border-radius: 4px; }
+      html.dark ::-webkit-scrollbar-thumb:hover { background: #4a4a4c; }
+
+      /* ═══ 主题切换按钮（浅色 / 深色通用） ═══ */
+      .theme-toggle {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        margin-left: 4px;
+        padding: 0;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: var(--card);
+        color: var(--muted-foreground);
+        cursor: pointer;
+        flex: none;
+        transition: background-color .18s ease, color .18s ease, border-color .18s ease, transform .25s ease, box-shadow .18s ease;
+      }
+      .theme-toggle:hover {
+        background: var(--secondary);
+        color: var(--foreground);
+        transform: rotate(15deg);
+      }
+      .theme-toggle:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+      .theme-toggle .icon-sun { display: none; }
+      .theme-toggle .icon-moon { display: inline-flex; }
+      html.dark .theme-toggle {
+        background: #2c2c2e;
+        border-color: rgba(58, 58, 60, 0.6);
+        color: #f5f5f7;
+      }
+      html.dark .theme-toggle:hover {
+        background: #3a3a3c;
+        box-shadow: 0 2px 12px rgba(61, 214, 133, 0.2);
+      }
+      html.dark .theme-toggle .icon-sun { display: inline-flex; }
+      html.dark .theme-toggle .icon-moon { display: none; }
+    </style>
+</head>
+<body class="min-h-screen font-sans antialiased">
+    <style id="critical-layout">
+      /* ── Doc page layout (survives without Tailwind compilation) ── */
+      html { scroll-behavior: smooth; }
+      .rk-nav {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        display: flex;
+        align-items: center;
+        gap: calc(var(--spacing) * 2);
+        width: 100%;
+        height: 52px;
+        padding: 0 max(16px, calc((100% - 1200px) / 2));
+        background: var(--sidebar);
+        border-bottom: 1px solid var(--border);
+        box-shadow: var(--shadow-sm);
+      }
+      .rk-nav .brand {
+        color: var(--foreground);
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 18px;
+        font-weight: 800;
+        letter-spacing: 0.02em;
+      }
+      .brand-icon { width: 30px; height: 30px; flex: none; display: block; }
+      .rk-nav .rail { margin-left: auto; }
+      .rk-nav .link.is-active { background: var(--primary); color: var(--primary-foreground); }
+      .rk-nav .link.is-active:hover { background: var(--primary); }
+
+      .rk-container { max-width: 1200px; margin: 0 auto; padding: 32px 16px 64px; }
+
+      .doc-pills { display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap; }
+      .doc-pill {
+        display: inline-flex; align-items: center; height: 36px; padding: 0 18px;
+        border-radius: 999px; border: 1px solid var(--border); background: var(--card);
+        color: var(--foreground); font-size: 13px; font-weight: 600; text-decoration: none;
+        transition: border-color .18s ease, color .18s ease;
+      }
+      .doc-pill:hover { border-color: var(--primary); color: var(--primary); }
+
+      .doc-section { margin-top: 44px; scroll-margin-top: 76px; }
+      .doc-section-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+      .doc-badge {
+        display: inline-flex; align-items: center; justify-content: center; height: 26px;
+        padding: 0 12px; border-radius: 999px; background: var(--primary);
+        color: var(--primary-foreground); font-size: 12px; font-weight: 700; letter-spacing: .04em;
+      }
+      .doc-badge.ghost { background: var(--secondary); color: var(--muted-foreground); border: 1px solid var(--border); }
+      .doc-sub { color: var(--muted-foreground); font-size: 14px; margin: 10px 0 20px; max-width: 760px; line-height: 1.8; }
+
+      .rule-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+      .rule-card {
+        background: var(--card); border: 1px solid var(--border);
+        border-radius: var(--radius); box-shadow: var(--shadow-sm); padding: 22px;
+      }
+      .rule-card h3 { display: flex; align-items: center; gap: 10px; font-size: 16px; margin: 0 0 12px; }
+      .rule-num {
+        flex: none; width: 24px; height: 24px; border-radius: 999px;
+        background: var(--secondary); color: var(--primary);
+        font-size: 12px; font-weight: 800; display: inline-flex; align-items: center; justify-content: center;
+      }
+      .rule-card ul { margin: 0; padding-left: 18px; color: var(--muted-foreground); font-size: 14px; line-height: 1.9; }
+      .rule-card li::marker { color: var(--primary); }
+      .rule-card strong { color: var(--foreground); font-weight: 600; }
+      .rule-example {
+        margin-top: 12px; padding: 10px 14px; border-radius: 10px;
+        background: var(--secondary); font-size: 13px; color: var(--muted-foreground); line-height: 1.7;
+      }
+      .formula-card {
+        background: var(--secondary); border: 1px solid var(--border); border-radius: 12px;
+        padding: 14px 18px; font-family: var(--font-mono, ui-monospace, monospace);
+        font-size: 14px; color: var(--foreground); margin: 4px 0 14px; overflow-x: auto;
+      }
+      .coef-table { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 8px; }
+      .coef-table th, .coef-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); text-align: center; }
+      .coef-table th { color: var(--muted-foreground); font-size: 12px; font-weight: 600; }
+      .coef-table td { font-variant-numeric: tabular-nums; font-weight: 600; }
+      .coef-table tr:last-child td { border-bottom: none; }
+
+      .doc-note {
+        margin-top: 28px; padding: 16px 20px; border-radius: var(--radius);
+        border: 1px dashed var(--border); background: var(--secondary);
+        color: var(--muted-foreground); font-size: 13px; line-height: 1.8;
+      }
+
+      .rk-footer { margin-top: 64px; padding: 32px 16px; border-top: 1px solid var(--border); background: var(--secondary); }
+      .rk-footer-inner { max-width: 1200px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+      .rk-footer-brand { font-size: 14px; font-weight: 700; color: var(--foreground); letter-spacing: .04em; }
+      .rk-footer-links { display: flex; gap: 24px; flex-wrap: wrap; }
+      .rk-footer-links a { color: var(--muted-foreground); font-size: 13px; text-decoration: none; }
+      .rk-footer-links a:hover { color: var(--primary); }
+      .rk-footer-copy { color: var(--muted-foreground); font-size: 12px; }
+
+      @media (max-width: 900px) { .rule-grid { grid-template-columns: 1fr; } }
+      @media (max-width: 600px) {
+        .rk-nav { height: auto; flex-wrap: wrap; padding: 8px 16px; }
+        .rk-nav .rail { margin-left: 0; flex-wrap: wrap; }
+      }
+    </style>
+    <main>
+      <nav class="webbar rk-nav" aria-label="台球协会主导航">
+        <span class="brand"><svg class="brand-icon" viewBox="0 0 36 36" aria-hidden="true"><rect width="36" height="36" rx="9" style="fill:var(--primary)"/><circle cx="18" cy="18" r="10.5" style="fill:#ffffff"/><circle cx="18" cy="18" r="5" style="fill:var(--primary)"/></svg>台球协会</span>
+        <div class="rail">
+          <a class="link" href="#">积分排行</a>
+          <a class="link" href="#">对战记录</a>
+          <a class="link" href="#">会员详情</a>
+          <button class="theme-toggle" id="theme-toggle" type="button" aria-label="切换深色/浅色主题" title="切换深色/浅色主题">
+            <i data-lucide="moon" class="icon-moon" style="width:16px;height:16px;"></i>
+            <i data-lucide="sun" class="icon-sun" style="width:16px;height:16px;"></i>
+          </button>
+        </div>
+      </nav>
+
+      <div class="rk-container">
+        <section class="doc-hero">
+          <div class="eyebrow" style="color: var(--primary); font-weight:700;">RULES OF PLAY</div>
+          <h1 class="title" style="font-size: 36px; margin: 8px 0 0; line-height:1.15;">赛事规则</h1>
+          <p class="body-copy" style="margin-top: 12px; max-width: 680px; font-size: 15px; color: var(--muted-foreground); line-height: 1.8;">参考中国台球协会《中式台球竞赛总则》与世界花式撞球协会（WPA）美式 9 球通用竞赛规则整理，分别列举中八与九球的核心规则，供协会赛事与日常切磋参照执行。</p>
+          <div class="doc-pills">
+            <a class="doc-pill" href="#c8">中八 · 中式台球</a>
+            <a class="doc-pill" href="#nine">九球 · 美式 9 球</a>
+            <a class="doc-pill" href="#pursuit">九球追分 · 记分规则</a>
+          </div>
+        </section>
+        <section class="doc-section" id="c8">
+          <div class="doc-section-head"><span class="doc-badge">中八 · 中式台球</span><h2 class="title" style="font-size:24px;margin:0;">中八（中式台球）核心规则</h2></div>
+          <p class="doc-sub">国内普及度最高的台球玩法：双方各执全色/花色一组共 7 颗球，先清完本组再打进黑八者获胜。以下按中国台球协会《中式台球竞赛总则》口径整理。</p>
+          <div class="rule-grid">
+            <div class="rule-card">
+              <h3><span class="rule-num">1</span>用球与摆球</h3>
+              <ul>
+              <li>使用 <strong>1-15 号目标球</strong>与母球：1-7 号为全色球，9-15 号为花色球，<strong>8 号黑球为决胜球</strong></li>
+              <li>15 颗球摆成五排三角形：顶球对准置球点，<strong>黑八置于第三排正中央</strong>，底边两角分别为一颗全色、一颗花色，球与球贴紧</li>
+              </ul>
+            </div>
+            <div class="rule-card">
+              <h3><span class="rule-num">2</span>开球</h3>
+              <ul>
+              <li>母球置于<strong>开球线后</strong>任意位置击出</li>
+              <li>无目标球入袋时，须<strong>至少 4 颗目标球碰库</strong>方为有效开球</li>
+              <li>开球合法且黑八入袋：<strong>不直接判胜</strong>，黑八重置回置球点，由原开球者继续击球</li>
+              <li>开球犯规（如母球落袋）：对手获得<strong>线后自由球</strong></li>
+              </ul>
+            </div>
+            <div class="rule-card">
+              <h3><span class="rule-num">3</span>确定组别</h3>
+              <ul>
+              <li>开球进球<strong>不直接定组</strong>；此后一方合法击入某组球，即确定该方组别</li>
+              <li>未定组前可用任一组球传击进球，不视为犯规，也不定组</li>
+              <li>定组后，合法击入己方球可继续击球；未进球则换对方击球</li>
+              </ul>
+            </div>
+            <div class="rule-card">
+              <h3><span class="rule-num">4</span>击球规则</h3>
+              <ul>
+              <li>定组后母球必须<strong>首先触碰己方球</strong>；己方球未清完前不得先碰黑八</li>
+              <li>无球入袋时，母球触碰目标球后须<strong>至少有一颗球碰库</strong>（母球碰库亦可）</li>
+              <li>清完己方 7 颗球后方可击打黑八；本协会采用黑八<strong>无需指袋</strong>口径</li>
+              </ul>
+            </div>
+            <div class="rule-card">
+              <h3><span class="rule-num">5</span>犯规与自由球</h3>
+              <ul>
+              <li>常见犯规：母球落袋、空杆未碰任何球、先碰他组球、碰球后无球碰库、球杆/身体触球、击球时双脚离地</li>
+              <li>一般犯规后对手获得<strong>全场自由球</strong>：母球可置于台面任意位置，向任意方向击打</li>
+              </ul>
+            </div>
+            <div class="rule-card">
+              <h3><span class="rule-num">6</span>胜负与判负</h3>
+              <ul>
+              <li>清完己方 7 颗球后<strong>合法打进黑八</strong>即获胜</li>
+              <li>直接判负：己方球未清完提前进黑八、黑八被击出台面、击打黑八时黑八与母球同杆入袋、最后一颗己方球与黑八同杆入袋</li>
+              <li>击打黑八未进但仅母球落袋：属犯规，对手自由球，<strong>不直接判负</strong></li>
+              </ul>
+            </div>
+          </div>
+        </section>
+        <section class="doc-section" id="nine">
+          <div class="doc-section-head"><span class="doc-badge">九球 · 美式 9 球</span><h2 class="title" style="font-size:24px;margin:0;">九球（美式 9 球）核心规则</h2></div>
+          <p class="doc-sub">世界花式撞球协会（WPA）通用 9 球规则：每杆必须先击打台面最小编号球，合法打进 9 号球者获胜，节奏快、偶然性强。</p>
+          <div class="rule-grid">
+            <div class="rule-card">
+              <h3><span class="rule-num">1</span>用球与摆球</h3>
+              <ul>
+              <li>使用 <strong>1-9 号目标球</strong>与母球，9 号球为决胜球</li>
+              <li>9 颗球摆成菱形：<strong>1 号球在最前方置于置球点，9 号球在正中央</strong>，其余球随意排列并贴紧</li>
+              </ul>
+            </div>
+            <div class="rule-card">
+              <h3><span class="rule-num">2</span>击球顺序</h3>
+              <ul>
+              <li>每杆必须<strong>首先触碰台面号码最小的球</strong>（不要求按号进球）</li>
+              <li>先碰最小号球后传进其他球（含 9 号）均为<strong>有效进球</strong>，可继续击球</li>
+              </ul>
+            </div>
+            <div class="rule-card">
+              <h3><span class="rule-num">3</span>开球</h3>
+              <ul>
+              <li>开球须合法冲球：有球入袋，或达到规定数量的目标球碰库（职业赛事按 WPA 过线规则执行）</li>
+              <li>开球直接打进 9 号球：<strong>立即获胜</strong></li>
+              <li>开球时母球落袋或飞出台面：对手获得全场自由球；9 号球飞出台面需重置回置球点</li>
+              </ul>
+            </div>
+            <div class="rule-card">
+              <h3><span class="rule-num">4</span>推杆（Push Out）</h3>
+              <ul>
+              <li>开球后，<strong>首位击球方</strong>可声明推杆一次：母球无需碰库、无需先碰最小号球，也不计犯规</li>
+              <li>推杆前必须告知裁判或对手；推杆后对手可选择自己击打，或让推杆方继续击打</li>
+              </ul>
+            </div>
+            <div class="rule-card">
+              <h3><span class="rule-num">5</span>犯规与自由球</h3>
+              <ul>
+              <li>常见犯规：未先碰最小号球、无球入袋且碰球后无球碰库、母球落袋或飞出台面、目标球飞出台面、球杆/身体触球、双脚离地</li>
+              <li>犯规后对手获得<strong>全场自由球</strong>：母球可置于台面任意位置击打</li>
+              </ul>
+            </div>
+            <div class="rule-card">
+              <h3><span class="rule-num">6</span>胜负与三次犯规</h3>
+              <ul>
+              <li>合法打进 <strong>9 号球</strong>即获胜（含开球直接进 9 号、传进 9 号）</li>
+              <li>同一局中<strong>连续三次犯规直接判负</strong>该局；连续两次犯规时，裁判或对手应予告知</li>
+              <li>协会内部采用追分赛制（犯规罚分、大小金奖励），场内记分口径见下方「九球追分记分规则」，完赛后按净胜分换算积分（见「积分说明」页）</li>
+            </ul>
+            </div>
+          </div>
+        </section>
+        <section class="doc-section" id="pursuit">
+          <div class="doc-section-head"><span class="doc-badge">九球追分 · 协会赛制</span><h2 class="title" style="font-size:24px;margin:0;">九球追分记分规则</h2></div>
+          <p class="doc-sub">协会内部三人追分赛制：三人分坐 A、B、C 位，按顺位轮转击球，得分者加分、上家扣分，每局计分全场零和；完赛后按净胜分换算会员积分（换算公式与球数难度系数见「积分说明」页）。</p>
+          <table class="coef-table" style="background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden;">
+            <thead>
+              <tr><th>分种</th><th>描述</th><th>得分者</th><th>上家</th><th>下家</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><strong>开球大金</strong></td><td>开球有球落袋，随后连续按顺序清台</td><td>+20</td><td>-10</td><td>-10</td></tr>
+              <tr><td><strong>大金</strong></td><td>台面球全在，且一杆清台</td><td>+10</td><td>-10</td><td>0</td></tr>
+              <tr><td><strong>小金</strong></td><td>台面球不全，但 1 号与 9 号均在，一杆清台</td><td>+7</td><td>-7</td><td>0</td></tr>
+              <tr><td><strong>黄金九</strong></td><td>开球直接将 9 号球打进</td><td>+14</td><td>-7</td><td>-7</td></tr>
+              <tr><td><strong>普胜</strong></td><td>合法打进 9 号球（含局中传进 9 号）</td><td>+4</td><td>-4</td><td>0</td></tr>
+              <tr><td><strong>犯规</strong></td><td>母球落袋或未先碰最小号球</td><td>-1</td><td>+1</td><td>自由球</td></tr>
+              <tr><td><strong>黑白双下</strong></td><td>9 号球与母球同杆落袋（进球无效，判负）</td><td>−(分值+1)</td><td>+1</td><td>+分值</td></tr>
+            </tbody>
+          </table>
+          <p style="color: var(--muted-foreground); font-size: 13px; margin: 10px 0 20px; line-height: 1.7;">注：上表为三人默认分值（扣分类按 ±分值 ×(n−1) 随人数分摊），全部类型零和；分值可在开赛前一局一议自定义，开赛后以快照冻结，单场口径不再变更。黑白双下不入分值表：原胜局作废，变动按原胜局类型推导——击球者原应得分值变为扣分、再扣 1 分犯规分（上家得犯规 1 分），下家获该胜局分值；示例：原普胜 4 分 → 击球者 -5 / 上家 +1 / 下家 +4；原大金 10 分 → -11 / +1 / +10。</p>
+          <div class="rule-grid">
+            <div class="rule-card">
+              <h3><span class="rule-num">1</span>座位与顺位</h3>
+              <ul>
+              <li>三人分坐 A、B、C 位；<strong>顺位 = 击球顺序</strong>，顺位前者为上家（循环推算）</li>
+              <li>得分者加分、其上家扣分；全体扣分类（开球大金/黄金九）由其余两人分摊</li>
+              <li>每局结束按胜负重排顺位：<strong>胜者（下一局开球者）排第一、本局扣分方排第二</strong></li>
+              </ul>
+            </div>
+            <div class="rule-card">
+              <h3><span class="rule-num">2</span>击球轮转</h3>
+              <ul>
+              <li>首局由 A 位开球（排座可随机）；此后<strong>胜利类/黑白双下 → 得分者开球</strong>（黑白双下即当前击球者本人）</li>
+              <li><strong>犯规 → 得分者下家开球</strong>；开球未进球则由其下家接着击球</li>
+              <li>附加犯规记录不影响开球轮转与顺位</li>
+              </ul>
+            </div>
+            <div class="rule-card">
+              <h3><span class="rule-num">3</span>翻倍与让球（互斥）</h3>
+              <ul>
+              <li><strong>翻倍</strong>：上家代打，本局三人变动全部 ×2，扣分对象不变</li>
+              <li><strong>让球</strong>：上家接管击打，得分者得分 ×2，<strong>让球方（得分者的顺位下家）承担全部扣分</strong>，第三方不变，仍保持零和</li>
+              <li>同一局翻倍与让球只能二选一，开启一个自动关闭另一个</li>
+              </ul>
+              <div class="rule-example">示例：A 让球、上家 C 接管并普胜 → C +8，让球方 A -8，B 不变；下一局 C 开球，A 为 C 的顺位下家。</div>
+            </div>
+            <div class="rule-card">
+              <h3><span class="rule-num">4</span>附加犯规（一局可多次）</h3>
+              <ul>
+              <li>每局除主事件外可追加多条犯规：逐条独立结算、叠加到本局变动，随主事件同局落库</li>
+              <li><strong>普通犯规</strong>：犯规者 -1，其顺位上家 +1</li>
+              <li><strong>让球状态下犯规</strong>：默认犯规对象为<strong>得分对象</strong>（让球时实际击球者）-1，<strong>让球方 +1</strong>；确认后让球开关自动复位，后续犯规按普通口径</li>
+              <li><strong>口径固化</strong>：犯规确认即固化（普通/让球、犯规者、受益方），此后再切换得分者或击球玩家，已记录的犯规信息不再改变</li>
+              </ul>
+              <div class="rule-example">示例：让球中 C（得分对象）犯规 → C -1、让球方 A +1；随后主事件改记他人得分，该条犯规记录不受影响。</div>
+            </div>
+          </div>
+        </section>
+        <div class="doc-note">说明：本页为入门与执裁参考，不含全部细则；各赛事的特别规则（限时出杆、暂停、开球过线规则等）以当场赛事规程与裁判判罚为准。协会内部九球追分赛制的场内记分口径见本页「九球追分记分规则」，完赛后的积分换算规则见「积分说明」页。</div>
+      </div>
+
+      <footer class="rk-footer">
+        <div class="rk-footer-inner">
+          <span class="rk-footer-brand">台球协会</span>
+          <nav class="rk-footer-links" aria-label="页脚导航">
+            <a href="./rules.html">赛事规则</a>
+            <a href="./points.html">积分说明</a>
+            <a href="javascript:void(0)" data-contact-qr role="button">联系我们</a>
+          </nav>
+          <span class="rk-footer-copy">© 2026 台球协会. 保留所有权利.</span>
+        </div>
+      </footer>
+    </main>
+    <script src="./js/common.js?v=20260919e"></script>
+    <script>lucide.createIcons();</script>
+    <script>
+    (function () {
+      var btn = document.getElementById('theme-toggle')
+      if (btn) btn.addEventListener('click', function () {
+        var root = document.documentElement
+        var next = root.classList.contains('dark') ? 'light' : 'dark'
+        root.classList.remove('light', 'dark')
+        root.classList.add(next)
+        try { localStorage.setItem('billiards-theme', next) } catch (e) {}
+        document.dispatchEvent(new CustomEvent('themechange', { detail: { theme: next } }))
+      })
+      if (window.AppUI) AppUI.fixNav('')
+    })()
+    </script>
+</body>
+</html>
