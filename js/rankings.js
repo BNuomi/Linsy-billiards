@@ -70,9 +70,24 @@
         state.scopeKey = key
         box.querySelectorAll('.rk-scope-tab').forEach(function (b) { b.classList.remove('is-active') })
         btn.classList.add('is-active')
+        renderCompEntry()
         loadBoard()
       })
     })
+    renderCompEntry()
+  }
+
+  // 比赛 tab 激活时显示「查看比赛详情」入口
+  function renderCompEntry() {
+    var link = el('comp-entry')
+    if (!link) return
+    var key = state.scopeKey
+    if (key.indexOf('comp_') === 0) {
+      link.href = './competition-detail.html?id=' + encodeURIComponent(key.slice(5))
+      link.style.display = ''
+    } else {
+      link.style.display = 'none'
+    }
   }
 
   function scopeParams() {

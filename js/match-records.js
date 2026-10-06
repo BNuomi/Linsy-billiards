@@ -149,9 +149,12 @@
     if (m.game_type === 'nine_ball' && m.ball_count) typeLabel = m.ball_count + '球追分'
     meta += '<span class="status-badge ' + st.cls + '"><span class="dot"></span>' + st.text + '</span>' +
       '<span style="font-size:12px;color:var(--muted-foreground);font-weight:600;">' + typeLabel + '</span>'
-    // 关联比赛徽标（对局创建时选中的赛事）
+    // 关联比赛徽标（对局创建时选中的赛事；点击进比赛详情）
     if (m.competition_name) {
-      meta += '<span class="comp-badge" title="' + U.escapeHtml(m.competition_name) + '">' + U.escapeHtml(m.competition_name) + '</span>'
+      var compHref = m.competition_id
+        ? './competition-detail.html?id=' + encodeURIComponent(m.competition_id)
+        : '#'
+      meta += '<a class="comp-badge" href="' + compHref + '" title="' + U.escapeHtml(m.competition_name) + '">' + U.escapeHtml(m.competition_name) + '</a>'
     }
     return '<article class="match-card" data-id="' + U.escapeHtml(m._id) + '" role="link" tabindex="0" aria-label="查看对战详情">' +
       '<div class="match-date"><span class="eyebrow">' + U.fmtDate(m.created_at) + '</span></div>' +
@@ -215,6 +218,13 @@
       if (id) location.href = './match-detail.html?matchId=' + encodeURIComponent(id)
     }
     grid.addEventListener('click', function (e) {
+      // 卡片内嵌链接（如比赛徽标）走自身跳转，不触发卡片跳转
+      var innerLink = e.target && e.target.closest ? e.target.closest('a') : null
+      if (innerLink) {
+        if (innerLink.getAttribute('href') === '#') e.preventDefault()
+        e.stopPropagation()
+        return
+      }
       var card = e.target && e.target.closest ? e.target.closest('.match-card') : null
       if (card) go(card)
     })

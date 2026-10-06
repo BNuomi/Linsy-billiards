@@ -281,6 +281,13 @@ window.FallbackData = (function () {
       case 'getCompetitions':
         // 离线演示数据无比赛（赛事）概念：返回空列表，榜单页仅展示基础三个 tab
         return Promise.resolve([])
+      case 'getCompetitionDetail':
+        // 离线兜底：详情页直访时给出演示比赛，榜单走 getRankings 演示数据
+        return Promise.resolve({
+          competition: { _id: (data && data.competition_id) || 'demo_comp', name: '演示赛事', description: '离线演示数据：连接云端后展示真实比赛信息。', created_at: now - 30 * DAY },
+          match_count: matches.length,
+          participant_count: members.length
+        })
       case 'getMemberDetail':
         return Promise.resolve(memberDetail(data && data.id))
       case 'getMatchDetail':
