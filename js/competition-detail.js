@@ -16,6 +16,17 @@
     return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate())
   }
 
+  // 按比赛时间推导状态标签：未开始 / 进行中 / 已结束；无时间信息不显示
+  function statusOf(comp) {
+    var d = new Date()
+    function p(n) { return String(n).padStart(2, '0') }
+    var t = d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate())
+    if (comp.start_date && t < comp.start_date) return { text: '未开始', cls: 'pending' }
+    if (comp.end_date && t > comp.end_date) return { text: '已结束', cls: 'done' }
+    if (comp.start_date || comp.end_date) return { text: '进行中', cls: 'live' }
+    return null
+  }
+
   async function load() {
     var id = compId()
     if (!id) {
@@ -39,11 +50,58 @@
     el('cd-subtitle').textContent = comp.created_at ? (fmtDate(comp.created_at) + ' 创建') : ''
     document.title = (comp.name || '比赛详情') + ' - 台球协会'
 
+    // 状态标签
+    var st = statusOf(comp)
+    if (st) {
+      var stEl = el('cd-status')
+      stEl.textContent = st.text
+      stEl.className = 'cd-status ' + st.cls
+      stEl.style.display = ''
+    }
+
+    // 基本信息行（仅展示非空字段）
+    var rows = []
+    if (comp.start_date || comp.end_date) {
+      rows.push(['比赛时间', (comp.start_date || '未定') + ' 至 ' + (comp.end_date || '未定')])
+    }
+    if (comp.venue) rows.push(['比赛地点', comp.venue])
+    if (comp.signup_deadline) rows.push(['报名截止', comp.signup_deadline])
+    if (comp.contact) rows.push(['联系方式', comp.contact])
+    if (comp.prize) rows.push(['奖品设置', comp.prize])
+    if (rows.length) {
+      el('cd-meta').innerHTML = rows.map(function (r) {
+        return '<div class="cd-meta-row"><div class="cd-meta-label">' + r[0] +
+          '</div><div class="cd-meta-value">' + U.escapeHtml(r[1]) + '</div></div>'
+      }).join('')
+      el('cd-meta-section').style.display = ''
+    }
+
     el('cd-match-count').textContent = detail.match_count != null ? detail.match_count : 0
     el('cd-participant-count').textContent = detail.participant_count != null ? detail.participant_count : 0
     el('cd-created').textContent = fmtDate(comp.created_at)
     el('cd-desc').textContent = comp.description || ''
     el('cd-info-section').style.display = ''
+
+    // 规则说明
+    if (comp.rules_text) {
+      el('cd-rules-text').textContent = comp.rules_text
+      el('cd-rules-section').style.display = ''
+    }
+
+    // 相关链接（网页端可点击，新标签打开）
+    var links = []
+    if (comp.rules_url) links.push(['规则链接', comp.rules_url])
+    if (comp.signup_url) links.push(['报名链接', comp.signup_url])
+    if (links.length) {
+      el('cd-links').innerHTML = links.map(function (l) {
+        var safe = U.escapeHtml(l[1])
+        return '<a class="cd-link-item" href="' + safe + '" target="_blank" rel="noopener noreferrer">' +
+          '<span class="cd-link-label">' + l[0] + '</span>' +
+          '<span class="cd-link-url">' + safe + '</span>' +
+          '<i data-lucide="external-link"></i></a>'
+      }).join('')
+      el('cd-links-section').style.display = ''
+    }
 
     renderBoard(board)
     el('cd-board-section').style.display = ''

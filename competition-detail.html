@@ -1206,6 +1206,7 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
           <div class="eyebrow" style="color: var(--primary); margin-bottom: calc(var(--spacing) * 3);">COMPETITION</div>
           <h1 class="hero-title" id="cd-name">比赛详情</h1>
           <p class="hero-subtitle" id="cd-subtitle">加载中…</p>
+          <span class="cd-status" id="cd-status" style="display:none;"></span>
           <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
             <a class="btn btn-secondary" href="./rankings.html" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;">
               <i data-lucide="arrow-left" style="width:16px;height:16px;"></i>
@@ -1220,6 +1221,12 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
           <button class="btn btn-secondary" id="cd-retry" type="button" style="margin-top:16px;">重试</button>
         </section>
 
+        <!-- 基本信息（时间/地点/报名/联系/奖品） -->
+        <section class="section" id="cd-meta-section" style="display:none;">
+          <div class="section-eyebrow">基本信息</div>
+          <div class="cd-meta" id="cd-meta"></div>
+        </section>
+
         <!-- 比赛信息 -->
         <section class="section" id="cd-info-section" style="display:none;">
           <div class="section-eyebrow">比赛信息</div>
@@ -1229,6 +1236,18 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
             <div class="cd-stat-card"><div class="cd-stat-value" id="cd-created">-</div><div class="cd-stat-label">创建时间</div></div>
           </div>
           <p class="cd-desc" id="cd-desc"></p>
+        </section>
+
+        <!-- 规则说明 -->
+        <section class="section" id="cd-rules-section" style="display:none;">
+          <div class="section-eyebrow">规则说明</div>
+          <p class="cd-desc" id="cd-rules-text"></p>
+        </section>
+
+        <!-- 相关链接 -->
+        <section class="section" id="cd-links-section" style="display:none;">
+          <div class="section-eyebrow">相关链接</div>
+          <div class="cd-links" id="cd-links"></div>
         </section>
 
         <!-- 赛事积分榜 -->
@@ -1308,6 +1327,46 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
         .cd-rank-badge.silver { background: linear-gradient(135deg, #c0c4cc, #909399); }
         .cd-rank-badge.bronze { background: linear-gradient(135deg, #d9a07b, #b8825a); }
         .cd-empty-row td { text-align: center; color: var(--muted-foreground); padding: 40px 16px; }
+        /* 状态标签 */
+        .cd-status {
+          display: inline-flex;
+          align-items: center;
+          padding: 4px 14px;
+          border-radius: 999px;
+          font-size: 12px;
+          font-weight: 700;
+          margin-bottom: calc(var(--spacing) * 4);
+        }
+        .cd-status.live { color: var(--primary); background: rgba(0, 113, 227, 0.1); }
+        .cd-status.pending { color: #b8860b; background: rgba(218, 165, 32, 0.14); }
+        .cd-status.done { color: var(--muted-foreground); background: var(--secondary); }
+        /* 基本信息行 */
+        .cd-meta {
+          background: var(--card); border: 1px solid var(--border);
+          border-radius: var(--radius); box-shadow: var(--shadow-sm);
+          padding: calc(var(--spacing) * 5);
+        }
+        html.dark .cd-meta { background: linear-gradient(145deg, #2c2c2e, #262628); border-color: rgba(58,58,60,0.5); }
+        .cd-meta-row { display: flex; padding: 8px 0; font-size: 14px; }
+        .cd-meta-row .cd-meta-label { width: 96px; flex-shrink: 0; color: var(--muted-foreground); }
+        .cd-meta-row .cd-meta-value { flex: 1; color: var(--foreground); }
+        /* 相关链接 */
+        .cd-links { display: flex; flex-direction: column; gap: calc(var(--spacing) * 3); }
+        .cd-link-item {
+          display: flex; align-items: center; gap: calc(var(--spacing) * 3);
+          padding: calc(var(--spacing) * 4) calc(var(--spacing) * 5);
+          background: var(--card); border: 1px solid var(--border);
+          border-radius: var(--radius); box-shadow: var(--shadow-sm);
+          text-decoration: none; transition: border-color 0.15s ease;
+        }
+        html.dark .cd-link-item { background: linear-gradient(145deg, #2c2c2e, #262628); border-color: rgba(58,58,60,0.5); }
+        .cd-link-item:hover { border-color: var(--primary); }
+        .cd-link-item .cd-link-label { flex-shrink: 0; font-size: 14px; font-weight: 600; color: var(--foreground); }
+        .cd-link-item .cd-link-url {
+          flex: 1; min-width: 0; font-size: 13px; color: var(--primary);
+          overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+        }
+        .cd-link-item i { width: 16px; height: 16px; color: var(--muted-foreground); flex-shrink: 0; }
       </style>
 
       <!-- Footer -->
