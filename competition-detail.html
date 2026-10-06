@@ -1205,8 +1205,10 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
         <section class="hero-section" style="padding-bottom: calc(var(--spacing) * 6);">
           <div class="eyebrow" style="color: var(--primary); margin-bottom: calc(var(--spacing) * 3);">COMPETITION</div>
           <h1 class="hero-title" id="cd-name">比赛详情</h1>
-          <p class="hero-subtitle" id="cd-subtitle">加载中…</p>
-          <span class="cd-status" id="cd-status" style="display:none;"></span>
+          <p class="hero-subtitle cd-subtitle-row">
+            <span class="cd-status" id="cd-status" style="display:none;"></span>
+            <span id="cd-subtitle">加载中…</span>
+          </p>
           <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
             <a class="btn btn-secondary" href="./rankings.html" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;">
               <i data-lucide="arrow-left" style="width:16px;height:16px;"></i>
@@ -1331,6 +1333,13 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
         .cd-rank-badge.silver { background: linear-gradient(135deg, #c0c4cc, #909399); }
         .cd-rank-badge.bronze { background: linear-gradient(135deg, #d9a07b, #b8825a); }
         .cd-empty-row td { text-align: center; color: var(--muted-foreground); padding: 40px 16px; }
+        /* 副标题行：状态标签与创建时间同行 */
+        .cd-subtitle-row {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          flex-wrap: wrap;
+        }
         /* 状态标签 */
         .cd-status {
           display: inline-flex;
@@ -1339,7 +1348,6 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
           border-radius: 999px;
           font-size: 12px;
           font-weight: 700;
-          margin-bottom: calc(var(--spacing) * 4);
         }
         .cd-status.signup { color: #15803d; background: rgba(22, 163, 74, 0.12); }
         .cd-status.standby { color: #b8860b; background: rgba(218, 165, 32, 0.14); }
