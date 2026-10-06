@@ -66,7 +66,9 @@
     }
 
     // 基本信息行（仅展示非空字段）
+    var GAME_TYPE_LABEL = { c8: '中八', nine_ball: '九球追分' }
     var rows = []
+    if (comp.game_type) rows.push(['对局类型', GAME_TYPE_LABEL[comp.game_type] || comp.game_type])
     if (comp.start_date || comp.end_date) {
       rows.push(['比赛时间', (comp.start_date || '未定') + ' 至 ' + (comp.end_date || '未定')])
     }
