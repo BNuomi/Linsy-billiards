@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>比赛详情</title>
+    <title>对阵列表</title>
     <script>
     /* 主题初始化：localStorage 优先，其次跟随系统深浅色偏好（在渲染前执行，避免闪白） */
     (function () {
@@ -1203,69 +1203,42 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
       <div class="page-container">
         <!-- Hero / Title Section -->
         <section class="hero-section" style="padding-bottom: calc(var(--spacing) * 6);">
-          <div class="eyebrow" style="color: var(--primary); margin-bottom: calc(var(--spacing) * 3);">COMPETITION</div>
-          <h1 class="hero-title" id="cd-name">比赛详情</h1>
-          <p class="hero-subtitle" id="cd-subtitle">加载中…</p>
-          <span class="cd-status" id="cd-status" style="display:none;"></span>
+          <div class="eyebrow" style="color: var(--primary); margin-bottom: calc(var(--spacing) * 3);">FIXTURES</div>
+          <h1 class="hero-title" id="fx-name">对阵列表</h1>
+          <p class="hero-subtitle" id="fx-subtitle">加载中…</p>
           <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
-            <a class="btn btn-secondary" href="./rankings.html" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;">
+            <a class="btn btn-secondary" id="fx-back" href="./rankings.html" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;">
               <i data-lucide="arrow-left" style="width:16px;height:16px;"></i>
-              返回排行榜
-            </a>
-            <a class="btn btn-primary" id="cd-fixtures-link" href="#" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;">
-              <i data-lucide="swords" style="width:16px;height:16px;"></i>
-              对阵列表
+              返回比赛详情
             </a>
           </div>
         </section>
 
         <!-- 错误提示 -->
-        <section id="cd-error" style="display:none;padding:calc(var(--spacing) * 6);border:1px solid var(--border);border-radius:var(--radius);background:var(--card);color:var(--muted-foreground);text-align:center;margin-bottom:calc(var(--spacing) * 6);">
-          <div id="cd-error-text">加载失败</div>
-          <button class="btn btn-secondary" id="cd-retry" type="button" style="margin-top:16px;">重试</button>
+        <section id="fx-error" style="display:none;padding:calc(var(--spacing) * 6);border:1px solid var(--border);border-radius:var(--radius);background:var(--card);color:var(--muted-foreground);text-align:center;margin-bottom:calc(var(--spacing) * 6);">
+          <div id="fx-error-text">加载失败</div>
+          <button class="btn btn-secondary" id="fx-retry" type="button" style="margin-top:16px;">重试</button>
         </section>
 
-        <!-- 基本信息（时间/地点/报名/联系/奖品） -->
-        <section class="section" id="cd-meta-section" style="display:none;">
-          <div class="section-eyebrow">基本信息</div>
-          <div class="cd-meta" id="cd-meta"></div>
+        <!-- 报名名单 -->
+        <section class="section" id="fx-part-section" style="display:none;">
+          <div class="section-eyebrow">报名名单（<span id="fx-part-count">0</span> 人）</div>
+          <div class="fx-chips" id="fx-participants"></div>
         </section>
 
-        <!-- 比赛信息 -->
-        <section class="section" id="cd-info-section" style="display:none;">
-          <div class="section-eyebrow">比赛信息</div>
-          <div class="cd-stats">
-            <div class="cd-stat-card"><div class="cd-stat-value" id="cd-match-count">-</div><div class="cd-stat-label">已结束对局</div></div>
-            <div class="cd-stat-card"><div class="cd-stat-value" id="cd-participant-count">-</div><div class="cd-stat-label">参赛人数</div></div>
-            <div class="cd-stat-card"><div class="cd-stat-value" id="cd-created">-</div><div class="cd-stat-label">创建时间</div></div>
-          </div>
-          <p class="cd-desc" id="cd-desc"></p>
+        <!-- 比赛日 -->
+        <section class="section" id="fx-days-section" style="display:none;">
+          <div class="section-eyebrow">比赛日设定</div>
+          <div class="fx-days" id="fx-days"></div>
         </section>
 
-        <!-- 规则说明 -->
-        <section class="section" id="cd-rules-section" style="display:none;">
-          <div class="section-eyebrow">规则说明</div>
-          <p class="cd-desc" id="cd-rules-text"></p>
+        <!-- 未抽签提示 -->
+        <section class="section" id="fx-empty" style="display:none;">
+          <div class="fx-empty-box">尚未抽签，请等待管理员在小程序端完成抽签配对</div>
         </section>
 
-        <!-- 相关链接 -->
-        <section class="section" id="cd-links-section" style="display:none;">
-          <div class="section-eyebrow">相关链接</div>
-          <div class="cd-links" id="cd-links"></div>
-        </section>
-
-        <!-- 赛事积分榜 -->
-        <section class="section" id="cd-board-section" style="display:none;">
-          <div class="section-eyebrow">赛事积分榜</div>
-          <div class="cd-board-wrap">
-            <table class="cd-table">
-              <thead>
-                <tr><th>排名</th><th>会员</th><th>榜单积分</th><th>胜 / 总</th><th>一杆清台</th><th>胜率</th></tr>
-              </thead>
-              <tbody id="cd-tbody"></tbody>
-            </table>
-          </div>
-        </section>
+        <!-- 对阵列表（按轮次渲染） -->
+        <div id="fx-rounds"></div>
       </div>
 
       <!-- 页面专用样式 -->
@@ -1276,101 +1249,48 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
           font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
           color: var(--muted-foreground); margin-bottom: calc(var(--spacing) * 4);
         }
-        /* 统计卡 */
-        .cd-stats {
-          display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-          gap: calc(var(--spacing) * 4);
+        .fx-chips { display: flex; flex-wrap: wrap; gap: calc(var(--spacing) * 2); }
+        .fx-chip {
+          font-size: 13px; color: var(--foreground);
+          background: var(--secondary); border-radius: 999px; padding: 6px 16px;
         }
-        .cd-stat-card {
-          padding: calc(var(--spacing) * 5);
+        .fx-empty-inline { color: var(--muted-foreground); font-size: 14px; }
+        .fx-days {
           background: var(--card); border: 1px solid var(--border);
           border-radius: var(--radius); box-shadow: var(--shadow-sm);
-          text-align: center;
-        }
-        html.dark .cd-stat-card { background: linear-gradient(145deg, #2c2c2e, #262628); border-color: rgba(58,58,60,0.5); }
-        .cd-stat-value {
-          font-family: var(--font-mono); font-size: 28px; font-weight: 800; color: var(--primary);
-        }
-        .cd-stat-label { margin-top: 6px; font-size: 12px; color: var(--muted-foreground); }
-        /* 简介 */
-        .cd-desc {
-          margin: calc(var(--spacing) * 5) 0 0;
-          padding: calc(var(--spacing) * 5);
-          background: var(--card); border: 1px solid var(--border);
-          border-radius: var(--radius); box-shadow: var(--shadow-sm);
-          font-size: 14px; line-height: 1.7; color: var(--foreground); white-space: pre-wrap;
-        }
-        html.dark .cd-desc { background: linear-gradient(145deg, #2c2c2e, #262628); border-color: rgba(58,58,60,0.5); }
-        .cd-desc:empty { display: none; }
-        /* 赛事积分榜 */
-        .cd-board-wrap {
-          background: var(--card); border: 1px solid var(--border);
-          border-radius: var(--radius); box-shadow: var(--shadow-sm);
-          overflow-x: auto;
-        }
-        html.dark .cd-board-wrap { background: linear-gradient(145deg, #2c2c2e, #262628); border-color: rgba(58,58,60,0.5); }
-        .cd-table { width: 100%; border-collapse: collapse; font-size: 14px; }
-        .cd-table th, .cd-table td {
-          padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap;
-        }
-        .cd-table th {
-          font-size: 12px; font-weight: 700; color: var(--muted-foreground);
-          letter-spacing: 0.05em; text-transform: uppercase;
-        }
-        .cd-table tbody tr:last-child td { border-bottom: none; }
-        .cd-table tbody tr { cursor: pointer; transition: background-color 0.15s ease; }
-        .cd-table tbody tr:hover { background: var(--secondary); }
-        .cd-table .cd-points { font-family: var(--font-mono); font-weight: 800; color: var(--primary); }
-        .cd-table .cd-num { font-family: var(--font-mono); }
-        .cd-rank-badge {
-          display: inline-flex; align-items: center; justify-content: center;
-          width: 26px; height: 26px; border-radius: 999px;
-          font-size: 12px; font-weight: 800; color: #fff;
-        }
-        .cd-rank-badge.gold { background: linear-gradient(135deg, #f6c453, #e6a23c); }
-        .cd-rank-badge.silver { background: linear-gradient(135deg, #c0c4cc, #909399); }
-        .cd-rank-badge.bronze { background: linear-gradient(135deg, #d9a07b, #b8825a); }
-        .cd-empty-row td { text-align: center; color: var(--muted-foreground); padding: 40px 16px; }
-        /* 状态标签 */
-        .cd-status {
-          display: inline-flex;
-          align-items: center;
-          padding: 4px 14px;
-          border-radius: 999px;
-          font-size: 12px;
-          font-weight: 700;
-          margin-bottom: calc(var(--spacing) * 4);
-        }
-        .cd-status.live { color: var(--primary); background: rgba(0, 113, 227, 0.1); }
-        .cd-status.pending { color: #b8860b; background: rgba(218, 165, 32, 0.14); }
-        .cd-status.done { color: var(--muted-foreground); background: var(--secondary); }
-        /* 基本信息行 */
-        .cd-meta {
-          background: var(--card); border: 1px solid var(--border);
-          border-radius: var(--radius); box-shadow: var(--shadow-sm);
-          padding: calc(var(--spacing) * 5);
-        }
-        html.dark .cd-meta { background: linear-gradient(145deg, #2c2c2e, #262628); border-color: rgba(58,58,60,0.5); }
-        .cd-meta-row { display: flex; padding: 8px 0; font-size: 14px; }
-        .cd-meta-row .cd-meta-label { width: 96px; flex-shrink: 0; color: var(--muted-foreground); }
-        .cd-meta-row .cd-meta-value { flex: 1; color: var(--foreground); }
-        /* 相关链接 */
-        .cd-links { display: flex; flex-direction: column; gap: calc(var(--spacing) * 3); }
-        .cd-link-item {
-          display: flex; align-items: center; gap: calc(var(--spacing) * 3);
           padding: calc(var(--spacing) * 4) calc(var(--spacing) * 5);
+        }
+        html.dark .fx-days { background: linear-gradient(145deg, #2c2c2e, #262628); border-color: rgba(58,58,60,0.5); }
+        .fx-day-row { display: flex; gap: calc(var(--spacing) * 4); padding: 8px 0; font-size: 14px; }
+        .fx-day-row + .fx-day-row { border-top: 1px solid var(--border); }
+        .fx-day-date { width: 110px; flex-shrink: 0; font-weight: 600; color: var(--foreground); }
+        .fx-day-desc { color: var(--muted-foreground); }
+        .fx-empty-box {
+          padding: calc(var(--spacing) * 10); text-align: center;
+          color: var(--muted-foreground); font-size: 14px;
+          border: 1px dashed var(--border); border-radius: var(--radius);
+        }
+        .fx-bye { font-size: 13px; color: var(--muted-foreground); margin-bottom: calc(var(--spacing) * 3); }
+        .fx-day-group { margin-bottom: calc(var(--spacing) * 5); }
+        .fx-day-label { font-size: 13px; font-weight: 600; color: var(--muted-foreground); margin-bottom: calc(var(--spacing) * 3); }
+        .fx-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: calc(var(--spacing) * 4); }
+        .fx-card {
           background: var(--card); border: 1px solid var(--border);
           border-radius: var(--radius); box-shadow: var(--shadow-sm);
-          text-decoration: none; transition: border-color 0.15s ease;
+          padding: calc(var(--spacing) * 4) calc(var(--spacing) * 5);
         }
-        html.dark .cd-link-item { background: linear-gradient(145deg, #2c2c2e, #262628); border-color: rgba(58,58,60,0.5); }
-        .cd-link-item:hover { border-color: var(--primary); }
-        .cd-link-item .cd-link-label { flex-shrink: 0; font-size: 14px; font-weight: 600; color: var(--foreground); }
-        .cd-link-item .cd-link-url {
-          flex: 1; min-width: 0; font-size: 13px; color: var(--primary);
-          overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
-        }
-        .cd-link-item i { width: 16px; height: 16px; color: var(--muted-foreground); flex-shrink: 0; }
+        html.dark .fx-card { background: linear-gradient(145deg, #2c2c2e, #262628); border-color: rgba(58,58,60,0.5); }
+        .fx-card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: calc(var(--spacing) * 2); }
+        .fx-time { font-size: 12px; color: var(--muted-foreground); }
+        .fx-status { font-size: 11px; font-weight: 700; border-radius: 999px; padding: 2px 12px; }
+        .fx-status.pending { color: #b8860b; background: rgba(218, 165, 32, 0.14); }
+        .fx-status.live { color: var(--primary); background: rgba(0, 113, 227, 0.1); }
+        .fx-status.done { color: var(--muted-foreground); background: var(--secondary); }
+        .fx-players { font-size: 16px; font-weight: 600; color: var(--foreground); display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+        .fx-vs { font-size: 12px; font-weight: 700; color: var(--muted-foreground); }
+        .fx-result { display: flex; align-items: center; gap: calc(var(--spacing) * 3); margin-top: calc(var(--spacing) * 2); }
+        .fx-winner { font-size: 13px; font-weight: 600; color: var(--primary); }
+        .fx-score { font-size: 12px; color: var(--muted-foreground); }
       </style>
 
       <!-- Footer -->
@@ -1392,9 +1312,9 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
     </main>
     <script>lucide.createIcons();</script>
     <script src="./js/cloud.js?v=20260926a"></script>
-    <script src="./js/fallback-data.js?v=20261006a"></script>
+    <script src="./js/fallback-data.js?v=20261006b"></script>
     <script src="./js/common.js?v=20260926a"></script>
-    <script src="./js/competition-detail.js?v=20261006a"></script>
+    <script src="./js/fixtures.js?v=20261006a"></script>
     <script>
     /* 主题切换：更新 <html> class + localStorage 记忆，并广播 themechange 事件 */
     (function () {

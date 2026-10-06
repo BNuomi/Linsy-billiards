@@ -288,6 +288,21 @@ window.FallbackData = (function () {
           match_count: matches.length,
           participant_count: members.length
         })
+      case 'getFixtures': {
+        // 离线兜底：1 轮 3 场（已结束/进行中/预告各一）+ 1 人轮空，覆盖全部展示态
+        var fxMembers = members.slice(0, 8)
+        var fxP = function (i) { return { id: fxMembers[i].id || fxMembers[i]._id, name: fxMembers[i].name } }
+        return Promise.resolve({
+          competition: { _id: (data && data.competition_id) || 'demo_comp', name: '演示赛事', game_type: 'c8', match_days: [{ date: '2026-10-08', start_time: '19:00', slot_minutes: 40, slot_count: 3 }], created_at: now - 30 * DAY },
+          participants: fxMembers.map(function (m, i) { return { member_id: m.id || m._id, name: m.name, at: now - i * 3600000 } }),
+          fixtures: [
+            { _id: 'fx1', round: 1, seq: 1, players: [fxP(0), fxP(1)], status: 'pending', slot_at: now - 86400000, match_id: 'demo_m1', match_status: 'done', winner_id: fxP(0).id, score_text: '3:1' },
+            { _id: 'fx2', round: 1, seq: 2, players: [fxP(2), fxP(3)], status: 'pending', slot_at: now + 3600000, match_id: 'demo_m2', match_status: 'ongoing', winner_id: null, score_text: '' },
+            { _id: 'fx3', round: 1, seq: 3, players: [fxP(4), fxP(5)], status: 'pending', slot_at: now + 2 * 86400000, match_id: null, match_status: null, winner_id: null, score_text: '' },
+            { _id: 'fx4', round: 1, seq: 4, players: [fxP(6)], status: 'bye', slot_at: null, match_id: null, match_status: null, winner_id: null, score_text: '' }
+          ]
+        })
+      }
       case 'getMemberDetail':
         return Promise.resolve(memberDetail(data && data.id))
       case 'getMatchDetail':
