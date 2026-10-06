@@ -16,14 +16,19 @@
     return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate())
   }
 
-  // 按比赛时间推导状态标签：未开始 / 进行中 / 已结束；无时间信息不显示
+  // 按比赛时间推导状态标签：报名中 / 备战中 / 进行中 / 已完成；无时间信息不显示
+  // 口径与小程序 utils/competition.js 一致
   function statusOf(comp) {
     var d = new Date()
     function p(n) { return String(n).padStart(2, '0') }
     var t = d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate())
-    if (comp.start_date && t < comp.start_date) return { text: '未开始', cls: 'pending' }
-    if (comp.end_date && t > comp.end_date) return { text: '已结束', cls: 'done' }
-    if (comp.start_date || comp.end_date) return { text: '进行中', cls: 'live' }
+    if (comp.end_date && t > comp.end_date) return { text: '已完成', cls: 'done' }
+    if (comp.start_date && t >= comp.start_date) return { text: '进行中', cls: 'live' }
+    if (comp.start_date) {
+      if (comp.signup_deadline && t > comp.signup_deadline) return { text: '备战中', cls: 'standby' }
+      return { text: '报名中', cls: 'signup' }
+    }
+    if (comp.end_date) return { text: '进行中', cls: 'live' }
     return null
   }
 
