@@ -1238,7 +1238,10 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
           <div class="fx-empty-box">尚未抽签，请等待管理员在小程序端完成抽签配对</div>
         </section>
 
-        <!-- 对阵列表（按轮次渲染） -->
+        <!-- 赛程进度 -->
+        <div class="fx-progress" id="fx-progress" style="display:none;"></div>
+
+        <!-- 对阵列表（按分区渲染：小组赛按组 / 淘汰赛按轮 / 逐轮抽签按轮） -->
         <div id="fx-rounds"></div>
       </div>
 
@@ -1281,8 +1284,19 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
           padding: calc(var(--spacing) * 4) calc(var(--spacing) * 5);
         }
         html.dark .fx-card { background: linear-gradient(145deg, #2c2c2e, #262628); border-color: rgba(58,58,60,0.5); }
-        .fx-card-top { display: flex; align-items: center; gap: 6px; margin-bottom: calc(var(--spacing) * 2); }
+        .fx-card-top { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-bottom: calc(var(--spacing) * 2); }
         .fx-time { font-size: 12px; color: var(--muted-foreground); }
+        /* 排期高亮 chip：日期 / 时间 / 几号台 / 第几场 */
+        .fx-chip-slot { font-size: 11px; font-weight: 700; border-radius: 6px; padding: 2px 8px; white-space: nowrap; }
+        .fx-chip-slot.date { color: #fff; background: var(--primary); }
+        .fx-chip-slot.time { color: var(--primary); background: rgba(0, 113, 227, 0.12); }
+        .fx-chip-slot.table { color: #c2410c; background: rgba(234, 88, 12, 0.12); }
+        .fx-chip-slot.session { color: #0f766e; background: rgba(13, 148, 136, 0.12); }
+        .fx-chip-slot.tbd { font-weight: 400; color: var(--muted-foreground); background: var(--secondary); }
+        .fx-progress { font-size: 13px; color: var(--muted-foreground); margin-bottom: calc(var(--spacing) * 4); }
+        .fx-progress b { color: var(--foreground); }
+        .fx-progress .warn { color: #c2410c; font-weight: 600; }
+        .fx-format { font-size: 13px; color: var(--primary); margin-top: calc(var(--spacing) * 2); }
         .fx-status { font-size: 11px; font-weight: 700; border-radius: 999px; padding: 2px 12px; margin-left: auto; }
         .fx-race { font-size: 11px; font-weight: 700; border-radius: 999px; padding: 2px 12px; color: var(--primary); background: rgba(0, 113, 227, 0.08); }
         .fx-status.pending { color: #b8860b; background: rgba(218, 165, 32, 0.14); }
@@ -1316,7 +1330,7 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
     <script src="./js/cloud.js?v=20260926a"></script>
     <script src="./js/fallback-data.js?v=20261008b"></script>
     <script src="./js/common.js?v=20261007a"></script>
-    <script src="./js/fixtures.js?v=20261008c"></script>
+    <script src="./js/fixtures.js?v=20261008d"></script>
     <script>
     /* 主题切换：更新 <html> class + localStorage 记忆，并广播 themechange 事件 */
     (function () {

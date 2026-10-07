@@ -71,6 +71,15 @@
     var GAME_TYPE_LABEL = { c8: '中八', nine_ball: '九球追分' }
     var rows = []
     if (comp.game_type) rows.push(['对局类型', GAME_TYPE_LABEL[comp.game_type] || comp.game_type])
+    // 赛制行：小组赛制展示分组/出线/台数；逐轮抽签仅在显式设置时展示
+    var tables = Number.isInteger(Number(comp.table_count)) && Number(comp.table_count) > 0 ? Number(comp.table_count) : 4
+    if (comp.format === 'groups_knockout' && comp.game_type !== 'nine_ball') {
+      var gs = Number(comp.group_size) > 0 ? Number(comp.group_size) : 4
+      var adv = Number(comp.advance_count) > 0 ? Number(comp.advance_count) : 2
+      rows.push(['赛制', '小组赛+淘汰赛 · ' + gs + ' 人小组前 ' + adv + ' 出线 · ' + tables + ' 台同开'])
+    } else if (comp.format === 'rounds' || comp.table_count) {
+      rows.push(['赛制', '逐轮抽签 · ' + tables + ' 台同开'])
+    }
     var raceParts = [['race_group', '小组赛'], ['race_semi', '半决赛'], ['race_final', '决赛']]
       .map(function (p) {
         var v = Number(comp[p[0]])

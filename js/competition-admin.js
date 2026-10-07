@@ -164,6 +164,10 @@ window.CompAdmin = (function () {
   var EDIT_FIELDS = [
     { key: 'name', label: '比赛名称', type: 'text', required: true, max: 20 },
     { key: 'game_type', label: '对局类型', type: 'select', options: [['', '未设置'], ['c8', '中八'], ['nine_ball', '九球追分']] },
+    { key: 'format', label: '赛制（小组赛制仅中八；已抽对阵不可改）', type: 'select', options: [['rounds', '逐轮抽签'], ['groups_knockout', '小组赛+淘汰赛']] },
+    { key: 'table_count', label: '同时开赛台数', type: 'number', placeholder: '默认 4' },
+    { key: 'group_size', label: '小组人数（小组赛制）', type: 'number', placeholder: '默认 4' },
+    { key: 'advance_count', label: '出线名额/组（小组赛制）', type: 'number', placeholder: '默认 2' },
     { key: 'race_group', label: '小组赛抢局（中八）', type: 'select', options: [['', '未设置'], ['3', '抢 3'], ['4', '抢 4'], ['5', '抢 5'], ['6', '抢 6'], ['7', '抢 7']] },
     { key: 'race_semi', label: '半决赛抢局（中八）', type: 'select', options: [['', '未设置'], ['3', '抢 3'], ['4', '抢 4'], ['5', '抢 5'], ['6', '抢 6'], ['7', '抢 7']] },
     { key: 'race_final', label: '决赛抢局（中八）', type: 'select', options: [['', '未设置'], ['3', '抢 3'], ['4', '抢 4'], ['5', '抢 5'], ['6', '抢 6'], ['7', '抢 7']] },
@@ -243,6 +247,11 @@ window.CompAdmin = (function () {
     payload.race_group = get('race_group')
     payload.race_semi = get('race_semi')
     payload.race_final = get('race_final')
+    // 赛制与排期设定全量传（空串清除回落默认）
+    payload.format = get('format')
+    payload.table_count = get('table_count')
+    payload.group_size = get('group_size')
+    payload.advance_count = get('advance_count')
 
     btn.disabled = true
     btn.textContent = '保存中…'
