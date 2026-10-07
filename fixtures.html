@@ -1281,9 +1281,10 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
           padding: calc(var(--spacing) * 4) calc(var(--spacing) * 5);
         }
         html.dark .fx-card { background: linear-gradient(145deg, #2c2c2e, #262628); border-color: rgba(58,58,60,0.5); }
-        .fx-card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: calc(var(--spacing) * 2); }
+        .fx-card-top { display: flex; align-items: center; gap: 6px; margin-bottom: calc(var(--spacing) * 2); }
         .fx-time { font-size: 12px; color: var(--muted-foreground); }
-        .fx-status { font-size: 11px; font-weight: 700; border-radius: 999px; padding: 2px 12px; }
+        .fx-status { font-size: 11px; font-weight: 700; border-radius: 999px; padding: 2px 12px; margin-left: auto; }
+        .fx-race { font-size: 11px; font-weight: 700; border-radius: 999px; padding: 2px 12px; color: var(--primary); background: rgba(0, 113, 227, 0.08); }
         .fx-status.pending { color: #b8860b; background: rgba(218, 165, 32, 0.14); }
         .fx-status.live { color: var(--primary); background: rgba(0, 113, 227, 0.1); }
         .fx-status.done { color: var(--muted-foreground); background: var(--secondary); }
@@ -1315,7 +1316,7 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
     <script src="./js/cloud.js?v=20260926a"></script>
     <script src="./js/fallback-data.js?v=20261008b"></script>
     <script src="./js/common.js?v=20261007a"></script>
-    <script src="./js/fixtures.js?v=20261008a"></script>
+    <script src="./js/fixtures.js?v=20261008c"></script>
     <script>
     /* 主题切换：更新 <html> class + localStorage 记忆，并广播 themechange 事件 */
     (function () {

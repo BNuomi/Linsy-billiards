@@ -71,6 +71,13 @@
     var GAME_TYPE_LABEL = { c8: '中八', nine_ball: '九球追分' }
     var rows = []
     if (comp.game_type) rows.push(['对局类型', GAME_TYPE_LABEL[comp.game_type] || comp.game_type])
+    var raceParts = [['race_group', '小组赛'], ['race_semi', '半决赛'], ['race_final', '决赛']]
+      .map(function (p) {
+        var v = Number(comp[p[0]])
+        return Number.isInteger(v) && v > 0 ? p[1] + '抢' + v : ''
+      })
+      .filter(Boolean)
+    if (raceParts.length) rows.push(['局数设定', raceParts.join(' · ')])
     if (comp.start_date || comp.end_date) {
       rows.push(['比赛时间', (comp.start_date || '未定') + ' 至 ' + (comp.end_date || '未定')])
     }

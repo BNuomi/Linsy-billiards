@@ -164,6 +164,9 @@ window.CompAdmin = (function () {
   var EDIT_FIELDS = [
     { key: 'name', label: '比赛名称', type: 'text', required: true, max: 20 },
     { key: 'game_type', label: '对局类型', type: 'select', options: [['', '未设置'], ['c8', '中八'], ['nine_ball', '九球追分']] },
+    { key: 'race_group', label: '小组赛抢局（中八）', type: 'select', options: [['', '未设置'], ['3', '抢 3'], ['4', '抢 4'], ['5', '抢 5'], ['6', '抢 6'], ['7', '抢 7']] },
+    { key: 'race_semi', label: '半决赛抢局（中八）', type: 'select', options: [['', '未设置'], ['3', '抢 3'], ['4', '抢 4'], ['5', '抢 5'], ['6', '抢 6'], ['7', '抢 7']] },
+    { key: 'race_final', label: '决赛抢局（中八）', type: 'select', options: [['', '未设置'], ['3', '抢 3'], ['4', '抢 4'], ['5', '抢 5'], ['6', '抢 6'], ['7', '抢 7']] },
     { key: 'start_date', label: '开始日期', type: 'date' },
     { key: 'end_date', label: '结束日期', type: 'date' },
     { key: 'venue', label: '比赛地点', type: 'text', max: 50 },
@@ -236,6 +239,10 @@ window.CompAdmin = (function () {
       prize: get('prize')
     }
     if (get('game_type')) payload.game_type = get('game_type')
+    // 局数设定全量传：数字字符串云端转数值落库，空串清除
+    payload.race_group = get('race_group')
+    payload.race_semi = get('race_semi')
+    payload.race_final = get('race_final')
 
     btn.disabled = true
     btn.textContent = '保存中…'

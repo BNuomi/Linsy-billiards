@@ -1040,6 +1040,23 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
           background: rgba(161, 98, 7, 0.25);
           color: #f0c96b;
         }
+        /* 阶段徽标（对阵所属阶段：小组赛/半决赛/决赛，创建对局时落库） */
+        .stage-badge {
+          display: inline-flex;
+          align-items: center;
+          height: 28px;
+          padding: 0 calc(var(--spacing) * 3);
+          border-radius: 999px;
+          background: rgba(0, 113, 227, 0.08);
+          color: var(--primary);
+          font-size: 12px;
+          font-weight: 700;
+          white-space: nowrap;
+        }
+        html.dark .stage-badge {
+          background: rgba(96, 165, 250, 0.18);
+          color: #93c5fd;
+        }
         .match-chevron {
           display: flex;
           align-items: center;
@@ -1313,7 +1330,7 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
     <script src="./js/cloud.js?v=20260919d"></script>
     <script src="./js/fallback-data.js?v=20261008b"></script>
     <script src="./js/common.js?v=20261007a"></script>
-    <script src="./js/match-records.js?v=20261006a"></script>
+    <script src="./js/match-records.js?v=20261008c"></script>
     <script>
     /* 主题切换：更新 <html> class + localStorage 记忆，并广播 themechange 事件 */
     (function () {

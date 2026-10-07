@@ -149,13 +149,15 @@
     if (m.game_type === 'nine_ball' && m.ball_count) typeLabel = m.ball_count + '球追分'
     meta += '<span class="status-badge ' + st.cls + '"><span class="dot"></span>' + st.text + '</span>' +
       '<span style="font-size:12px;color:var(--muted-foreground);font-weight:600;">' + typeLabel + '</span>'
-    // 关联比赛徽标（对局创建时选中的赛事；点击进比赛详情）
+    // 关联比赛徽标（对局创建时选中的赛事；点击进比赛详情）+ 阶段徽标（对阵开局落库）
     if (m.competition_name) {
       var compHref = m.competition_id
         ? './competition-detail.html?id=' + encodeURIComponent(m.competition_id)
         : '#'
       meta += '<a class="comp-badge" href="' + compHref + '" title="' + U.escapeHtml(m.competition_name) + '">' + U.escapeHtml(m.competition_name) + '</a>'
     }
+    var stageLabel = { group: '小组赛', semi: '半决赛', final: '决赛' }[m.stage] || ''
+    if (stageLabel) meta += '<span class="stage-badge">' + stageLabel + '</span>'
     return '<article class="match-card" data-id="' + U.escapeHtml(m._id) + '" role="link" tabindex="0" aria-label="查看对战详情">' +
       '<div class="match-date"><span class="eyebrow">' + U.fmtDate(m.created_at) + '</span></div>' +
       '<div class="match-body"><div class="match-players">' + playersHtml + '</div>' +

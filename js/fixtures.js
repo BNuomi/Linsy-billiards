@@ -22,6 +22,17 @@
     return { text: '预告', cls: 'pending' }
   }
 
+  // 局数设定标记：按所在轮次的非轮空对阵数推导阶段（1 场=决赛 / 2 场=半决赛 / 其余=小组赛），读取比赛 race_*
+  function raceOf(fixtures, comp, f) {
+    if (!comp || comp.game_type === 'nine_ball') return ''
+    var count = fixtures.filter(function (x) {
+      return x.round === f.round && x.status !== 'bye' && (x.players || []).length >= 2
+    }).length
+    var stage = count <= 1 ? 'final' : (count === 2 ? 'semi' : 'group')
+    var v = Number(comp['race_' + stage])
+    return Number.isInteger(v) && v > 0 ? '抢' + v : ''
+  }
+
   function showError(msg) {
     el('fx-error-text').textContent = msg || '加载失败，请稍后重试'
     el('fx-error').style.display = ''
@@ -88,6 +99,7 @@
       var dayHtml = [...dayMap.entries()].map(function ([day, items]) {
         var cards = items.map(function (f) {
           var st = statusOf(f)
+          var race = raceOf(fixtures, comp, f)
           var names = (f.players || []).map(function (p) { return U.escapeHtml(p.name) }).join('<span class="fx-vs">vs</span>')
           var winner = f.winner_id ? ((f.players.find(function (p) { return p.id === f.winner_id }) || {}).name || '') : ''
           var result = st.cls === 'done'
@@ -96,6 +108,7 @@
             : ''
           return '<div class="fx-card">' +
             '<div class="fx-card-top"><span class="fx-time">' + (f.slot_at ? fmtSlot(f.slot_at) : '时间待定') + '</span>' +
+            (race ? '<span class="fx-race">' + race + '</span>' : '') +
             '<span class="fx-status ' + st.cls + '">' + st.text + '</span></div>' +
             '<div class="fx-players">' + names + '</div>' + result + '</div>'
         }).join('')
