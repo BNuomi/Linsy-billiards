@@ -286,7 +286,7 @@ window.FallbackData = (function () {
         return Promise.resolve({
           competition: { _id: (data && data.competition_id) || 'demo_comp', name: '演示赛事', description: '离线演示数据：连接云端后展示真实比赛信息。', created_at: now - 30 * DAY },
           match_count: matches.length,
-          participant_count: members.length
+          signup_count: 8
         })
       case 'getFixtures': {
         // 离线兜底：1 轮 3 场（已结束/进行中/预告各一）+ 1 人轮空，覆盖全部展示态

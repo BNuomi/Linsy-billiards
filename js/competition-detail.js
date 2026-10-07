@@ -88,7 +88,6 @@
 
     el('cd-match-count').textContent = detail.match_count != null ? detail.match_count : 0
     el('cd-signup-count').textContent = detail.signup_count != null ? detail.signup_count : 0
-    el('cd-participant-count').textContent = detail.participant_count != null ? detail.participant_count : 0
     el('cd-desc').textContent = comp.description || ''
     el('cd-info-section').style.display = ''
 
