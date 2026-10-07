@@ -5,6 +5,7 @@ window.AppUI = (function () {
   var NAV_ITEMS = [
     { key: 'rankings', label: '积分排行', href: './rankings.html' },
     { key: 'matches', label: '对战记录', href: './match-records.html' },
+    { key: 'competitions', label: '比赛', href: './competitions.html' },
     { key: 'member', label: '会员详情', href: './member-detail.html' },
     { key: 'home', label: '首页', href: './index.html' }
   ]

@@ -1,6 +1,7 @@
 /* 比赛（赛事）详情页：只读展示比赛信息 / 统计 / 赛事积分榜 */
 ;(function () {
   var U = window.AppUI
+  var currentComp = null // 当前比赛文档（管理模块编辑表单预填用）
 
   function el(id) { return document.getElementById(id) }
 
@@ -51,6 +52,7 @@
 
   function render(detail, board) {
     var comp = detail.competition || {}
+    currentComp = comp
     el('cd-name').textContent = comp.name || '比赛详情'
     el('cd-fixtures-link').href = './fixtures.html?id=' + encodeURIComponent(comp._id || compId())
     el('cd-subtitle').textContent = comp.created_at ? (fmtDate(comp.created_at) + ' 创建') : ''
@@ -156,8 +158,14 @@
   }
 
   document.addEventListener('DOMContentLoaded', function () {
-    U.fixNav('rankings')
+    U.fixNav('competitions')
     U.mountCloudBar(load)
     load()
+    if (window.CompAdmin) {
+      window.CompAdmin.init({
+        getComp: function () { return currentComp },
+        onChanged: load
+      })
+    }
   })
 })()

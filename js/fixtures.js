@@ -121,7 +121,7 @@
   }
 
   document.addEventListener('DOMContentLoaded', function () {
-    U.fixNav('rankings')
+    U.fixNav('competitions')
     U.mountCloudBar(load)
     el('fx-retry').addEventListener('click', function () {
       el('fx-error').style.display = 'none'

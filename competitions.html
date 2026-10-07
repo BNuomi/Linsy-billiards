@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>赛事规则 - 台球协会</title>
+    <title>比赛列表</title>
     <script>
     /* 主题初始化：localStorage 优先，其次跟随系统深浅色偏好（在渲染前执行，避免闪白） */
     (function () {
@@ -379,6 +379,7 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
     </style>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.1/dist/index.global.js"></script>
     <script src="https://unpkg.com/lucide@1.8.0/dist/umd/lucide.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
     <style type="text/tailwindcss">
   @theme inline {
     --color-background: var(--apple-background);
@@ -583,80 +584,97 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
         box-shadow: 0 2px 12px rgba(61, 214, 133, 0.25);
       }
 
-      /* Hero */
-      html.dark .rk-hero .eyebrow { color: var(--primary) !important; }
+      /* Hero：绿色渐变标题 */
+      html.dark .hero-section .eyebrow { color: var(--primary) !important; }
+      html.dark .hero-title {
+        background: linear-gradient(135deg, #f5f5f7 0%, #3dd685 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
 
-      /* 统计卡片 */
-      html.dark .rk-stat-card {
-        background: linear-gradient(145deg, #2c2c2e, #262628);
-        border: 1px solid rgba(58, 58, 60, 0.5);
+      /* 按钮 */
+      html.dark .btn-primary {
+        background: var(--primary);
+        color: var(--primary-foreground);
         border-radius: 14px;
-        box-shadow: 0 2px 12px rgba(0,0,0,0.2);
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        box-shadow: 0 2px 12px rgba(61, 214, 133, 0.2);
       }
-      html.dark .rk-stat-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(0,0,0,0.3), 0 0 0 1px rgba(61, 214, 133, 0.15);
+      html.dark .btn-primary:hover {
+        filter: brightness(1.08);
+        box-shadow: 0 4px 16px rgba(61, 214, 133, 0.3);
+      }
+      html.dark .btn-secondary {
+        background: var(--secondary);
+        color: var(--secondary-foreground);
+        border: 1px solid var(--border);
+        border-radius: 14px;
       }
 
-      /* 搜索与筛选 */
-      html.dark .rk-filter-bar .field {
+      /* 筛选栏 */
+      html.dark .filter-bar {
+        border-top: 1px solid rgba(58, 58, 60, 0.5);
+        border-bottom: 1px solid rgba(58, 58, 60, 0.5);
+      }
+      html.dark .filter-bar .field {
         background: #2c2c2e;
         border: 1px solid var(--border);
         border-radius: 14px;
       }
-      html.dark .rk-pill {
+      html.dark .date-filter {
+        background: #2c2c2e;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+      }
+      html.dark .pill {
         border-radius: 999px;
         border: 1px solid var(--border);
         background: #2c2c2e;
         transition: all 0.2s ease;
       }
-      html.dark .rk-pill.is-active {
+      html.dark .pill.active {
         background: var(--primary);
         color: var(--primary-foreground);
         border-color: var(--primary);
         box-shadow: 0 2px 12px rgba(61, 214, 133, 0.2);
       }
 
-      /* 前三领奖台：暗色卡片渐变 + 流光配色（交互结构见 critical-layout） */
-      html.dark .rk-podium-card {
-        background:
-          radial-gradient(350px circle at var(--x) var(--y), rgba(255,255,255,0.06), transparent 40%),
-          linear-gradient(160deg, #2c2c2e, #262628);
-        border: 1px solid rgba(58, 58, 60, 0.5);
-        border-radius: 16px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.25);
-      }
-      html.dark .rk-podium-card:hover { box-shadow: 0 12px 32px rgba(0,0,0,0.35); }
-      html.dark .rk-podium-card::before,
-      html.dark .rk-podium-card::after { border-radius: 16px; }
-      /* 暗色流光颜色：金 / 银 / 铜 */
-      html.dark .rk-podium-card.rank-1 {
-        --glow-color: #ffd700;
-        --glow-alpha: 0.12;
-        border-color: rgba(255, 215, 0, 0.3);
-        box-shadow: 0 4px 24px rgba(255, 215, 0, 0.08), 0 4px 20px rgba(0,0,0,0.25);
-      }
-      html.dark .rk-podium-card.rank-2 { --glow-color: #c0c0c8; }
-      html.dark .rk-podium-card.rank-3 { --glow-color: #cd7f32; }
-
-      /* 排名表格 */
-      html.dark .rk-table {
+      /* 对战卡片：台球氛围 */
+      html.dark .match-card {
         background: linear-gradient(145deg, #2c2c2e, #262628);
         border: 1px solid rgba(58, 58, 60, 0.5);
-        border-radius: 14px;
+        border-radius: 16px;
         box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+        transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
       }
-      html.dark .rk-table thead th {
-        background: rgba(58, 58, 60, 0.3);
+      html.dark .match-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 28px rgba(0,0,0,0.3);
+        border-color: rgba(61, 214, 133, 0.3);
+      }
+      html.dark .match-date { border-right: 1px solid rgba(58, 58, 60, 0.5); }
+      html.dark .match-date .eyebrow { color: var(--primary); opacity: 0.7; }
+      html.dark .player-name.winner { color: var(--primary); }
+      html.dark .vs-label {
+        background: rgba(61, 214, 133, 0.12);
+        color: var(--primary);
+        border: 1px solid rgba(61, 214, 133, 0.2);
+      }
+      html.dark .status-badge.confirmed {
+        background: rgba(48, 209, 88, 0.15);
+        color: var(--success);
+        border: 1px solid rgba(48, 209, 88, 0.3);
+      }
+      html.dark .status-badge.pending {
+        background: rgba(142, 142, 147, 0.15);
         color: var(--muted-foreground);
-        border-bottom: 1px solid rgba(58, 58, 60, 0.6);
+        border: 1px solid var(--border);
       }
-      html.dark .rk-table tbody tr { transition: background-color 0.15s ease; }
-      html.dark .rk-table tbody tr:hover { background: rgba(61, 214, 133, 0.04); }
+      html.dark .points-change.positive { color: var(--success); }
+      html.dark .points-change.negative { color: var(--destructive); }
 
       /* 页脚 */
-      html.dark .rk-footer {
+      html.dark .page-footer {
         background: rgba(28, 28, 30, 0.6);
         border-top: 1px solid rgba(58, 58, 60, 0.5);
       }
@@ -706,114 +724,475 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
     </style>
 </head>
 <body class="min-h-screen font-sans antialiased">
-    <style id="critical-layout">
-      /* ── Doc page layout (survives without Tailwind compilation) ── */
-      html { scroll-behavior: smooth; }
-      .rk-nav {
-        position: sticky;
-        top: 0;
-        z-index: 50;
-        display: flex;
-        align-items: center;
-        gap: calc(var(--spacing) * 2);
-        width: 100%;
-        height: 52px;
-        padding: 0 max(16px, calc((100% - 1200px) / 2));
-        background: var(--sidebar);
-        border-bottom: 1px solid var(--border);
-        box-shadow: var(--shadow-sm);
-      }
-      .rk-nav .brand {
-        color: var(--foreground);
-        display: inline-flex;
-        align-items: center;
-        gap: 10px;
-        font-size: 18px;
-        font-weight: 800;
-        letter-spacing: 0.02em;
-      }
-      .brand-icon { width: 30px; height: 30px; flex: none; display: block; }
-      .rk-nav .rail { margin-left: auto; }
-      .rk-nav .link.is-active { background: var(--primary); color: var(--primary-foreground); }
-      .rk-nav .link.is-active:hover { background: var(--primary); }
-
-      .rk-container { max-width: 1200px; margin: 0 auto; padding: 32px 16px 64px; }
-
-      .doc-pills { display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap; }
-      .doc-pill {
-        display: inline-flex; align-items: center; height: 36px; padding: 0 18px;
-        border-radius: 999px; border: 1px solid var(--border); background: var(--card);
-        color: var(--foreground); font-size: 13px; font-weight: 600; text-decoration: none;
-        transition: border-color .18s ease, color .18s ease;
-      }
-      .doc-pill:hover { border-color: var(--primary); color: var(--primary); }
-
-      .doc-section { margin-top: 44px; scroll-margin-top: 76px; }
-      .doc-section-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-      .doc-badge {
-        display: inline-flex; align-items: center; justify-content: center; height: 26px;
-        padding: 0 12px; border-radius: 999px; background: var(--primary);
-        color: var(--primary-foreground); font-size: 12px; font-weight: 700; letter-spacing: .04em;
-      }
-      .doc-badge.ghost { background: var(--secondary); color: var(--muted-foreground); border: 1px solid var(--border); }
-      .doc-sub { color: var(--muted-foreground); font-size: 14px; margin: 10px 0 20px; max-width: 760px; line-height: 1.8; }
-
-      .rule-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
-      .rule-card {
-        background: var(--card); border: 1px solid var(--border);
-        border-radius: var(--radius); box-shadow: var(--shadow-sm); padding: 22px;
-      }
-      .rule-card h3 { display: flex; align-items: center; gap: 10px; font-size: 16px; margin: 0 0 12px; }
-      .rule-num {
-        flex: none; width: 24px; height: 24px; border-radius: 999px;
-        background: var(--secondary); color: var(--primary);
-        font-size: 12px; font-weight: 800; display: inline-flex; align-items: center; justify-content: center;
-      }
-      .rule-card ul { margin: 0; padding-left: 18px; color: var(--muted-foreground); font-size: 14px; line-height: 1.9; }
-      .rule-card li::marker { color: var(--primary); }
-      .rule-card strong { color: var(--foreground); font-weight: 600; }
-      .rule-example {
-        margin-top: 12px; padding: 10px 14px; border-radius: 10px;
-        background: var(--secondary); font-size: 13px; color: var(--muted-foreground); line-height: 1.7;
-      }
-      .formula-card {
-        background: var(--secondary); border: 1px solid var(--border); border-radius: 12px;
-        padding: 14px 18px; font-family: var(--font-mono, ui-monospace, monospace);
-        font-size: 14px; color: var(--foreground); margin: 4px 0 14px; overflow-x: auto;
-      }
-      .coef-table { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 8px; }
-      .coef-table th, .coef-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); text-align: center; }
-      .coef-table th { color: var(--muted-foreground); font-size: 12px; font-weight: 600; }
-      .coef-table td { font-variant-numeric: tabular-nums; font-weight: 600; }
-      .coef-table tr:last-child td { border-bottom: none; }
-
-      .doc-note {
-        margin-top: 28px; padding: 16px 20px; border-radius: var(--radius);
-        border: 1px dashed var(--border); background: var(--secondary);
-        color: var(--muted-foreground); font-size: 13px; line-height: 1.8;
-      }
-
-      .rk-footer { margin-top: 64px; padding: 32px 16px; border-top: 1px solid var(--border); background: var(--secondary); }
-      .rk-footer-inner { max-width: 1200px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
-      .rk-footer-brand { font-size: 14px; font-weight: 700; color: var(--foreground); letter-spacing: .04em; }
-      .rk-footer-links { display: flex; gap: 24px; flex-wrap: wrap; }
-      .rk-footer-links a { color: var(--muted-foreground); font-size: 13px; text-decoration: none; }
-      .rk-footer-links a:hover { color: var(--primary); }
-      .rk-footer-copy { color: var(--muted-foreground); font-size: 12px; }
-
-      @media (max-width: 900px) { .rule-grid { grid-template-columns: 1fr; } }
-      @media (max-width: 600px) {
-        .rk-nav { height: auto; flex-wrap: wrap; padding: 8px 16px; }
-        .rk-nav .rail { margin-left: 0; flex-wrap: wrap; }
-      }
-    </style>
     <main>
+      <style id="critical-layout">
+        /* ── Page-specific layout ── */
+        /* Nav: unified with rankings page */
+        .rk-nav {
+          position: sticky;
+          top: 0;
+          z-index: 50;
+          display: flex;
+          align-items: center;
+          gap: calc(var(--spacing) * 2);
+          width: 100%;
+          height: 52px;
+          padding: 0 max(16px, calc((100% - 1200px) / 2));
+          background: var(--sidebar);
+          border-bottom: 1px solid var(--border);
+          box-shadow: var(--shadow-sm);
+        }
+        .rk-nav .brand {
+          color: var(--foreground);
+          display: inline-flex;
+          align-items: center;
+          gap: 10px;
+          font-size: 18px;
+          font-weight: 800;
+          letter-spacing: 0.02em;
+        }
+        .brand-icon {
+          width: 30px;
+          height: 30px;
+          flex: none;
+          display: block;
+        }
+        .rk-nav .rail { margin-left: auto; }
+        .rk-nav .link.is-active {
+          background: var(--primary);
+          color: var(--primary-foreground);
+        }
+        .rk-nav .link.is-active:hover { background: var(--primary); }
+        @media (max-width: 600px) {
+          .rk-nav { height: auto; flex-wrap: wrap; padding: 8px 16px; }
+          .rk-nav .rail { margin-left: 0; flex-wrap: wrap; }
+        }
+
+        .page-container {
+          max-width: 1200px;
+          margin: 0 auto;
+          padding: 0 calc(var(--spacing) * 6);
+        }
+
+        /* Hero */
+        .hero-section {
+          padding: calc(var(--spacing) * 18) 0 calc(var(--spacing) * 12);
+        }
+        .hero-section .hero-title {
+          font-size: clamp(2.5rem, 5vw, 3.5rem);
+          font-weight: 800;
+          line-height: 1.05;
+          letter-spacing: -0.02em;
+          margin: 0 0 calc(var(--spacing) * 4);
+          color: var(--foreground);
+        }
+        .hero-section .hero-subtitle {
+          font-size: 1.125rem;
+          color: var(--muted-foreground);
+          margin: 0 0 calc(var(--spacing) * 8);
+          max-width: 480px;
+        }
+
+        /* Filter bar */
+        .filter-bar {
+          display: flex;
+          align-items: center;
+          gap: calc(var(--spacing) * 4);
+          flex-wrap: wrap;
+          padding: calc(var(--spacing) * 6) 0;
+          border-top: 1px solid var(--border);
+          border-bottom: 1px solid var(--border);
+        }
+        .filter-bar .field {
+          min-width: 260px;
+        }
+        .filter-bar .field .icon-lucide {
+          color: var(--muted-foreground);
+          display: inline-flex;
+        }
+        .date-filter {
+          display: inline-flex;
+          align-items: center;
+          gap: calc(var(--spacing) * 2);
+          height: 44px;
+          padding: 0 calc(var(--spacing) * 4);
+          border: 1px solid var(--input);
+          border-radius: var(--radius);
+          background: var(--background);
+          color: var(--foreground);
+          font-size: 14px;
+          font-weight: 600;
+          box-shadow: var(--shadow-xs);
+          cursor: pointer;
+          transition: border-color .18s ease;
+        }
+        .date-filter:hover {
+          border-color: var(--ring);
+        }
+        .date-filter .icon-lucide {
+          color: var(--muted-foreground);
+        }
+        .filter-pills {
+          display: flex;
+          gap: calc(var(--spacing) * 2);
+          flex-wrap: wrap;
+        }
+        .pill {
+          display: inline-flex;
+          align-items: center;
+          height: 36px;
+          padding: 0 calc(var(--spacing) * 4);
+          border: 1px solid var(--border);
+          border-radius: 999px;
+          background: var(--background);
+          color: var(--muted-foreground);
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: background-color .18s ease, color .18s ease, border-color .18s ease;
+        }
+        .pill:hover {
+          background: var(--secondary);
+          color: var(--foreground);
+        }
+        .pill.active {
+          background: var(--primary);
+          color: var(--primary-foreground);
+          border-color: var(--primary);
+        }
+        .filter-count {
+          margin-left: auto;
+          font-size: 13px;
+          color: var(--muted-foreground);
+          font-weight: 600;
+        }
+
+        /* Match record grid */
+        .match-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: calc(var(--spacing) * 5);
+          padding: calc(var(--spacing) * 10) 0;
+        }
+        @media (max-width: 768px) {
+          .match-grid {
+            grid-template-columns: 1fr;
+          }
+          .page-container {
+            padding: 0 calc(var(--spacing) * 4);
+          }
+          .filter-bar {
+            flex-direction: column;
+            align-items: stretch;
+          }
+          .filter-bar .field {
+            min-width: 0;
+            width: 100%;
+          }
+          .filter-count {
+            margin-left: 0;
+          }
+        }
+
+        .match-card {
+          display: flex;
+          align-items: stretch;
+          gap: calc(var(--spacing) * 5);
+          padding: calc(var(--spacing) * 6);
+          background: var(--card);
+          color: var(--card-foreground);
+          border: 1px solid var(--border);
+          border-radius: var(--radius);
+          box-shadow: var(--shadow-sm);
+          transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+          cursor: pointer;
+        }
+        .match-card:hover {
+          transform: translateY(-2px);
+          box-shadow: var(--shadow-md);
+          border-color: var(--primary);
+        }
+        .match-date {
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          align-items: flex-start;
+          min-width: 72px;
+          padding-right: calc(var(--spacing) * 5);
+          border-right: 1px solid var(--border);
+        }
+        .match-date .eyebrow {
+          font-size: 11px;
+          color: var(--muted-foreground);
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          white-space: nowrap;
+        }
+        .match-body {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          gap: calc(var(--spacing) * 3);
+        }
+        .match-players {
+          display: flex;
+          align-items: center;
+          gap: calc(var(--spacing) * 3);
+          flex-wrap: wrap;
+        }
+        .player-name {
+          font-size: 15px;
+          font-weight: 700;
+          color: var(--foreground);
+        }
+        .player-name.winner {
+          color: var(--success);
+        }
+        .vs-label {
+          font-size: 11px;
+          font-weight: 800;
+          letter-spacing: 0.1em;
+          color: var(--muted-foreground);
+          padding: 2px calc(var(--spacing) * 2);
+          border-radius: 999px;
+          background: var(--secondary);
+        }
+        .match-score {
+          font-family: var(--font-mono);
+          font-size: 1.75rem;
+          font-weight: 700;
+          color: var(--foreground);
+          letter-spacing: -0.02em;
+        }
+        .match-meta {
+          display: flex;
+          align-items: center;
+          gap: calc(var(--spacing) * 4);
+          flex-wrap: wrap;
+        }
+        .points-change {
+          font-family: var(--font-mono);
+          font-size: 14px;
+          font-weight: 700;
+        }
+        .points-change.positive {
+          color: var(--success);
+        }
+        .points-change.negative {
+          color: var(--state-error);
+        }
+        .status-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: calc(var(--spacing) * 1.5);
+          height: 28px;
+          padding: 0 calc(var(--spacing) * 3);
+          border-radius: 999px;
+          font-size: 12px;
+          font-weight: 700;
+        }
+        .status-badge.confirmed {
+          background: var(--success);
+          color: var(--success-foreground);
+        }
+        .status-badge.pending {
+          background: var(--secondary);
+          color: var(--muted-foreground);
+          border: 1px solid var(--border);
+        }
+        .status-badge .dot {
+          width: 7px;
+          height: 7px;
+          border-radius: 999px;
+          background: currentColor;
+          opacity: 0.7;
+        }
+        .match-chevron {
+          display: flex;
+          align-items: center;
+          color: var(--muted-foreground);
+          transition: color .18s ease, transform .18s ease;
+        }
+        .match-card:hover .match-chevron {
+          color: var(--primary);
+          transform: translateX(2px);
+        }
+
+        /* Pagination */
+        .pagination-section {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: calc(var(--spacing) * 5);
+          padding: calc(var(--spacing) * 6) 0 calc(var(--spacing) * 20);
+        }
+        .pagination-text {
+          font-size: 13px;
+          color: var(--muted-foreground);
+          font-weight: 600;
+        }
+
+        /* Footer */
+        .page-footer {
+          border-top: 1px solid var(--border);
+          background: var(--sidebar);
+          padding: calc(var(--spacing) * 12) 0;
+        }
+        .page-footer .footer-inner {
+          max-width: 1200px;
+          margin: 0 auto;
+          padding: 0 calc(var(--spacing) * 6);
+          display: flex;
+          flex-direction: column;
+          gap: calc(var(--spacing) * 6);
+        }
+        .page-footer .footer-top {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          flex-wrap: wrap;
+          gap: calc(var(--spacing) * 4);
+        }
+        .page-footer .footer-brand {
+          font-size: 16px;
+          font-weight: 800;
+          letter-spacing: 0.04em;
+          color: var(--foreground);
+        }
+        .page-footer .footer-links {
+          display: flex;
+          gap: calc(var(--spacing) * 6);
+          flex-wrap: wrap;
+        }
+        .page-footer .footer-links a {
+          font-size: 13px;
+          font-weight: 600;
+          color: var(--muted-foreground);
+          text-decoration: none;
+          transition: color .18s ease;
+        }
+        .page-footer .footer-links a:hover {
+          color: var(--primary);
+        }
+        .page-footer .footer-bottom {
+          font-size: 12px;
+          color: var(--muted-foreground);
+        }
+        @media (max-width: 768px) {
+          .page-footer .footer-inner {
+            padding: 0 calc(var(--spacing) * 4);
+          }
+          .page-footer .footer-top {
+            flex-direction: column;
+            align-items: flex-start;
+          }
+        }
+
+        /* QR popover: 小程序码浮层（类右键菜单的轻盈下拉，无遮罩无模糊） */
+        .qr-anchor {
+          position: relative;
+          display: inline-block;
+        }
+        .qr-pop {
+          position: absolute;
+          left: calc(100% + 12px);
+          top: 0;
+          z-index: 60;
+          width: 300px;
+          max-width: calc(100vw - 32px);
+          background: var(--card);
+          color: var(--card-foreground);
+          border: 1px solid var(--border);
+          border-radius: 16px;
+          box-shadow: var(--shadow-xl);
+          padding: 18px 18px 15px;
+          text-align: center;
+          opacity: 0;
+          transform: translateX(-4px) scale(0.97);
+          transform-origin: left top;
+          transition: opacity .16s ease, transform .16s ease;
+          pointer-events: none;
+        }
+        .qr-pop.open {
+          opacity: 1;
+          transform: none;
+          pointer-events: auto;
+        }
+        /* 窄屏右侧空间不足：回退为按钮下方案出 */
+        @media (max-width: 768px) {
+          .qr-pop {
+            left: 0;
+            top: calc(100% + 12px);
+            transform: translateY(-4px) scale(0.97);
+            transform-origin: top left;
+          }
+          .qr-pop.open {
+            transform: none;
+          }
+        }
+        .qr-close {
+          position: absolute;
+          top: 8px;
+          right: 8px;
+          width: 26px;
+          height: 26px;
+          border: none;
+          border-radius: 999px;
+          background: transparent;
+          color: var(--muted-foreground);
+          font-size: 16px;
+          line-height: 1;
+          cursor: pointer;
+          transition: background-color .18s ease, color .18s ease;
+        }
+        .qr-close:hover { background: var(--secondary); color: var(--foreground); }
+        .qr-title { font-size: 15px; font-weight: 700; }
+        .qr-desc { margin-top: 4px; font-size: 12px; color: var(--muted-foreground); }
+        .qr-body {
+          margin: 14px auto 0;
+          width: 208px;
+          height: 208px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 12px;
+          background: var(--background);
+          border: 1px solid var(--border);
+          overflow: hidden;
+        }
+        .qr-img { width: 192px; height: 192px; border-radius: 8px; }
+        .qr-loading { font-size: 12px; color: var(--muted-foreground); }
+        .qr-error {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 10px;
+          padding: 0 14px;
+          font-size: 12px;
+          color: var(--state-error);
+        }
+        .qr-retry {
+          height: 30px;
+          padding: 0 16px;
+          border: 1px solid var(--border);
+          border-radius: 999px;
+          background: var(--card);
+          color: var(--foreground);
+          font-size: 12px;
+          font-weight: 600;
+          cursor: pointer;
+        }
+        .qr-retry:hover { background: var(--secondary); }
+        .qr-tip { margin-top: 12px; font-size: 11px; color: var(--muted-foreground); }
+      </style>
+
+      <!-- Top Navigation Bar -->
       <nav class="webbar rk-nav" aria-label="台球协会主导航">
         <span class="brand"><svg class="brand-icon" viewBox="0 0 36 36" aria-hidden="true"><rect width="36" height="36" rx="9" style="fill:var(--primary)"/><circle cx="18" cy="18" r="10.5" style="fill:#ffffff"/><circle cx="18" cy="18" r="5" style="fill:var(--primary)"/></svg>台球协会</span>
         <div class="rail">
           <a class="link" href="#">积分排行</a>
           <a class="link" href="#">对战记录</a>
-          <a class="link" href="#">比赛</a>
+          <a class="link is-active" href="#" aria-current="page">比赛</a>
           <a class="link" href="#">会员详情</a>
           <button class="theme-toggle" id="theme-toggle" type="button" aria-label="切换深色/浅色主题" title="切换深色/浅色主题">
             <i data-lucide="moon" class="icon-moon" style="width:16px;height:16px;"></i>
@@ -822,197 +1201,108 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
         </div>
       </nav>
 
-      <div class="rk-container">
-        <section class="doc-hero">
-          <div class="eyebrow" style="color: var(--primary); font-weight:700;">RULES OF PLAY</div>
-          <h1 class="title" style="font-size: 36px; margin: 8px 0 0; line-height:1.15;">赛事规则</h1>
-          <p class="body-copy" style="margin-top: 12px; max-width: 680px; font-size: 15px; color: var(--muted-foreground); line-height: 1.8;">参考中国台球协会《中式台球竞赛总则》与世界花式撞球协会（WPA）美式 9 球通用竞赛规则整理，分别列举中八与九球的核心规则，供协会赛事与日常切磋参照执行。</p>
-          <div class="doc-pills">
-            <a class="doc-pill" href="#c8">中八 · 中式台球</a>
-            <a class="doc-pill" href="#nine">九球 · 美式 9 球</a>
-            <a class="doc-pill" href="#pursuit">九球追分 · 记分规则</a>
-          </div>
+      <div class="page-container">
+        <!-- Hero / Title Section -->
+        <section class="hero-section" style="padding-bottom: calc(var(--spacing) * 6);">
+          <div class="eyebrow" style="color: var(--primary); margin-bottom: calc(var(--spacing) * 3);">COMPETITIONS</div>
+          <h1 class="hero-title">比赛</h1>
+          <p class="hero-subtitle"><span id="cl-subtitle">加载中…</span></p>
         </section>
-        <section class="doc-section" id="c8">
-          <div class="doc-section-head"><span class="doc-badge">中八 · 中式台球</span><h2 class="title" style="font-size:24px;margin:0;">中八（中式台球）核心规则</h2></div>
-          <p class="doc-sub">国内普及度最高的台球玩法：双方各执全色/花色一组共 7 颗球，先清完本组再打进黑八者获胜。以下按中国台球协会《中式台球竞赛总则》口径整理。</p>
-          <div class="rule-grid">
-            <div class="rule-card">
-              <h3><span class="rule-num">1</span>用球与摆球</h3>
-              <ul>
-              <li>使用 <strong>1-15 号目标球</strong>与母球：1-7 号为全色球，9-15 号为花色球，<strong>8 号黑球为决胜球</strong></li>
-              <li>15 颗球摆成五排三角形：顶球对准置球点，<strong>黑八置于第三排正中央</strong>，底边两角分别为一颗全色、一颗花色，球与球贴紧</li>
-              </ul>
-            </div>
-            <div class="rule-card">
-              <h3><span class="rule-num">2</span>开球</h3>
-              <ul>
-              <li>母球置于<strong>开球线后</strong>任意位置击出</li>
-              <li>无目标球入袋时，须<strong>至少 4 颗目标球碰库</strong>方为有效开球</li>
-              <li>开球合法且黑八入袋：<strong>不直接判胜</strong>，黑八重置回置球点，由原开球者继续击球</li>
-              <li>开球犯规（如母球落袋）：对手获得<strong>线后自由球</strong></li>
-              </ul>
-            </div>
-            <div class="rule-card">
-              <h3><span class="rule-num">3</span>确定组别</h3>
-              <ul>
-              <li>开球进球<strong>不直接定组</strong>；此后一方合法击入某组球，即确定该方组别</li>
-              <li>未定组前可用任一组球传击进球，不视为犯规，也不定组</li>
-              <li>定组后，合法击入己方球可继续击球；未进球则换对方击球</li>
-              </ul>
-            </div>
-            <div class="rule-card">
-              <h3><span class="rule-num">4</span>击球规则</h3>
-              <ul>
-              <li>定组后母球必须<strong>首先触碰己方球</strong>；己方球未清完前不得先碰黑八</li>
-              <li>无球入袋时，母球触碰目标球后须<strong>至少有一颗球碰库</strong>（母球碰库亦可）</li>
-              <li>清完己方 7 颗球后方可击打黑八；本协会采用黑八<strong>无需指袋</strong>口径</li>
-              </ul>
-            </div>
-            <div class="rule-card">
-              <h3><span class="rule-num">5</span>犯规与自由球</h3>
-              <ul>
-              <li>常见犯规：母球落袋、空杆未碰任何球、先碰他组球、碰球后无球碰库、球杆/身体触球、击球时双脚离地</li>
-              <li>一般犯规后对手获得<strong>全场自由球</strong>：母球可置于台面任意位置，向任意方向击打</li>
-              </ul>
-            </div>
-            <div class="rule-card">
-              <h3><span class="rule-num">6</span>胜负与判负</h3>
-              <ul>
-              <li>清完己方 7 颗球后<strong>合法打进黑八</strong>即获胜</li>
-              <li>直接判负：己方球未清完提前进黑八、黑八被击出台面、击打黑八时黑八与母球同杆入袋、最后一颗己方球与黑八同杆入袋</li>
-              <li>击打黑八未进但仅母球落袋：属犯规，对手自由球，<strong>不直接判负</strong></li>
-              </ul>
-            </div>
-          </div>
+
+        <!-- 错误提示 -->
+        <section id="cl-error" style="display:none;padding:calc(var(--spacing) * 6);border:1px solid var(--border);border-radius:var(--radius);background:var(--card);color:var(--muted-foreground);text-align:center;margin-bottom:calc(var(--spacing) * 6);">
+          <div id="cl-error-text">加载失败</div>
+          <button class="btn btn-secondary" id="cl-retry" type="button" style="margin-top:16px;">重试</button>
         </section>
-        <section class="doc-section" id="nine">
-          <div class="doc-section-head"><span class="doc-badge">九球 · 美式 9 球</span><h2 class="title" style="font-size:24px;margin:0;">九球（美式 9 球）核心规则</h2></div>
-          <p class="doc-sub">世界花式撞球协会（WPA）通用 9 球规则：每杆必须先击打台面最小编号球，合法打进 9 号球者获胜，节奏快、偶然性强。</p>
-          <div class="rule-grid">
-            <div class="rule-card">
-              <h3><span class="rule-num">1</span>用球与摆球</h3>
-              <ul>
-              <li>使用 <strong>1-9 号目标球</strong>与母球，9 号球为决胜球</li>
-              <li>9 颗球摆成菱形：<strong>1 号球在最前方置于置球点，9 号球在正中央</strong>，其余球随意排列并贴紧</li>
-              </ul>
-            </div>
-            <div class="rule-card">
-              <h3><span class="rule-num">2</span>击球顺序</h3>
-              <ul>
-              <li>每杆必须<strong>首先触碰台面号码最小的球</strong>（不要求按号进球）</li>
-              <li>先碰最小号球后传进其他球（含 9 号）均为<strong>有效进球</strong>，可继续击球</li>
-              </ul>
-            </div>
-            <div class="rule-card">
-              <h3><span class="rule-num">3</span>开球</h3>
-              <ul>
-              <li>开球须合法冲球：有球入袋，或达到规定数量的目标球碰库（职业赛事按 WPA 过线规则执行）</li>
-              <li>开球直接打进 9 号球：<strong>立即获胜</strong></li>
-              <li>开球时母球落袋或飞出台面：对手获得全场自由球；9 号球飞出台面需重置回置球点</li>
-              </ul>
-            </div>
-            <div class="rule-card">
-              <h3><span class="rule-num">4</span>推杆（Push Out）</h3>
-              <ul>
-              <li>开球后，<strong>首位击球方</strong>可声明推杆一次：母球无需碰库、无需先碰最小号球，也不计犯规</li>
-              <li>推杆前必须告知裁判或对手；推杆后对手可选择自己击打，或让推杆方继续击打</li>
-              </ul>
-            </div>
-            <div class="rule-card">
-              <h3><span class="rule-num">5</span>犯规与自由球</h3>
-              <ul>
-              <li>常见犯规：未先碰最小号球、无球入袋且碰球后无球碰库、母球落袋或飞出台面、目标球飞出台面、球杆/身体触球、双脚离地</li>
-              <li>犯规后对手获得<strong>全场自由球</strong>：母球可置于台面任意位置击打</li>
-              </ul>
-            </div>
-            <div class="rule-card">
-              <h3><span class="rule-num">6</span>胜负与三次犯规</h3>
-              <ul>
-              <li>合法打进 <strong>9 号球</strong>即获胜（含开球直接进 9 号、传进 9 号）</li>
-              <li>同一局中<strong>连续三次犯规直接判负</strong>该局；连续两次犯规时，裁判或对手应予告知</li>
-              <li>协会内部采用追分赛制（犯规罚分、大小金奖励），场内记分口径见下方「九球追分记分规则」，完赛后按净胜分换算积分（见「积分说明」页）</li>
-            </ul>
-            </div>
-          </div>
+
+        <!-- 比赛列表 -->
+        <section class="section" id="cl-list-section" style="display:none;">
+          <div class="cl-list" id="cl-list"></div>
         </section>
-        <section class="doc-section" id="pursuit">
-          <div class="doc-section-head"><span class="doc-badge">九球追分 · 协会赛制</span><h2 class="title" style="font-size:24px;margin:0;">九球追分记分规则</h2></div>
-          <p class="doc-sub">协会内部三人追分赛制：三人分坐 A、B、C 位，按顺位轮转击球，得分者加分、上家扣分，每局计分全场零和；完赛后按净胜分换算会员积分（换算公式与球数难度系数见「积分说明」页）。</p>
-          <table class="coef-table" style="background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden;">
-            <thead>
-              <tr><th>分种</th><th>描述</th><th>得分者</th><th>上家</th><th>下家</th></tr>
-            </thead>
-            <tbody>
-              <tr><td><strong>开球大金</strong></td><td>开球有球落袋，随后连续按顺序清台</td><td>+20</td><td>-10</td><td>-10</td></tr>
-              <tr><td><strong>大金</strong></td><td>台面球全在，且一杆清台</td><td>+10</td><td>-10</td><td>0</td></tr>
-              <tr><td><strong>小金</strong></td><td>台面球不全，但 1 号与 9 号均在，一杆清台</td><td>+7</td><td>-7</td><td>0</td></tr>
-              <tr><td><strong>黄金九</strong></td><td>开球直接将 9 号球打进</td><td>+14</td><td>-7</td><td>-7</td></tr>
-              <tr><td><strong>普胜</strong></td><td>合法打进 9 号球（含局中传进 9 号）</td><td>+4</td><td>-4</td><td>0</td></tr>
-              <tr><td><strong>犯规</strong></td><td>母球落袋或未先碰最小号球</td><td>-1</td><td>+1</td><td>自由球</td></tr>
-              <tr><td><strong>黑白双下</strong></td><td>9 号球与母球同杆落袋（进球无效，判负）</td><td>−(分值+1)</td><td>+1</td><td>+分值</td></tr>
-            </tbody>
-          </table>
-          <p style="color: var(--muted-foreground); font-size: 13px; margin: 10px 0 20px; line-height: 1.7;">注：上表为三人默认分值（扣分类按 ±分值 ×(n−1) 随人数分摊），全部类型零和；分值可在开赛前一局一议自定义，开赛后以快照冻结，单场口径不再变更。黑白双下不入分值表：原胜局作废，变动按原胜局类型推导——击球者原应得分值变为扣分、再扣 1 分犯规分（上家得犯规 1 分），下家获该胜局分值；示例：原普胜 4 分 → 击球者 -5 / 上家 +1 / 下家 +4；原大金 10 分 → -11 / +1 / +10。</p>
-          <div class="rule-grid">
-            <div class="rule-card">
-              <h3><span class="rule-num">1</span>座位与顺位</h3>
-              <ul>
-              <li>三人分坐 A、B、C 位；<strong>顺位 = 击球顺序</strong>，顺位前者为上家（循环推算）</li>
-              <li>得分者加分、其上家扣分；全体扣分类（开球大金/黄金九）由其余两人分摊</li>
-              <li>每局结束按胜负重排顺位：<strong>胜者（下一局开球者）排第一、本局扣分方排第二</strong></li>
-              </ul>
-            </div>
-            <div class="rule-card">
-              <h3><span class="rule-num">2</span>击球轮转</h3>
-              <ul>
-              <li>首局由 A 位开球（排座可随机）；此后<strong>胜利类/黑白双下 → 得分者开球</strong>（黑白双下即当前击球者本人）</li>
-              <li><strong>犯规 → 得分者下家开球</strong>；开球未进球则由其下家接着击球</li>
-              <li>附加犯规记录不影响开球轮转与顺位</li>
-              </ul>
-            </div>
-            <div class="rule-card">
-              <h3><span class="rule-num">3</span>翻倍与让球（互斥）</h3>
-              <ul>
-              <li><strong>翻倍</strong>：上家代打，本局三人变动全部 ×2，扣分对象不变</li>
-              <li><strong>让球</strong>：上家接管击打，得分者得分 ×2，<strong>让球方（得分者的顺位下家）承担全部扣分</strong>，第三方不变，仍保持零和</li>
-              <li>同一局翻倍与让球只能二选一，开启一个自动关闭另一个</li>
-              </ul>
-              <div class="rule-example">示例：A 让球、上家 C 接管并普胜 → C +8，让球方 A -8，B 不变；下一局 C 开球，A 为 C 的顺位下家。</div>
-            </div>
-            <div class="rule-card">
-              <h3><span class="rule-num">4</span>附加犯规（一局可多次）</h3>
-              <ul>
-              <li>每局除主事件外可追加多条犯规：逐条独立结算、叠加到本局变动，随主事件同局落库</li>
-              <li><strong>普通犯规</strong>：犯规者 -1，其顺位上家 +1</li>
-              <li><strong>让球状态下犯规</strong>：默认犯规对象为<strong>得分对象</strong>（让球时实际击球者）-1，<strong>让球方 +1</strong>；确认后让球开关自动复位，后续犯规按普通口径</li>
-              <li><strong>口径固化</strong>：犯规确认即固化（普通/让球、犯规者、受益方），此后再切换得分者或击球玩家，已记录的犯规信息不再改变</li>
-              </ul>
-              <div class="rule-example">示例：让球中 C（得分对象）犯规 → C -1、让球方 A +1；随后主事件改记他人得分，该条犯规记录不受影响。</div>
-            </div>
-          </div>
+
+        <!-- 空态 -->
+        <section id="cl-empty" style="display:none;padding:calc(var(--spacing) * 12) calc(var(--spacing) * 6);border:1px dashed var(--border);border-radius:var(--radius);color:var(--muted-foreground);text-align:center;">
+          暂无比赛，敬请期待
         </section>
-        <div class="doc-note">说明：本页为入门与执裁参考，不含全部细则；各赛事的特别规则（限时出杆、暂停、开球过线规则等）以当场赛事规程与裁判判罚为准。协会内部九球追分赛制的场内记分口径见本页「九球追分记分规则」，完赛后的积分换算规则见「积分说明」页。</div>
       </div>
 
-      <footer class="rk-footer">
-        <div class="rk-footer-inner">
-          <span class="rk-footer-brand">台球协会</span>
-          <nav class="rk-footer-links" aria-label="页脚导航">
-            <a href="./rules.html">赛事规则</a>
-            <a href="./points.html">积分说明</a>
-            <a href="javascript:void(0)" data-contact-qr role="button">联系我们</a>
-          </nav>
-          <span class="rk-footer-copy">© 2026 台球协会. 保留所有权利.</span>
+      <!-- 页面专用样式 -->
+      <style>
+        .section { padding: calc(var(--spacing) * 6) 0; border-top: 1px solid var(--border); }
+        .section:first-of-type { border-top: none; }
+        /* 比赛卡片列表 */
+        .cl-list { display: flex; flex-direction: column; gap: calc(var(--spacing) * 4); }
+        .cl-card {
+          display: block; text-decoration: none; color: inherit;
+          padding: calc(var(--spacing) * 5);
+          background: var(--card); border: 1px solid var(--border);
+          border-radius: var(--radius); box-shadow: var(--shadow-sm);
+          transition: border-color 0.15s ease, transform 0.15s ease;
+        }
+        html.dark .cl-card { background: linear-gradient(145deg, #2c2c2e, #262628); border-color: rgba(58,58,60,0.5); }
+        .cl-card:hover { border-color: var(--primary); transform: translateY(-1px); }
+        .cl-card-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .cl-card-name {
+          flex: 1; min-width: 0; font-size: 17px; font-weight: 700; color: var(--foreground);
+          overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+        }
+        .cl-card-arrow { width: 18px; height: 18px; color: var(--muted-foreground); flex-shrink: 0; }
+        /* 状态标签（与详情页同一口径配色） */
+        .cl-status {
+          display: inline-flex; align-items: center; flex-shrink: 0;
+          padding: 3px 12px; border-radius: 999px; font-size: 12px; font-weight: 700;
+        }
+        .cl-status.signup { color: #15803d; background: rgba(22, 163, 74, 0.12); }
+        .cl-status.standby { color: #b8860b; background: rgba(218, 165, 32, 0.14); }
+        .cl-status.live { color: var(--primary); background: rgba(0, 113, 227, 0.1); }
+        .cl-status.done { color: var(--muted-foreground); background: var(--secondary); }
+        /* 对局类型 pill（与对战记录同一口径配色） */
+        .cl-game {
+          display: inline-flex; align-items: center; flex-shrink: 0;
+          padding: 3px 12px; border-radius: 999px; font-size: 12px; font-weight: 700;
+        }
+        .cl-game.c8 { color: #fff; background: #1d1d1f; }
+        html.dark .cl-game.c8 { color: #1d1d1f; background: #f5f5f7; }
+        .cl-game.nine_ball { color: var(--primary); background: rgba(0, 113, 227, 0.12); }
+        .cl-card-meta {
+          margin-top: 10px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+          font-size: 13px; color: var(--muted-foreground);
+        }
+        .cl-card-meta i { width: 14px; height: 14px; vertical-align: -2px; margin-right: 4px; }
+        .cl-card-desc {
+          margin-top: 8px; font-size: 13px; line-height: 1.6; color: var(--muted-foreground);
+          overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+        }
+      </style>
+
+      <!-- Footer -->
+      <footer class="page-footer">
+        <div class="footer-inner">
+          <div class="footer-top">
+            <span class="footer-brand">台球协会</span>
+            <div class="footer-links">
+              <a href="./rules.html">赛事规则</a>
+              <a href="./points.html">积分说明</a>
+              <a href="javascript:void(0)" data-contact-qr role="button">联系我们</a>
+            </div>
+          </div>
+          <div class="footer-bottom">
+            © 2026 台球协会. 保留所有权利.
+          </div>
         </div>
       </footer>
     </main>
-    <script src="./js/common.js?v=20261007a"></script>
     <script>lucide.createIcons();</script>
+    <script src="./js/cloud.js?v=20260926a"></script>
+    <script src="./js/fallback-data.js?v=20261006a"></script>
+    <script src="./js/common.js?v=20261007a"></script>
+    <script src="./js/competitions.js?v=20261007a"></script>
     <script>
+    /* 主题切换：更新 <html> class + localStorage 记忆，并广播 themechange 事件 */
     (function () {
       var btn = document.getElementById('theme-toggle')
-      if (btn) btn.addEventListener('click', function () {
+      if (!btn) return
+      btn.addEventListener('click', function () {
         var root = document.documentElement
         var next = root.classList.contains('dark') ? 'light' : 'dark'
         root.classList.remove('light', 'dark')
@@ -1020,7 +1310,6 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
         try { localStorage.setItem('billiards-theme', next) } catch (e) {}
         document.dispatchEvent(new CustomEvent('themechange', { detail: { theme: next } }))
       })
-      if (window.AppUI) AppUI.fixNav('')
     })()
     </script>
 </body>
