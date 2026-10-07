@@ -1242,13 +1242,13 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
           <div class="cd-meta" id="cd-meta"></div>
         </section>
 
-        <!-- 比赛信息 -->
+        <!-- 统计信息 -->
         <section class="section" id="cd-info-section" style="display:none;">
-          <div class="section-eyebrow">比赛信息</div>
+          <div class="section-eyebrow">统计信息</div>
           <div class="cd-stats">
             <div class="cd-stat-card"><div class="cd-stat-value" id="cd-match-count">-</div><div class="cd-stat-label">已结束对局</div></div>
-            <div class="cd-stat-card"><div class="cd-stat-value" id="cd-participant-count">-</div><div class="cd-stat-label">参赛人数</div></div>
-            <div class="cd-stat-card"><div class="cd-stat-value" id="cd-created">-</div><div class="cd-stat-label">创建时间</div></div>
+            <div class="cd-stat-card"><div class="cd-stat-value" id="cd-signup-count">-</div><div class="cd-stat-label">报名人数</div></div>
+            <div class="cd-stat-card"><div class="cd-stat-value" id="cd-participant-count">-</div><div class="cd-stat-label">实际参赛</div></div>
           </div>
           <p class="cd-desc" id="cd-desc"></p>
         </section>
@@ -1440,8 +1440,21 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
           background: var(--secondary); color: var(--foreground);
           font-size: 11px; word-break: break-all;
         }
-        .wa-file-row { margin-bottom: 12px; }
-        .wa-file { font-size: 13px; color: var(--foreground); }
+        .wa-file-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+        .wa-file-input { display: none; }
+        .wa-file-btn {
+          flex: none; display: inline-flex; align-items: center; gap: 6px;
+          padding: 8px 18px; font-size: 13px; font-weight: 500; cursor: pointer;
+          color: var(--primary); background: rgba(0, 113, 227, 0.08);
+          border: 1px solid rgba(0, 113, 227, 0.35); border-radius: 999px;
+          transition: background .15s ease, border-color .15s ease;
+        }
+        .wa-file-btn:hover { background: rgba(0, 113, 227, 0.14); border-color: var(--primary); }
+        .wa-file-name {
+          flex: 1; min-width: 0; font-size: 12px; color: var(--muted-foreground);
+          white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .wa-file-name.is-picked { color: var(--foreground); }
         .wa-parse-ok { font-size: 13px; color: var(--foreground); line-height: 1.7; padding: 10px 12px; border-radius: 8px; background: rgba(22,163,74,.1); }
         .wa-parse-names { color: var(--muted-foreground); font-size: 12px; }
         .wa-parse-err { font-size: 13px; color: var(--state-error); line-height: 1.7; padding: 10px 12px; border-radius: 8px; background: rgba(255,59,48,.08); }
@@ -1470,8 +1483,8 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
     <script src="./js/cloud.js?v=20260926a"></script>
     <script src="./js/fallback-data.js?v=20261006a"></script>
     <script src="./js/common.js?v=20261007a"></script>
-    <script src="./js/competition-admin.js?v=20261007a"></script>
-    <script src="./js/competition-detail.js?v=20261007a"></script>
+    <script src="./js/competition-admin.js?v=20261008a"></script>
+    <script src="./js/competition-detail.js?v=20261008a"></script>
     <script>
     /* 主题切换：更新 <html> class + localStorage 记忆，并广播 themechange 事件 */
     (function () {

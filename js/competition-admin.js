@@ -261,7 +261,11 @@ window.CompAdmin = (function () {
         '<div class="wa-import-tip">选择 JSON 文件（与小程序端同一格式）：' +
         '<code>{"competition":"比赛名（可选）","participants":[{"emp_no":"工号","phone":"手机","name":"昵称"}]}</code>' +
         '单次最多 200 人，按 工号 → 手机 → 昵称 匹配已有会员，未匹配自动新建临时账号。</div>' +
-        '<div class="wa-file-row"><input type="file" id="wa-file" accept=".json,application/json" class="wa-file"></div>' +
+        '<div class="wa-file-row">' +
+        '<label class="wa-file-btn" for="wa-file">选择 JSON 文件</label>' +
+        '<span class="wa-file-name" id="wa-file-name">未选择文件</span>' +
+        '<input type="file" id="wa-file" accept=".json,application/json" class="wa-file-input">' +
+        '</div>' +
         '<div id="wa-import-preview"></div>' +
         '<div class="wa-foot" id="wa-import-foot" style="display:none;">' +
         '<button class="btn btn-primary" id="wa-import-submit" type="button">确认导入</button></div>' +
@@ -275,10 +279,18 @@ window.CompAdmin = (function () {
     var file = ev.target.files && ev.target.files[0]
     var preview = document.getElementById('wa-import-preview')
     var foot = document.getElementById('wa-import-foot')
+    var nameEl = document.getElementById('wa-file-name')
     importState.parsed = null
     foot.style.display = 'none'
     document.getElementById('wa-import-result').innerHTML = ''
-    if (!file) { preview.innerHTML = ''; return }
+    if (!file) {
+      preview.innerHTML = ''
+      nameEl.textContent = '未选择文件'
+      nameEl.classList.remove('is-picked')
+      return
+    }
+    nameEl.textContent = file.name
+    nameEl.classList.add('is-picked')
     var reader = new FileReader()
     reader.onload = function () {
       try {
@@ -336,6 +348,9 @@ window.CompAdmin = (function () {
       document.getElementById('wa-import-result').innerHTML = html
       document.getElementById('wa-import-foot').style.display = 'none'
       document.getElementById('wa-file').value = ''
+      var nameEl = document.getElementById('wa-file-name')
+      nameEl.textContent = '未选择文件'
+      nameEl.classList.remove('is-picked')
       importState.parsed = null
       if (typeof ctx.onChanged === 'function') ctx.onChanged()
     } catch (e) {

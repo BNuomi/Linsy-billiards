@@ -37,7 +37,10 @@
     var fixtures = d.fixtures || []
 
     el('fx-name').textContent = (comp.name || '比赛') + ' · 对阵列表'
-    el('fx-subtitle').textContent = comp.venue || ''
+    var sub = []
+    if (comp.start_date || comp.end_date) sub.push((comp.start_date || '未定') + ' 至 ' + (comp.end_date || '未定'))
+    if (comp.venue) sub.push(comp.venue)
+    el('fx-subtitle').textContent = sub.join(' · ')
     document.title = (comp.name || '比赛') + '对阵 - 台球协会'
     el('fx-back').href = './competition-detail.html?id=' + encodeURIComponent(comp._id || compId())
 
