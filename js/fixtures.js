@@ -1,7 +1,8 @@
-/* 比赛对阵列表页（只读）：报名名单 / 比赛日 / 抽签对阵与赛程进程 */
+/* 比赛对阵列表页：报名名单 / 比赛日（管理员可编辑）/ 抽签对阵与赛程进程 */
 ;(function () {
   var U = window.AppUI
   var WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+  var COMP = null // 当前比赛（供 CompAdmin 编辑比赛日读取）
 
   function el(id) { return document.getElementById(id) }
 
@@ -81,6 +82,7 @@
 
   function render(d) {
     var comp = d.competition || {}
+    COMP = comp
     var participants = d.participants || []
     var fixtures = d.fixtures || []
 
@@ -155,7 +157,7 @@
       if (!sections.has(key)) sections.set(key, { title: title, order: order, byes: [], items: [] })
       var sec = sections.get(key)
       if (f.status === 'bye') {
-        sec.byes.push(U.escapeHtml((f.players[0] && f.players[0].name) || ''))
+        sec.byes.push(U.escapeHtml((f.players[0] && f.players[0].name) || (f.placeholders || [])[0] || ''))
       } else {
         sec.items.push(f)
       }
@@ -172,12 +174,16 @@
         var cards = items.map(function (f) {
           var st = statusOf(f)
           var race = raceOf(fixtures, comp, f)
-          var names = (f.players || []).map(function (p) { return U.escapeHtml(p.name) }).join('<span class="fx-vs">vs</span>')
+          // 淘汰赛占位：选手未填充时展示槽位文案（A组第1名 / 第49场胜者），赛况推进后自动替换实名
+          var names = (f.players || []).length
+            ? f.players.map(function (p) { return U.escapeHtml(p.name) }).join('<span class="fx-vs">vs</span>')
+            : (f.placeholders || []).map(function (t) { return '<span class="fx-ph">' + U.escapeHtml(t) + '</span>' }).join('<span class="fx-vs">vs</span>')
           var winner = f.winner_id ? ((f.players.find(function (p) { return p.id === f.winner_id }) || {}).name || '') : ''
           var result = st.cls === 'done'
             ? '<div class="fx-result"><span class="fx-winner">胜：' + U.escapeHtml(winner) + '</span>' +
               (f.score_text ? '<span class="fx-score">' + U.escapeHtml(f.score_text) + '</span>' : '') + '</div>'
             : ''
+          var noChip = f.match_no ? '<span class="fx-chip-slot no">No.' + f.match_no + '</span>' : ''
           var slotChips = f.slot_at
             ? '<span class="fx-chip-slot date">' + fmtDay(f.slot_at) + '</span>' +
               '<span class="fx-chip-slot time">' + fmtClock(f.slot_at) + '</span>' +
@@ -185,7 +191,7 @@
               (f.session_no ? '<span class="fx-chip-slot session">第' + f.session_no + '场</span>' : '')
             : '<span class="fx-chip-slot tbd">时间待定</span>'
           return '<div class="fx-card">' +
-            '<div class="fx-card-top">' + slotChips +
+            '<div class="fx-card-top">' + noChip + slotChips +
             (race ? '<span class="fx-race">' + race + '</span>' : '') +
             '<span class="fx-status ' + st.cls + '">' + st.text + '</span></div>' +
             '<div class="fx-players">' + names + '</div>' + result + '</div>'
@@ -217,6 +223,12 @@
   document.addEventListener('DOMContentLoaded', function () {
     U.fixNav('competitions')
     U.mountCloudBar(load)
+    if (window.CompAdmin) {
+      window.CompAdmin.init({
+        getComp: function () { return COMP },
+        onChanged: load
+      })
+    }
     el('fx-retry').addEventListener('click', function () {
       el('fx-error').style.display = 'none'
       load()

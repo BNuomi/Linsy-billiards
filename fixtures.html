@@ -1229,7 +1229,10 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
 
         <!-- 比赛日 -->
         <section class="section" id="fx-days-section" style="display:none;">
-          <div class="section-eyebrow">比赛日设定</div>
+          <div class="section-eyebrow fx-days-head">
+            <span>比赛日设定</span>
+            <button class="fx-days-edit" id="fx-days-edit-btn" type="button"><i data-lucide="pencil"></i>编辑</button>
+          </div>
           <div class="fx-days" id="fx-days"></div>
         </section>
 
@@ -1292,7 +1295,18 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
         .fx-chip-slot.time { color: var(--primary); background: rgba(0, 113, 227, 0.12); }
         .fx-chip-slot.table { color: #c2410c; background: rgba(234, 88, 12, 0.12); }
         .fx-chip-slot.session { color: #0f766e; background: rgba(13, 148, 136, 0.12); }
+        .fx-chip-slot.no { color: #6d28d9; background: rgba(124, 58, 237, 0.12); }
+        html.dark .fx-chip-slot.no { color: #c4b5fd; background: rgba(124, 58, 237, 0.22); }
         .fx-chip-slot.tbd { font-weight: 400; color: var(--muted-foreground); background: var(--secondary); }
+        .fx-days-head { display: flex; align-items: center; justify-content: space-between; }
+        .fx-days-edit {
+          display: inline-flex; align-items: center; gap: 4px; border: none; cursor: pointer;
+          font-size: 12px; font-weight: 600; color: var(--primary);
+          background: rgba(0, 113, 227, 0.08); border-radius: 999px; padding: 4px 12px;
+        }
+        .fx-days-edit:hover { background: rgba(0, 113, 227, 0.14); }
+        .fx-days-edit i { width: 12px; height: 12px; }
+        .fx-ph { font-size: 14px; font-weight: 500; color: var(--muted-foreground); }
         .fx-progress { font-size: 13px; color: var(--muted-foreground); margin-bottom: calc(var(--spacing) * 4); }
         .fx-progress b { color: var(--foreground); }
         .fx-progress .warn { color: #c2410c; font-weight: 600; }
@@ -1330,7 +1344,8 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
     <script src="./js/cloud.js?v=20260926a"></script>
     <script src="./js/fallback-data.js?v=20261008b"></script>
     <script src="./js/common.js?v=20261007a"></script>
-    <script src="./js/fixtures.js?v=20261008e"></script>
+    <script src="./js/competition-admin.js?v=20261008e"></script>
+    <script src="./js/fixtures.js?v=20261008f"></script>
     <script>
     /* 主题切换：更新 <html> class + localStorage 记忆，并广播 themechange 事件 */
     (function () {

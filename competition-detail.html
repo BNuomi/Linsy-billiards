@@ -1388,77 +1388,6 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
           overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
         }
         .cd-link-item i { width: 16px; height: 16px; color: var(--muted-foreground); flex-shrink: 0; }
-        /* 管理弹窗（扫码授权 / 编辑 / 导入报名） */
-        .wa-mask {
-          position: fixed; inset: 0; z-index: 9999; background: rgba(0,0,0,.36);
-          display: flex; align-items: center; justify-content: center; padding: 20px;
-        }
-        .wa-card {
-          width: 480px; max-width: 100%; max-height: 86vh; overflow-y: auto;
-          background: var(--card); color: var(--foreground);
-          border: 1px solid var(--border); border-radius: 18px;
-          box-shadow: 0 24px 64px rgba(0,0,0,.24);
-        }
-        .wa-head {
-          display: flex; align-items: center; justify-content: space-between;
-          padding: 18px 20px 0;
-        }
-        .wa-title { font-size: 16px; font-weight: 700; }
-        .wa-close {
-          width: 32px; height: 32px; border: none; border-radius: 999px; cursor: pointer;
-          background: var(--secondary); color: var(--muted-foreground);
-          display: inline-flex; align-items: center; justify-content: center;
-        }
-        .wa-close:hover { color: var(--foreground); }
-        .wa-close i { width: 16px; height: 16px; }
-        .wa-body { padding: 16px 20px 20px; }
-        /* 扫码授权 */
-        .wa-qr-wrap { display: flex; flex-direction: column; align-items: center; gap: 12px; min-height: 220px; justify-content: center; }
-        .wa-qr-img { width: 220px; height: 220px; border-radius: 12px; border: 1px solid var(--border); background: #fff; }
-        .wa-qr-loading, .wa-qr-error { font-size: 13px; color: var(--muted-foreground); text-align: center; }
-        .wa-qr-error { color: var(--state-error); }
-        .wa-qr-tip { margin-top: 14px; text-align: center; font-size: 12px; line-height: 1.7; color: var(--muted-foreground); }
-        .wa-retry { margin-top: 4px; }
-        /* 表单 */
-        .wa-form { display: flex; flex-direction: column; gap: 12px; }
-        .wa-field { display: flex; flex-direction: column; gap: 6px; }
-        .wa-label { font-size: 12px; font-weight: 600; color: var(--muted-foreground); }
-        .wa-input {
-          width: 100%; box-sizing: border-box; padding: 9px 12px;
-          border: 1px solid var(--border); border-radius: 10px;
-          background: var(--background); color: var(--foreground);
-          font-size: 14px; font-family: inherit; outline: none;
-        }
-        .wa-input:focus { border-color: var(--primary); }
-        textarea.wa-input { resize: vertical; line-height: 1.6; }
-        .wa-foot { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
-        /* 导入报名 */
-        .wa-import-tip { font-size: 12px; line-height: 1.8; color: var(--muted-foreground); margin-bottom: 14px; }
-        .wa-import-tip code {
-          display: block; margin: 8px 0; padding: 10px 12px; border-radius: 8px;
-          background: var(--secondary); color: var(--foreground);
-          font-size: 11px; word-break: break-all;
-        }
-        .wa-file-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
-        .wa-file-input { display: none; }
-        .wa-file-btn {
-          flex: none; display: inline-flex; align-items: center; gap: 6px;
-          padding: 8px 18px; font-size: 13px; font-weight: 500; cursor: pointer;
-          color: var(--primary); background: rgba(0, 113, 227, 0.08);
-          border: 1px solid rgba(0, 113, 227, 0.35); border-radius: 999px;
-          transition: background .15s ease, border-color .15s ease;
-        }
-        .wa-file-btn:hover { background: rgba(0, 113, 227, 0.14); border-color: var(--primary); }
-        .wa-file-name {
-          flex: 1; min-width: 0; font-size: 12px; color: var(--muted-foreground);
-          white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-        }
-        .wa-file-name.is-picked { color: var(--foreground); }
-        .wa-parse-ok { font-size: 13px; color: var(--foreground); line-height: 1.7; padding: 10px 12px; border-radius: 8px; background: rgba(22,163,74,.1); }
-        .wa-parse-names { color: var(--muted-foreground); font-size: 12px; }
-        .wa-parse-err { font-size: 13px; color: var(--state-error); line-height: 1.7; padding: 10px 12px; border-radius: 8px; background: rgba(255,59,48,.08); }
-        .wa-result-ok { font-size: 13px; color: var(--foreground); line-height: 1.7; padding: 10px 12px; border-radius: 8px; background: rgba(22,163,74,.1); margin-top: 12px; }
-        .wa-failed-list { margin-top: 10px; max-height: 160px; overflow-y: auto; font-size: 12px; color: var(--state-error); line-height: 1.8; }
       </style>
 
       <!-- Footer -->
@@ -1482,7 +1411,7 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
     <script src="./js/cloud.js?v=20260926a"></script>
     <script src="./js/fallback-data.js?v=20261008b"></script>
     <script src="./js/common.js?v=20261007a"></script>
-    <script src="./js/competition-admin.js?v=20261008d"></script>
+    <script src="./js/competition-admin.js?v=20261008e"></script>
     <script src="./js/competition-detail.js?v=20261008d"></script>
     <script>
     /* 主题切换：更新 <html> class + localStorage 记忆，并广播 themechange 事件 */

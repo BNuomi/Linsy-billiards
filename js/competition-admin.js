@@ -1,7 +1,8 @@
 /*
- * 比赛详情页管理模块（网页端）：扫码鉴权 + 编辑比赛信息 + 导入报名名单
+ * 比赛管理模块（网页端）：扫码鉴权 + 编辑比赛信息 + 导入报名名单 + 编辑比赛日
  * - 鉴权流程：创建 webAuthSession 会话 → getWebAuthQrcode 出小程序码 → 微信扫码小程序内确认 → 轮询拿 token（2h）
  * - 小程序码 env_version：web-auth 页未随正式版发布前用 trial 体验版联调，发布后改 release
+ * - 弹窗样式由本模块注入（wa-*），使用页无需内联重复样式
  */
 window.CompAdmin = (function () {
   var U = window.AppUI
@@ -10,7 +11,64 @@ window.CompAdmin = (function () {
 
   var ctx = { getComp: null, onChanged: null }
   var authing = false // 授权弹窗是否打开（防止并发创建会话）
-  var pendingAction = null // 授权完成后要执行的动作：'edit' | 'import'
+  var pendingAction = null // 授权完成后要执行的动作：'edit' | 'import' | 'days'
+
+  // ---------- 弹窗样式（单源注入，页面无需内联） ----------
+  function ensureStyle() {
+    if (document.getElementById('wa-admin-style')) return
+    var style = document.createElement('style')
+    style.id = 'wa-admin-style'
+    style.textContent =
+      '.wa-mask{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.36);display:flex;align-items:center;justify-content:center;padding:20px;}' +
+      '.wa-card{width:480px;max-width:100%;max-height:86vh;overflow-y:auto;background:var(--card);color:var(--foreground);border:1px solid var(--border);border-radius:18px;box-shadow:0 24px 64px rgba(0,0,0,.24);}' +
+      '.wa-head{display:flex;align-items:center;justify-content:space-between;padding:18px 20px 0;}' +
+      '.wa-title{font-size:16px;font-weight:700;}' +
+      '.wa-close{width:32px;height:32px;border:none;border-radius:999px;cursor:pointer;background:var(--secondary);color:var(--muted-foreground);display:inline-flex;align-items:center;justify-content:center;}' +
+      '.wa-close:hover{color:var(--foreground);}' +
+      '.wa-close i{width:16px;height:16px;}' +
+      '.wa-body{padding:16px 20px 20px;}' +
+      '.wa-qr-wrap{display:flex;flex-direction:column;align-items:center;gap:12px;min-height:220px;justify-content:center;}' +
+      '.wa-qr-img{width:220px;height:220px;border-radius:12px;border:1px solid var(--border);background:#fff;}' +
+      '.wa-qr-loading,.wa-qr-error{font-size:13px;color:var(--muted-foreground);text-align:center;}' +
+      '.wa-qr-error{color:var(--state-error);}' +
+      '.wa-qr-tip{margin-top:14px;text-align:center;font-size:12px;line-height:1.7;color:var(--muted-foreground);}' +
+      '.wa-retry{margin-top:4px;}' +
+      '.wa-form{display:flex;flex-direction:column;gap:12px;}' +
+      '.wa-field{display:flex;flex-direction:column;gap:6px;}' +
+      '.wa-label{font-size:12px;font-weight:600;color:var(--muted-foreground);}' +
+      '.wa-input{width:100%;box-sizing:border-box;padding:9px 12px;border:1px solid var(--border);border-radius:10px;background:var(--background);color:var(--foreground);font-size:14px;font-family:inherit;outline:none;}' +
+      '.wa-input:focus{border-color:var(--primary);}' +
+      'textarea.wa-input{resize:vertical;line-height:1.6;}' +
+      '.wa-foot{display:flex;justify-content:flex-end;gap:10px;margin-top:8px;}' +
+      '.wa-import-tip{font-size:12px;line-height:1.8;color:var(--muted-foreground);margin-bottom:14px;}' +
+      '.wa-import-tip code{display:block;margin:8px 0;padding:10px 12px;border-radius:8px;background:var(--secondary);color:var(--foreground);font-size:11px;word-break:break-all;}' +
+      '.wa-file-row{display:flex;align-items:center;gap:12px;margin-bottom:12px;}' +
+      '.wa-file-input{display:none;}' +
+      '.wa-file-btn{flex:none;display:inline-flex;align-items:center;gap:6px;padding:8px 18px;font-size:13px;font-weight:500;cursor:pointer;color:var(--primary);background:rgba(0,113,227,0.08);border:1px solid rgba(0,113,227,0.35);border-radius:999px;transition:background .15s ease,border-color .15s ease;}' +
+      '.wa-file-btn:hover{background:rgba(0,113,227,0.14);border-color:var(--primary);}' +
+      '.wa-file-name{flex:1;min-width:0;font-size:12px;color:var(--muted-foreground);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}' +
+      '.wa-file-name.is-picked{color:var(--foreground);}' +
+      '.wa-parse-ok{font-size:13px;color:var(--foreground);line-height:1.7;padding:10px 12px;border-radius:8px;background:rgba(22,163,74,.1);}' +
+      '.wa-parse-names{color:var(--muted-foreground);font-size:12px;}' +
+      '.wa-parse-err{font-size:13px;color:var(--state-error);line-height:1.7;padding:10px 12px;border-radius:8px;background:rgba(255,59,48,.08);}' +
+      '.wa-result-ok{font-size:13px;color:var(--foreground);line-height:1.7;padding:10px 12px;border-radius:8px;background:rgba(22,163,74,.1);margin-top:12px;}' +
+      '.wa-failed-list{margin-top:10px;max-height:160px;overflow-y:auto;font-size:12px;color:var(--state-error);line-height:1.8;}' +
+      /* 比赛日编辑 */
+      '.wa-days-tip{font-size:12px;line-height:1.8;color:var(--muted-foreground);margin-bottom:12px;}' +
+      '.wa-day-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;}' +
+      '.wa-day-row .wa-input{padding:7px 10px;font-size:13px;}' +
+      '.wa-day-date{width:150px;flex:none;}' +
+      '.wa-day-time{width:100px;flex:none;}' +
+      '.wa-day-num{width:76px;flex:none;}' +
+      '.wa-day-del{flex:none;width:30px;height:30px;border:none;border-radius:8px;cursor:pointer;background:var(--secondary);color:var(--muted-foreground);display:inline-flex;align-items:center;justify-content:center;}' +
+      '.wa-day-del:hover{color:var(--state-error);}' +
+      '.wa-day-del i{width:14px;height:14px;}' +
+      '.wa-days-empty{font-size:12px;color:var(--muted-foreground);padding:8px 0;}' +
+      '.wa-days-add{margin-top:4px;}' +
+      '.wa-day-heads{display:flex;gap:8px;font-size:11px;color:var(--muted-foreground);margin-bottom:4px;}' +
+      '.wa-day-heads span{display:block;}'
+    document.head.appendChild(style)
+  }
 
   // ---------- 授权态存取 ----------
   function readAuth() {
@@ -31,6 +89,7 @@ window.CompAdmin = (function () {
 
   // ---------- 通用弹窗骨架 ----------
   function openModal(titleText, bodyBuilder) {
+    ensureStyle()
     closeModal()
     var mask = document.createElement('div')
     mask.className = 'wa-mask'
@@ -148,6 +207,7 @@ window.CompAdmin = (function () {
   function openAction(action) {
     if (action === 'edit') openEdit()
     else if (action === 'import') openImport()
+    else if (action === 'days') openDays()
   }
 
   // 权限失效统一处理：清缓存 → toast → 重新扫码
@@ -379,14 +439,122 @@ window.CompAdmin = (function () {
     }
   }
 
+  // ---------- 编辑比赛日 ----------
+  // 与小程序端同口径：比赛日 [{date, start_time, slot_minutes, slot_count}] + 同时开赛台数；
+  // 保存后未开打对阵需在小程序端「重新排期」生效
+  function openDays() {
+    var comp = ctx.getComp ? (ctx.getComp() || {}) : {}
+    var days = (comp.match_days || []).map(function (d0) {
+      return {
+        date: d0.date || '',
+        start_time: d0.start_time || '19:00',
+        slot_minutes: Number(d0.slot_minutes) || 50,
+        slot_count: Number(d0.slot_count) || 3
+      }
+    })
+    var tables = Number(comp.table_count) > 0 ? Number(comp.table_count) : 4
+    var card = openModal('编辑比赛日', function (body) {
+      body.innerHTML =
+        '<div class="wa-days-tip">对局时间按 比赛日 × 台数 × 场次 编排；保存后需在小程序端「重新排期」生效到未开打对阵。每场分钟 10-240，场次数 1-50。</div>' +
+        '<div class="wa-day-heads"><span style="width:150px;">日期</span><span style="width:100px;">开始时间</span>' +
+        '<span style="width:76px;">每场分钟</span><span style="width:76px;">场次数</span><span style="width:30px;"></span></div>' +
+        '<div id="wa-days-list"></div>' +
+        '<button class="btn btn-secondary wa-days-add" id="wa-days-add" type="button">+ 添加比赛日</button>' +
+        '<label class="wa-field" style="margin-top:14px;"><span class="wa-label">同时开赛台数（1-16）</span>' +
+        '<input class="wa-input" id="wa-days-tables" type="number" min="1" max="16" value="' + tables + '"></label>' +
+        '<div class="wa-foot"><button class="btn btn-primary" id="wa-days-save" type="button">保存</button></div>'
+      var listEl = body.querySelector('#wa-days-list')
+      function renderRows() {
+        listEl.innerHTML = days.length ? days.map(function (d0, i) {
+          return '<div class="wa-day-row">' +
+            '<input class="wa-input wa-day-date" type="date" data-i="' + i + '" data-k="date" value="' + U.escapeHtml(d0.date) + '">' +
+            '<input class="wa-input wa-day-time" type="time" data-i="' + i + '" data-k="start_time" value="' + U.escapeHtml(d0.start_time) + '">' +
+            '<input class="wa-input wa-day-num" type="number" min="10" max="240" data-i="' + i + '" data-k="slot_minutes" value="' + d0.slot_minutes + '">' +
+            '<input class="wa-input wa-day-num" type="number" min="1" max="50" data-i="' + i + '" data-k="slot_count" value="' + d0.slot_count + '">' +
+            '<button class="wa-day-del" type="button" data-i="' + i + '" aria-label="删除"><i data-lucide="trash-2"></i></button>' +
+            '</div>'
+        }).join('') : '<div class="wa-days-empty">暂无比赛日，点击下方「添加比赛日」</div>'
+        if (window.lucide) window.lucide.createIcons()
+      }
+      renderRows()
+      listEl.addEventListener('input', function (ev) {
+        var i = Number(ev.target.getAttribute('data-i'))
+        var k = ev.target.getAttribute('data-k')
+        if (!days[i] || !k) return
+        days[i][k] = (k === 'slot_minutes' || k === 'slot_count') ? Number(ev.target.value) || 0 : ev.target.value
+      })
+      listEl.addEventListener('click', function (ev) {
+        var btn = ev.target.closest('.wa-day-del')
+        if (!btn) return
+        days.splice(Number(btn.getAttribute('data-i')), 1)
+        renderRows()
+      })
+      body.querySelector('#wa-days-add').addEventListener('click', function () {
+        days.push({ date: '', start_time: '19:00', slot_minutes: 50, slot_count: 3 })
+        renderRows()
+      })
+      body.querySelector('#wa-days-save').addEventListener('click', function () { saveDays(card, days) })
+    })
+  }
+
+  async function saveDays(card, days) {
+    var btn = card.querySelector('#wa-days-save')
+    var tables = Number(card.querySelector('#wa-days-tables').value) || 0
+    var valid = days.filter(function (d0) { return d0.date })
+    for (var i = 0; i < valid.length; i++) {
+      if (!valid[i].start_time || !valid[i].slot_minutes || !valid[i].slot_count) {
+        U.toast('请补全比赛日设置', 'error')
+        return
+      }
+    }
+    if (!Number.isInteger(tables) || tables < 1 || tables > 16) {
+      U.toast('台数需为 1-16', 'error')
+      return
+    }
+    var comp = ctx.getComp ? (ctx.getComp() || {}) : {}
+    var auth = readAuth()
+    if (!auth) { U.toast('授权已失效，请重新扫码', 'error'); startAuth('days'); return }
+    btn.disabled = true
+    btn.textContent = '保存中…'
+    try {
+      // updateCompetition 为全量字段写入，需带上现有字段避免被清空（与小程序端同口径）
+      await window.AppCloud.call('updateCompetition', {
+        competition_id: comp._id,
+        web_token: auth.token,
+        name: comp.name || '',
+        description: comp.description || '',
+        start_date: comp.start_date || '',
+        end_date: comp.end_date || '',
+        venue: comp.venue || '',
+        signup_deadline: comp.signup_deadline || '',
+        signup_url: comp.signup_url || '',
+        rules_url: comp.rules_url || '',
+        rules_text: comp.rules_text || '',
+        contact: comp.contact || '',
+        prize: comp.prize || '',
+        match_days: valid,
+        table_count: tables
+      })
+      closeModal()
+      U.toast('已保存，可重新排期生效', 'success')
+      if (typeof ctx.onChanged === 'function') ctx.onChanged()
+    } catch (e) {
+      btn.disabled = false
+      btn.textContent = '保存'
+      if (!handleAuthError(e)) U.toast('保存失败：' + (e.message || e), 'error')
+    }
+  }
+
   // ---------- 入口 ----------
   function init(opts) {
     ctx.getComp = opts && opts.getComp
     ctx.onChanged = opts && opts.onChanged
     var editBtn = document.getElementById('cd-edit-btn')
     var importBtn = document.getElementById('cd-import-btn')
+    var daysBtn = document.getElementById('fx-days-edit-btn')
     if (editBtn) editBtn.addEventListener('click', function () { startAuth('edit') })
     if (importBtn) importBtn.addEventListener('click', function () { startAuth('import') })
+    if (daysBtn) daysBtn.addEventListener('click', function () { startAuth('days') })
   }
 
   return { init: init }
