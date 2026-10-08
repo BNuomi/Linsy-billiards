@@ -21,6 +21,7 @@ window.CompAdmin = (function () {
     style.textContent =
       '.wa-mask{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.36);display:flex;align-items:center;justify-content:center;padding:20px;}' +
       '.wa-card{width:480px;max-width:100%;max-height:86vh;overflow-y:auto;background:var(--card);color:var(--foreground);border:1px solid var(--border);border-radius:18px;box-shadow:0 24px 64px rgba(0,0,0,.24);}' +
+      '.wa-card.wa-card-wide{width:680px;}' +
       '.wa-head{display:flex;align-items:center;justify-content:space-between;padding:18px 20px 0;}' +
       '.wa-title{font-size:16px;font-weight:700;}' +
       '.wa-close{width:32px;height:32px;border:none;border-radius:999px;cursor:pointer;background:var(--secondary);color:var(--muted-foreground);display:inline-flex;align-items:center;justify-content:center;}' +
@@ -55,17 +56,17 @@ window.CompAdmin = (function () {
       '.wa-failed-list{margin-top:10px;max-height:160px;overflow-y:auto;font-size:12px;color:var(--state-error);line-height:1.8;}' +
       /* 比赛日编辑 */
       '.wa-days-tip{font-size:12px;line-height:1.8;color:var(--muted-foreground);margin-bottom:12px;}' +
-      '.wa-day-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;}' +
-      '.wa-day-row .wa-input{padding:7px 10px;font-size:13px;}' +
-      '.wa-day-date{width:150px;flex:none;}' +
-      '.wa-day-time{width:100px;flex:none;}' +
-      '.wa-day-num{width:76px;flex:none;}' +
-      '.wa-day-del{flex:none;width:30px;height:30px;border:none;border-radius:8px;cursor:pointer;background:var(--secondary);color:var(--muted-foreground);display:inline-flex;align-items:center;justify-content:center;}' +
+      '.wa-day-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;}' +
+      '.wa-day-row .wa-input{padding:8px 12px;font-size:13px;}' +
+      '.wa-day-date{width:180px;flex:none;}' +
+      '.wa-day-time{width:130px;flex:none;}' +
+      '.wa-day-num{width:100px;flex:none;}' +
+      '.wa-day-del{flex:none;width:34px;height:34px;border:none;border-radius:8px;cursor:pointer;background:var(--secondary);color:var(--muted-foreground);display:inline-flex;align-items:center;justify-content:center;}' +
       '.wa-day-del:hover{color:var(--state-error);}' +
       '.wa-day-del i{width:14px;height:14px;}' +
       '.wa-days-empty{font-size:12px;color:var(--muted-foreground);padding:8px 0;}' +
       '.wa-days-add{margin-top:4px;}' +
-      '.wa-day-heads{display:flex;gap:8px;font-size:11px;color:var(--muted-foreground);margin-bottom:4px;}' +
+      '.wa-day-heads{display:flex;gap:10px;font-size:11px;color:var(--muted-foreground);margin-bottom:4px;}' +
       '.wa-day-heads span{display:block;}'
     document.head.appendChild(style)
   }
@@ -88,14 +89,14 @@ window.CompAdmin = (function () {
   }
 
   // ---------- 通用弹窗骨架 ----------
-  function openModal(titleText, bodyBuilder) {
+  function openModal(titleText, bodyBuilder, opts) {
     ensureStyle()
     closeModal()
     var mask = document.createElement('div')
     mask.className = 'wa-mask'
     mask.id = 'wa-mask'
     var card = document.createElement('div')
-    card.className = 'wa-card'
+    card.className = 'wa-card' + (opts && opts.wide ? ' wa-card-wide' : '')
     card.innerHTML =
       '<div class="wa-head"><span class="wa-title"></span>' +
       '<button class="wa-close" type="button" aria-label="关闭"><i data-lucide="x"></i></button></div>' +
@@ -456,8 +457,8 @@ window.CompAdmin = (function () {
     var card = openModal('编辑比赛日', function (body) {
       body.innerHTML =
         '<div class="wa-days-tip">对局时间按 比赛日 × 台数 × 场次 编排；保存后需在小程序端「重新排期」生效到未开打对阵。每场分钟 10-240，场次数 1-50。</div>' +
-        '<div class="wa-day-heads"><span style="width:150px;">日期</span><span style="width:100px;">开始时间</span>' +
-        '<span style="width:76px;">每场分钟</span><span style="width:76px;">场次数</span><span style="width:30px;"></span></div>' +
+        '<div class="wa-day-heads"><span style="width:180px;">日期</span><span style="width:130px;">开始时间</span>' +
+        '<span style="width:100px;">每场分钟</span><span style="width:100px;">场次数</span><span style="width:34px;"></span></div>' +
         '<div id="wa-days-list"></div>' +
         '<button class="btn btn-secondary wa-days-add" id="wa-days-add" type="button">+ 添加比赛日</button>' +
         '<label class="wa-field" style="margin-top:14px;"><span class="wa-label">同时开赛台数（1-16）</span>' +
@@ -494,7 +495,7 @@ window.CompAdmin = (function () {
         renderRows()
       })
       body.querySelector('#wa-days-save').addEventListener('click', function () { saveDays(card, days) })
-    })
+    }, { wide: true })
   }
 
   async function saveDays(card, days) {

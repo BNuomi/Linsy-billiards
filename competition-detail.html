@@ -1276,6 +1276,20 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
             </table>
           </div>
         </section>
+
+        <!-- 组队积分榜 -->
+        <section class="section" id="cd-teamboard-section" style="display:none;">
+          <div class="section-eyebrow">组队积分榜</div>
+          <div class="cd-board-wrap">
+            <table class="cd-table">
+              <thead>
+                <tr><th>排名</th><th>队友组合</th><th>基础分</th><th>组队分</th><th>总分</th></tr>
+              </thead>
+              <tbody id="cd-team-tbody"></tbody>
+            </table>
+          </div>
+          <div class="cd-team-tip">总分 = 两人赛事积分之和 + 全部场次组队分之和（最低 0）</div>
+        </section>
       </div>
 
       <!-- 页面专用样式 -->
@@ -1332,6 +1346,7 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
         .cd-table tbody tr:hover { background: var(--secondary); }
         .cd-table .cd-points { font-family: var(--font-mono); font-weight: 800; color: var(--primary); }
         .cd-table .cd-num { font-family: var(--font-mono); }
+        .cd-team-tip { margin-top: calc(var(--spacing) * 3); font-size: 12px; color: var(--muted-foreground); }
         .cd-rank-badge {
           display: inline-flex; align-items: center; justify-content: center;
           width: 26px; height: 26px; border-radius: 999px;
@@ -1409,10 +1424,10 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
     </main>
     <script>lucide.createIcons();</script>
     <script src="./js/cloud.js?v=20260926a"></script>
-    <script src="./js/fallback-data.js?v=20261008b"></script>
+    <script src="./js/fallback-data.js?v=20261008g"></script>
     <script src="./js/common.js?v=20261007a"></script>
-    <script src="./js/competition-admin.js?v=20261008e"></script>
-    <script src="./js/competition-detail.js?v=20261008d"></script>
+    <script src="./js/competition-admin.js?v=20261008g"></script>
+    <script src="./js/competition-detail.js?v=20261008g"></script>
     <script>
     /* 主题切换：更新 <html> class + localStorage 记忆，并广播 themechange 事件 */
     (function () {
