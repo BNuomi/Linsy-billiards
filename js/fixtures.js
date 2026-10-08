@@ -10,7 +10,7 @@
     return m ? decodeURIComponent(m[1]) : ''
   }
 
-  var STAGE_LABEL = { group: '小组赛', r16: '16强赛', qf: '1/4决赛', semi: '半决赛', final: '决赛', ko: '淘汰赛' }
+  var STAGE_LABEL = { group: '小组赛', r16: '16强赛', qf: '1/4决赛', semi: '半决赛', third: '季军赛', final: '决赛', ko: '淘汰赛' }
 
   function p2(n) { return String(n).padStart(2, '0') }
 

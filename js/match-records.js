@@ -156,7 +156,7 @@
         : '#'
       meta += '<a class="comp-badge" href="' + compHref + '" title="' + U.escapeHtml(m.competition_name) + '">' + U.escapeHtml(m.competition_name) + '</a>'
     }
-    var stageLabel = { group: '小组赛', semi: '半决赛', final: '决赛' }[m.stage] || ''
+    var stageLabel = { group: '小组赛', r16: '16强赛', qf: '1/4决赛', semi: '半决赛', third: '季军赛', final: '决赛', ko: '淘汰赛' }[m.stage] || ''
     if (stageLabel) meta += '<span class="stage-badge">' + stageLabel + '</span>'
     return '<article class="match-card" data-id="' + U.escapeHtml(m._id) + '" role="link" tabindex="0" aria-label="查看对战详情">' +
       '<div class="match-date"><span class="eyebrow">' + U.fmtDate(m.created_at) + '</span></div>' +
