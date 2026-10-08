@@ -78,6 +78,24 @@
     return comp && comp.format === 'groups_knockout' && comp.game_type !== 'nine_ball'
   }
 
+  // 解析 score_text 为与选手同序的分数数组：中八「3:1」按 ':' 拆；九球「王建国 +12 / 李志强 -5」取段尾带符号数
+  function parseScores(scoreText, playerCount) {
+    if (!scoreText) return null
+    var nums
+    if (scoreText.indexOf(' / ') >= 0) {
+      nums = scoreText.split(' / ').map(function (seg) {
+        var m = seg.match(/([+-]?\d+)\s*$/)
+        return m ? { num: parseInt(m[1], 10), text: m[1] } : { num: 0, text: '0' }
+      })
+    } else {
+      nums = scoreText.split(':').map(function (t) {
+        var n = parseInt(t, 10) || 0
+        return { num: n, text: String(n) }
+      })
+    }
+    return nums.length === playerCount ? nums : null
+  }
+
   // 对阵卡片组队展示 chips：互选合并「甲⇄乙 0/+2」，单向「甲→乙 +2」；0 分不附分值
   // 口径与小程序 utils/competition.js teamChipsOf 一致
   function teamChipsOf(f) {
@@ -228,15 +246,32 @@
         var cards = items.map(function (f) {
           var st = statusOf(f)
           var race = raceOf(fixtures, comp, f)
+          // 选手+比分行：比分随选手同序展示在右侧，领先侧（唯一最高分）高亮；
           // 淘汰赛占位：选手未填充时展示槽位文案（A组第1名 / 第49场胜者），赛况推进后自动替换实名
-          var names = (f.players || []).length
-            ? f.players.map(function (p) { return U.escapeHtml(p.name) }).join('<span class="fx-vs">vs</span>')
-            : (f.placeholders || []).map(function (t) { return '<span class="fx-ph">' + U.escapeHtml(t) + '</span>' }).join('<span class="fx-vs">vs</span>')
-          var winner = f.winner_id ? ((f.players.find(function (p) { return p.id === f.winner_id }) || {}).name || '') : ''
-          var result = st.cls === 'done'
-            ? '<div class="fx-result"><span class="fx-winner">胜：' + U.escapeHtml(winner) + '</span>' +
-              (f.score_text ? '<span class="fx-score">' + U.escapeHtml(f.score_text) + '</span>' : '') + '</div>'
-            : ''
+          var playersRow
+          if ((f.players || []).length) {
+            var nums = parseScores(f.score_text, f.players.length)
+            var leadIdx = -1
+            if (nums) {
+              var max = Math.max.apply(null, nums.map(function (n) { return n.num }))
+              var leaders = nums.map(function (n, i) { return n.num === max ? i : -1 }).filter(function (i) { return i >= 0 })
+              if (leaders.length === 1) leadIdx = leaders[0]
+            }
+            var sidesHtml = f.players.map(function (p, i) {
+              return (i ? '<span class="fx-vs">vs</span>' : '') +
+                '<span class="fx-side' + (i === leadIdx ? ' is-lead' : '') + '">' + U.escapeHtml(p.name) + '</span>'
+            }).join('')
+            var scoreHtml = nums
+              ? '<span class="fx-score">' + nums.map(function (n, i) {
+                  return (i ? '<span class="fx-score-sep">:</span>' : '') +
+                    '<span class="fx-score-num' + (i === leadIdx ? ' is-lead' : '') + '">' + n.text + '</span>'
+                }).join('') + '</span>'
+              : ''
+            playersRow = '<div class="fx-players"><div class="fx-sides">' + sidesHtml + '</div>' + scoreHtml + '</div>'
+          } else {
+            var phHtml = (f.placeholders || []).map(function (t) { return '<span class="fx-ph">' + U.escapeHtml(t) + '</span>' }).join('<span class="fx-vs">vs</span>')
+            playersRow = '<div class="fx-players fx-players--ph"><div class="fx-sides">' + phHtml + '</div></div>'
+          }
           var noChip = f.match_no ? '<span class="fx-chip-slot no">No.' + f.match_no + '</span>' : ''
           var stageChip = (gk && f.stage && CARD_STAGE_LABEL[f.stage])
             ? '<span class="fx-chip-slot stage">' + CARD_STAGE_LABEL[f.stage] + '</span>'
@@ -261,7 +296,7 @@
             '<div class="fx-card-head"><div class="fx-card-tags">' + noChip + stageChip + groupChip + '</div>' +
             '<span class="fx-status ' + st.cls + '">' + st.text + '</span></div>' +
             '<div class="fx-card-chips">' + slotChips + (race ? '<span class="fx-race">' + race + '</span>' : '') + '</div>' +
-            '<div class="fx-players">' + names + '</div>' + result + teamHtml + opsHtml + '</div>'
+            playersRow + teamHtml + opsHtml + '</div>'
         }).join('')
         return '<div class="fx-day-group"><div class="fx-day-label">' + day + '</div><div class="fx-grid">' + cards + '</div></div>'
       }).join('')
