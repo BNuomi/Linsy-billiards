@@ -13,6 +13,8 @@
   }
 
   var STAGE_LABEL = { group: '小组赛', r16: '16强赛', qf: '1/4决赛', semi: '半决赛', third: '季军赛', final: '决赛', ko: '淘汰赛' }
+  // 卡片阶段 chip 标签（16强/1/4决赛归入淘汰赛）
+  var CARD_STAGE_LABEL = { group: '小组赛', r16: '淘汰赛', qf: '淘汰赛', semi: '半决赛', third: '季军赛', final: '决赛', ko: '淘汰赛' }
 
   function p2(n) { return String(n).padStart(2, '0') }
 
@@ -236,6 +238,9 @@
               (f.score_text ? '<span class="fx-score">' + U.escapeHtml(f.score_text) + '</span>' : '') + '</div>'
             : ''
           var noChip = f.match_no ? '<span class="fx-chip-slot no">No.' + f.match_no + '</span>' : ''
+          var stageChip = (gk && f.stage && CARD_STAGE_LABEL[f.stage])
+            ? '<span class="fx-chip-slot stage">' + CARD_STAGE_LABEL[f.stage] + '</span>'
+            : ''
           var groupChip = (gk && f.stage === 'group' && f.group_no)
             ? '<span class="fx-chip-slot group">' + U.escapeHtml(f.group_no) + '组</span>'
             : ''
@@ -253,7 +258,7 @@
             ? '<div class="fx-card-ops"><button class="fx-resched" type="button" data-fixture-id="' + f._id + '">调整排序</button></div>'
             : ''
           return '<div class="fx-card">' +
-            '<div class="fx-card-head"><div class="fx-card-tags">' + noChip + groupChip + '</div>' +
+            '<div class="fx-card-head"><div class="fx-card-tags">' + noChip + stageChip + groupChip + '</div>' +
             '<span class="fx-status ' + st.cls + '">' + st.text + '</span></div>' +
             '<div class="fx-card-chips">' + slotChips + (race ? '<span class="fx-race">' + race + '</span>' : '') + '</div>' +
             '<div class="fx-players">' + names + '</div>' + result + teamHtml + opsHtml + '</div>'
