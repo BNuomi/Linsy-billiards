@@ -11,7 +11,8 @@ window.CompAdmin = (function () {
 
   var ctx = { getComp: null, onChanged: null }
   var authing = false // 授权弹窗是否打开（防止并发创建会话）
-  var pendingAction = null // 授权完成后要执行的动作：'edit' | 'import' | 'days'
+  var pendingAction = null // 授权完成后要执行的动作：'edit' | 'import' | 'days' | 'reorder'
+  var pendingFixture = null // reorder 动作的目标对阵
 
   // ---------- 弹窗样式（单源注入，页面无需内联） ----------
   function ensureStyle() {
@@ -67,7 +68,14 @@ window.CompAdmin = (function () {
       '.wa-days-empty{font-size:12px;color:var(--muted-foreground);padding:8px 0;}' +
       '.wa-days-add{margin-top:4px;}' +
       '.wa-day-heads{display:flex;gap:10px;font-size:11px;color:var(--muted-foreground);margin-bottom:4px;}' +
-      '.wa-day-heads span{display:block;}'
+      '.wa-day-heads span{display:block;}' +
+      /* 调整排序 */
+      '.wa-rs-list{max-height:46vh;overflow-y:auto;margin-bottom:12px;}' +
+      '.wa-rs-opt{padding:10px 12px;border:1px solid var(--border);border-radius:10px;margin-bottom:8px;cursor:pointer;background:var(--background);}' +
+      '.wa-rs-opt.is-on{border-color:var(--primary);background:rgba(0,113,227,0.06);}' +
+      '.wa-rs-label{font-size:13px;font-weight:600;color:var(--foreground);}' +
+      '.wa-rs-sub{font-size:12px;color:var(--muted-foreground);margin-top:2px;}' +
+      '.wa-rs-loading{font-size:13px;color:var(--muted-foreground);padding:12px 0;}'
     document.head.appendChild(style)
   }
 
@@ -209,6 +217,11 @@ window.CompAdmin = (function () {
     if (action === 'edit') openEdit()
     else if (action === 'import') openImport()
     else if (action === 'days') openDays()
+    else if (action === 'reorder') {
+      var f = pendingFixture
+      pendingFixture = null
+      if (f) openReorderModal(f)
+    }
   }
 
   // 权限失效统一处理：清缓存 → toast → 重新扫码
@@ -546,6 +559,117 @@ window.CompAdmin = (function () {
     }
   }
 
+  // ---------- 调整排序 ----------
+  // 未开打对阵的排期顺序（与云端 updateFixture 同口径）：已排期按 时间→台号→场次，待定按场次编号排最后
+  function cmpSched(a, b) {
+    function key(f) {
+      return [
+        f.slot_at == null ? 9e15 : f.slot_at,
+        f.table_no == null ? 99 : f.table_no,
+        f.session_no == null ? 99 : f.session_no,
+        f.match_no == null ? (f.seq || 0) : f.match_no
+      ]
+    }
+    var x = key(a)
+    var y = key(b)
+    for (var i = 0; i < 4; i++) {
+      if (x[i] !== y[i]) return x[i] < y[i] ? -1 : 1
+    }
+    return 0
+  }
+
+  function p2(n) { return String(n).padStart(2, '0') }
+  function fmtSlot(ts) {
+    var d = new Date(ts)
+    return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()) + ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes())
+  }
+  function namesOf(f) {
+    if ((f.players || []).length) return f.players.map(function (p) { return p.name }).join(' vs ')
+    return (f.placeholders || []).join(' vs ')
+  }
+
+  // 入口：fixtures 卡片「调整排序」按钮调用；未授权先走扫码
+  function openReorder(fixture) {
+    if (!fixture || !fixture._id) return
+    if (readAuth()) { openReorderModal(fixture); return }
+    pendingFixture = fixture
+    startAuth('reorder')
+  }
+
+  function openReorderModal(fixture) {
+    var comp = ctx.getComp ? (ctx.getComp() || {}) : {}
+    var card = openModal('调整对阵排序', function (body) {
+      body.innerHTML =
+        '<div class="wa-days-tip">本场：<b>' + U.escapeHtml((fixture.match_no ? 'No.' + fixture.match_no + ' ' : '') + namesOf(fixture)) + '</b><br>' +
+        '选择目标位置，本场将插到所选场之前；日期按排期自动分配。</div>' +
+        '<div class="wa-rs-loading" id="wa-rs-loading">正在加载对阵…</div>' +
+        '<div class="wa-rs-list" id="wa-rs-list" style="display:none;"></div>' +
+        '<div class="wa-foot" id="wa-rs-foot" style="display:none;"><button class="btn btn-primary" id="wa-rs-save" type="button">保存</button></div>'
+    }, { wide: true })
+    window.AppCloud.call('getFixtures', { competition_id: comp._id }).then(function (d) {
+      var open = (d.fixtures || []).filter(function (x) {
+        return x.status !== 'bye' && !x.match_id && x._id !== fixture._id
+      }).sort(cmpSched)
+      var body = card.querySelector('.wa-body')
+      body.querySelector('#wa-rs-loading').style.display = 'none'
+      var listEl = body.querySelector('#wa-rs-list')
+      listEl.style.display = ''
+      body.querySelector('#wa-rs-foot').style.display = ''
+      var rows = open.map(function (x) {
+        return {
+          id: x._id,
+          label: (x.match_no ? 'No.' + x.match_no + ' ' : '') + namesOf(x),
+          sub: x.slot_at ? fmtSlot(x.slot_at) + (x.table_no ? ' · ' + x.table_no + '号台' : '') : '时间待定'
+        }
+      })
+      rows.push({ id: '', label: '移到最后', sub: '排在全部未开打对阵之后' })
+      listEl.innerHTML = rows.map(function (r) {
+        return '<div class="wa-rs-opt' + (r.id === '' ? ' is-on' : '') + '" data-id="' + r.id + '">' +
+          '<div class="wa-rs-label">' + U.escapeHtml(r.label) + '</div>' +
+          '<div class="wa-rs-sub">' + U.escapeHtml(r.sub) + '</div></div>'
+      }).join('')
+      listEl.addEventListener('click', function (ev) {
+        var opt = ev.target.closest('.wa-rs-opt')
+        if (!opt) return
+        var all = listEl.querySelectorAll('.wa-rs-opt')
+        for (var i = 0; i < all.length; i++) all[i].classList.remove('is-on')
+        opt.classList.add('is-on')
+      })
+      body.querySelector('#wa-rs-save').addEventListener('click', function () { saveReorder(card, fixture) })
+    }).catch(function (e) {
+      var loading = card.querySelector('#wa-rs-loading')
+      if (loading) loading.textContent = e.message || '对阵加载失败'
+    })
+  }
+
+  async function saveReorder(card, fixture) {
+    var sel = card.querySelector('.wa-rs-opt.is-on')
+    var targetId = sel ? sel.getAttribute('data-id') : ''
+    var auth = readAuth()
+    if (!auth) {
+      U.toast('授权已失效，请重新扫码', 'error')
+      pendingFixture = fixture
+      startAuth('reorder')
+      return
+    }
+    var btn = card.querySelector('#wa-rs-save')
+    btn.disabled = true
+    btn.textContent = '保存中…'
+    try {
+      var params = { fixture_id: fixture._id, web_token: auth.token }
+      if (targetId) params.before_fixture_id = targetId
+      else params.at_end = true
+      await window.AppCloud.call('updateFixture', params)
+      closeModal()
+      U.toast('已调整排序', 'success')
+      if (typeof ctx.onChanged === 'function') ctx.onChanged()
+    } catch (e) {
+      btn.disabled = false
+      btn.textContent = '保存'
+      if (!handleAuthError(e)) U.toast('保存失败：' + (e.message || e), 'error')
+    }
+  }
+
   // ---------- 入口 ----------
   function init(opts) {
     ctx.getComp = opts && opts.getComp
@@ -558,5 +682,5 @@ window.CompAdmin = (function () {
     if (daysBtn) daysBtn.addEventListener('click', function () { startAuth('days') })
   }
 
-  return { init: init }
+  return { init: init, openReorder: openReorder }
 })()

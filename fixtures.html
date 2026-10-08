@@ -1287,7 +1287,9 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
           padding: calc(var(--spacing) * 4) calc(var(--spacing) * 5);
         }
         html.dark .fx-card { background: linear-gradient(145deg, #2c2c2e, #262628); border-color: rgba(58,58,60,0.5); }
-        .fx-card-top { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-bottom: calc(var(--spacing) * 2); }
+        .fx-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: calc(var(--spacing) * 2); }
+        .fx-card-tags { display: flex; align-items: center; gap: 6px; min-width: 0; }
+        .fx-card-chips { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-bottom: calc(var(--spacing) * 2); }
         .fx-time { font-size: 12px; color: var(--muted-foreground); }
         /* 排期高亮 chip：日期 / 时间 / 几号台 / 第几场 */
         .fx-chip-slot { font-size: 11px; font-weight: 700; border-radius: 6px; padding: 2px 8px; white-space: nowrap; }
@@ -1297,6 +1299,7 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
         .fx-chip-slot.session { color: #0f766e; background: rgba(13, 148, 136, 0.12); }
         .fx-chip-slot.no { color: #6d28d9; background: rgba(124, 58, 237, 0.12); }
         html.dark .fx-chip-slot.no { color: #c4b5fd; background: rgba(124, 58, 237, 0.22); }
+        .fx-chip-slot.group { color: var(--muted-foreground); background: var(--secondary); }
         .fx-chip-slot.tbd { font-weight: 400; color: var(--muted-foreground); background: var(--secondary); }
         .fx-days-head { display: flex; align-items: center; justify-content: space-between; }
         .fx-days-edit {
@@ -1311,16 +1314,22 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
         .fx-progress b { color: var(--foreground); }
         .fx-progress .warn { color: #c2410c; font-weight: 600; }
         .fx-format { font-size: 13px; color: var(--primary); margin-top: calc(var(--spacing) * 2); }
-        .fx-status { font-size: 11px; font-weight: 700; border-radius: 999px; padding: 2px 12px; margin-left: auto; }
+        .fx-status { flex: none; font-size: 11px; font-weight: 700; border-radius: 999px; padding: 2px 12px; }
         .fx-race { font-size: 11px; font-weight: 700; border-radius: 999px; padding: 2px 12px; color: var(--primary); background: rgba(0, 113, 227, 0.08); }
         .fx-status.pending { color: #b8860b; background: rgba(218, 165, 32, 0.14); }
         .fx-status.live { color: var(--primary); background: rgba(0, 113, 227, 0.1); }
         .fx-status.done { color: var(--muted-foreground); background: var(--secondary); }
         .fx-players { font-size: 16px; font-weight: 600; color: var(--foreground); display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
         .fx-vs { font-size: 12px; font-weight: 700; color: var(--muted-foreground); }
-        .fx-result { display: flex; align-items: center; gap: calc(var(--spacing) * 3); margin-top: calc(var(--spacing) * 2); }
+        .fx-result { display: flex; align-items: baseline; gap: calc(var(--spacing) * 3); margin-top: calc(var(--spacing) * 2); }
         .fx-winner { font-size: 13px; font-weight: 600; color: var(--primary); }
-        .fx-score { font-size: 12px; color: var(--muted-foreground); }
+        .fx-score { font-size: 22px; font-weight: 800; color: var(--foreground); letter-spacing: 0.5px; }
+        .fx-card-ops { margin-top: calc(var(--spacing) * 3); display: flex; justify-content: flex-end; }
+        .fx-resched {
+          border: 1px solid var(--border); cursor: pointer; font-size: 12px; font-weight: 600;
+          color: var(--muted-foreground); background: var(--secondary); border-radius: 999px; padding: 4px 14px;
+        }
+        .fx-resched:hover { color: var(--primary); border-color: var(--primary); background: rgba(0, 113, 227, 0.08); }
         .fx-teams { display: flex; flex-wrap: wrap; gap: 6px; margin-top: calc(var(--spacing) * 2); }
         .fx-team { font-size: 11px; font-weight: 600; color: var(--primary); background: rgba(0, 113, 227, 0.08); border-radius: 999px; padding: 2px 10px; }
       </style>
@@ -1346,8 +1355,8 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
     <script src="./js/cloud.js?v=20260926a"></script>
     <script src="./js/fallback-data.js?v=20261008b"></script>
     <script src="./js/common.js?v=20261007a"></script>
-    <script src="./js/competition-admin.js?v=20261008g"></script>
-    <script src="./js/fixtures.js?v=20261008g"></script>
+    <script src="./js/competition-admin.js?v=20261008h"></script>
+    <script src="./js/fixtures.js?v=20261008h"></script>
     <script>
     /* 主题切换：更新 <html> class + localStorage 记忆，并广播 themechange 事件 */
     (function () {

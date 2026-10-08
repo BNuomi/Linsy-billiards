@@ -3,6 +3,7 @@
   var U = window.AppUI
   var WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
   var COMP = null // 当前比赛（供 CompAdmin 编辑比赛日读取）
+  var FX_BY_ID = {} // 当前对阵按 _id 索引（调整排序入口取数）
 
   function el(id) { return document.getElementById(id) }
 
@@ -14,6 +15,29 @@
   var STAGE_LABEL = { group: '小组赛', r16: '16强赛', qf: '1/4决赛', semi: '半决赛', third: '季军赛', final: '决赛', ko: '淘汰赛' }
 
   function p2(n) { return String(n).padStart(2, '0') }
+
+  function todayStr() {
+    var d = new Date()
+    return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate())
+  }
+
+  // 排期顺序（与云端 updateFixture 同口径）：已排期按 时间→台号→场次，待定按场次编号排最后
+  function cmpSched(a, b) {
+    function key(f) {
+      return [
+        f.slot_at == null ? 9e15 : f.slot_at,
+        f.table_no == null ? 99 : f.table_no,
+        f.session_no == null ? 99 : f.session_no,
+        f.match_no == null ? (f.seq || 0) : f.match_no
+      ]
+    }
+    var x = key(a)
+    var y = key(b)
+    for (var i = 0; i < 4; i++) {
+      if (x[i] !== y[i]) return x[i] < y[i] ? -1 : 1
+    }
+    return 0
+  }
 
   function fmtDay(ts) {
     var d = new Date(ts)
@@ -50,6 +74,29 @@
 
   function isGK(comp) {
     return comp && comp.format === 'groups_knockout' && comp.game_type !== 'nine_ball'
+  }
+
+  // 对阵卡片组队展示 chips：互选合并「甲⇄乙 0/+2」，单向「甲→乙 +2」；0 分不附分值
+  // 口径与小程序 utils/competition.js teamChipsOf 一致
+  function teamChipsOf(f) {
+    var entries = ((f && f.teams) || []).filter(function (t) { return t && t.pid && t.tid })
+    var used = {}
+    var chips = []
+    function fmt(v) { return (v > 0 ? '+' : '') + v }
+    entries.forEach(function (t) {
+      if (used[t.pid]) return
+      var back = entries.find(function (x) { return x.pid === t.tid && x.tid === t.pid && !used[x.pid] })
+      if (back) {
+        used[t.pid] = true; used[back.pid] = true
+        var hasPts = (t.points || 0) !== 0 || (back.points || 0) !== 0
+        var pts = hasPts ? ' ' + fmt(t.points || 0) + '/' + fmt(back.points || 0) : ''
+        chips.push(t.name + '⇄' + t.tname + pts)
+      } else {
+        used[t.pid] = true
+        chips.push(t.name + '→' + t.tname + (t.points ? ' ' + fmt(t.points) : ''))
+      }
+    })
+    return chips
   }
 
   // 赛制说明：「4 人小组 × 4 组 · 前 2 出线 · 共 31 场（小组 24 + 淘汰 7）」
@@ -136,15 +183,15 @@
       el('fx-progress').style.display = ''
     }
 
-    // 分区：GK = 小组赛按组 / 淘汰赛按轮；rounds = 按轮
+    // 分区：GK = 小组赛合并单分区（按时间排序，不再按组区分）/ 淘汰赛按轮；rounds = 按轮
     var gk = isGK(comp)
     var sections = new Map()
     fixtures.forEach(function (f) {
       var key, title, order
       if (gk && f.stage === 'group') {
-        key = 'group_' + (f.group_no || 'A')
-        title = '小组赛 · ' + (f.group_no || 'A') + '组'
-        order = 1 + (f.group_no || 'A').charCodeAt(0) - 65
+        key = 'group_all'
+        title = '小组赛'
+        order = 1
       } else if (gk) {
         key = 'ko_' + f.round
         title = '淘汰赛 · ' + (STAGE_LABEL[f.stage] || ('第' + f.round + '轮'))
@@ -163,9 +210,14 @@
       }
     })
 
+    var compDone = !!(comp.end_date && todayStr() > comp.end_date)
+    FX_BY_ID = {}
+    fixtures.forEach(function (f) { FX_BY_ID[f._id] = f })
+
     var html = [...sections.values()].sort(function (a, b) { return a.order - b.order }).map(function (sec) {
       var dayMap = new Map()
-      sec.items.forEach(function (f) {
+      // 按排期顺序排序（时间→台号→场次），日期分组随之按时间先后呈现，时间待定在最后
+      sec.items.slice().sort(cmpSched).forEach(function (f) {
         var key = f.slot_at ? U.fmtDate(f.slot_at) : '时间待定'
         if (!dayMap.has(key)) dayMap.set(key, [])
         dayMap.get(key).push(f)
@@ -184,17 +236,27 @@
               (f.score_text ? '<span class="fx-score">' + U.escapeHtml(f.score_text) + '</span>' : '') + '</div>'
             : ''
           var noChip = f.match_no ? '<span class="fx-chip-slot no">No.' + f.match_no + '</span>' : ''
+          var groupChip = (gk && f.stage === 'group' && f.group_no)
+            ? '<span class="fx-chip-slot group">' + U.escapeHtml(f.group_no) + '组</span>'
+            : ''
           var slotChips = f.slot_at
             ? '<span class="fx-chip-slot date">' + fmtDay(f.slot_at) + '</span>' +
               '<span class="fx-chip-slot time">' + fmtClock(f.slot_at) + '</span>' +
               (f.table_no ? '<span class="fx-chip-slot table">' + f.table_no + '号台</span>' : '') +
               (f.session_no ? '<span class="fx-chip-slot session">第' + f.session_no + '场</span>' : '')
             : '<span class="fx-chip-slot tbd">时间待定</span>'
+          var teamChips = teamChipsOf(f)
+          var teamHtml = teamChips.length
+            ? '<div class="fx-teams">' + teamChips.map(function (c) { return '<span class="fx-team">' + U.escapeHtml(c) + '</span>' }).join('') + '</div>'
+            : ''
+          var opsHtml = (st.cls === 'pending' && !compDone)
+            ? '<div class="fx-card-ops"><button class="fx-resched" type="button" data-fixture-id="' + f._id + '">调整排序</button></div>'
+            : ''
           return '<div class="fx-card">' +
-            '<div class="fx-card-top">' + noChip + slotChips +
-            (race ? '<span class="fx-race">' + race + '</span>' : '') +
+            '<div class="fx-card-head"><div class="fx-card-tags">' + noChip + groupChip + '</div>' +
             '<span class="fx-status ' + st.cls + '">' + st.text + '</span></div>' +
-            '<div class="fx-players">' + names + '</div>' + result + '</div>'
+            '<div class="fx-card-chips">' + slotChips + (race ? '<span class="fx-race">' + race + '</span>' : '') + '</div>' +
+            '<div class="fx-players">' + names + '</div>' + result + teamHtml + opsHtml + '</div>'
         }).join('')
         return '<div class="fx-day-group"><div class="fx-day-label">' + day + '</div><div class="fx-grid">' + cards + '</div></div>'
       }).join('')
@@ -232,6 +294,13 @@
     el('fx-retry').addEventListener('click', function () {
       el('fx-error').style.display = 'none'
       load()
+    })
+    // 对局卡片「调整排序」（扫码鉴权由 CompAdmin 处理）
+    el('fx-rounds').addEventListener('click', function (ev) {
+      var btn = ev.target.closest('.fx-resched')
+      if (!btn || !window.CompAdmin || typeof window.CompAdmin.openReorder !== 'function') return
+      var f = FX_BY_ID[btn.getAttribute('data-fixture-id')]
+      if (f) window.CompAdmin.openReorder(f)
     })
     load()
   })
