@@ -262,7 +262,7 @@
                 '<span class="fx-side' + (i === leadIdx ? ' is-lead' : '') + '">' + U.escapeHtml(p.name) + '</span>'
             }).join('')
             var scoreHtml = nums
-              ? '<span class="fx-score">' + nums.map(function (n, i) {
+              ? '<span class="fx-score' + (st.cls === 'done' ? ' fx-score--done' : '') + '">' + nums.map(function (n, i) {
                   return (i ? '<span class="fx-score-sep">:</span>' : '') +
                     '<span class="fx-score-num' + (i === leadIdx ? ' is-lead' : '') + '">' + n.text + '</span>'
                 }).join('') + '</span>'
