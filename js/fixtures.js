@@ -12,9 +12,9 @@
     return m ? decodeURIComponent(m[1]) : ''
   }
 
-  var STAGE_LABEL = { group: '小组赛', r16: '16强赛', qf: '1/4决赛', semi: '半决赛', third: '季军赛', final: '决赛', ko: '淘汰赛' }
+  var STAGE_LABEL = { qualifier: '附加赛', group: '小组赛', r16: '16强赛', qf: '1/4决赛', semi: '半决赛', third: '季军赛', final: '决赛', ko: '淘汰赛' }
   // 卡片阶段 chip 标签（16强/1/4决赛归入淘汰赛）
-  var CARD_STAGE_LABEL = { group: '小组赛', r16: '淘汰赛', qf: '淘汰赛', semi: '半决赛', third: '季军赛', final: '决赛', ko: '淘汰赛' }
+  var CARD_STAGE_LABEL = { qualifier: '附加赛', group: '小组赛', r16: '淘汰赛', qf: '淘汰赛', semi: '半决赛', third: '季军赛', final: '决赛', ko: '淘汰赛' }
 
   function p2(n) { return String(n).padStart(2, '0') }
 
@@ -208,7 +208,11 @@
     var sections = new Map()
     fixtures.forEach(function (f) {
       var key, title, order
-      if (gk && f.stage === 'group') {
+      if (gk && f.stage === 'qualifier') {
+        key = 'qualifier'
+        title = '附加赛'
+        order = 0
+      } else if (gk && f.stage === 'group') {
         key = 'group_all'
         title = '小组赛'
         order = 1
