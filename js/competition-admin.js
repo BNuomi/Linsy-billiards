@@ -57,6 +57,11 @@ window.CompAdmin = (function () {
       '.wa-failed-list{margin-top:10px;max-height:160px;overflow-y:auto;font-size:12px;color:var(--state-error);line-height:1.8;}' +
       /* 比赛日编辑 */
       '.wa-days-tip{font-size:12px;line-height:1.8;color:var(--muted-foreground);margin-bottom:12px;}' +
+      '.wa-day-pick{margin-bottom:14px;}' +
+      '.wa-day-pick-title{font-size:11px;color:var(--muted-foreground);margin-bottom:8px;}' +
+      '.wa-day-pick-list{display:flex;flex-wrap:wrap;gap:8px;}' +
+      '.wa-day-chip{font-size:12px;padding:5px 12px;border-radius:999px;border:1px solid transparent;background:var(--secondary);color:var(--foreground);cursor:pointer;}' +
+      '.wa-day-chip.is-on{color:var(--primary);background:rgba(0,113,227,0.1);border-color:var(--primary);}' +
       '.wa-day-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;}' +
       '.wa-day-row .wa-input{padding:8px 12px;font-size:13px;}' +
       '.wa-day-date{width:180px;flex:none;}' +
@@ -456,6 +461,26 @@ window.CompAdmin = (function () {
   // ---------- 编辑比赛日 ----------
   // 与小程序端同口径：比赛日 [{date, start_time, slot_minutes, slot_count}] + 同时开赛台数；
   // 保存后未开打对阵需在小程序端「重新排期」生效
+  // 比赛起止日期 → 逐日列表 [{date, label:'MM-DD 周X'}]（与小程序端 utils/competition.js dateRangeDays 同口径）
+  var WA_WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+  function dateRangeDays(start, end, maxDays) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(start || '') || !/^\d{4}-\d{2}-\d{2}$/.test(end || '') || end < start) return []
+    var limit = maxDays || 62
+    var days = []
+    var t = new Date(start + 'T12:00:00').getTime()
+    var e = new Date(end + 'T12:00:00').getTime()
+    while (t <= e) {
+      var d = new Date(t)
+      var y = d.getFullYear()
+      var mm = String(d.getMonth() + 1).padStart(2, '0')
+      var dd = String(d.getDate()).padStart(2, '0')
+      days.push({ date: y + '-' + mm + '-' + dd, label: mm + '-' + dd + ' ' + WA_WEEKDAYS[d.getDay()] })
+      if (days.length > limit) return []
+      t += 86400000
+    }
+    return days
+  }
+
   function openDays() {
     var comp = ctx.getComp ? (ctx.getComp() || {}) : {}
     var days = (comp.match_days || []).map(function (d0) {
@@ -467,9 +492,13 @@ window.CompAdmin = (function () {
       }
     })
     var tables = Number(comp.table_count) > 0 ? Number(comp.table_count) : 4
+    var pickOptions = dateRangeDays(comp.start_date, comp.end_date)
     var card = openModal('编辑比赛日', function (body) {
       body.innerHTML =
         '<div class="wa-days-tip">对局时间按 比赛日 × 台数 × 场次 编排；保存后需在小程序端「重新排期」生效到未开打对阵。每场分钟 10-240，场次数 1-50。</div>' +
+        (pickOptions.length ?
+          '<div class="wa-day-pick"><div class="wa-day-pick-title">按比赛日期范围多选（' + U.escapeHtml(comp.start_date) + ' ~ ' + U.escapeHtml(comp.end_date) + '）</div>' +
+          '<div class="wa-day-pick-list" id="wa-day-picks"></div></div>' : '') +
         '<div class="wa-day-heads"><span style="width:180px;">日期</span><span style="width:130px;">开始时间</span>' +
         '<span style="width:100px;">每场分钟</span><span style="width:100px;">场次数</span><span style="width:34px;"></span></div>' +
         '<div id="wa-days-list"></div>' +
@@ -478,6 +507,23 @@ window.CompAdmin = (function () {
         '<input class="wa-input" id="wa-days-tables" type="number" min="1" max="16" value="' + tables + '"></label>' +
         '<div class="wa-foot"><button class="btn btn-primary" id="wa-days-save" type="button">保存</button></div>'
       var listEl = body.querySelector('#wa-days-list')
+      // 行列表与多选胶囊联动：行内增删/改日期后刷新胶囊选中态
+      function renderPicks() {
+        if (!pickOptions.length) return
+        var picked = {}
+        days.forEach(function (d0) { if (d0.date) picked[d0.date] = 1 })
+        body.querySelector('#wa-day-picks').innerHTML = pickOptions.map(function (o) {
+          return '<button class="wa-day-chip' + (picked[o.date] ? ' is-on' : '') + '" type="button" data-date="' + o.date + '">' + o.label + '</button>'
+        }).join('')
+      }
+      function sortDays() {
+        // 有日期的行按日期排序，手动新增的空日期行保持在尾部
+        days.sort(function (a, b) {
+          if (!a.date) return 1
+          if (!b.date) return -1
+          return a.date < b.date ? -1 : a.date > b.date ? 1 : 0
+        })
+      }
       function renderRows() {
         listEl.innerHTML = days.length ? days.map(function (d0, i) {
           return '<div class="wa-day-row">' +
@@ -491,17 +537,36 @@ window.CompAdmin = (function () {
         if (window.lucide) window.lucide.createIcons()
       }
       renderRows()
+      renderPicks()
+      // 多选切换：未选 → 按默认参数（19:00 · 50 分钟 · 3 场/台）加入并排序；已选 → 移除该日期全部行
+      if (pickOptions.length) {
+        body.querySelector('#wa-day-picks').addEventListener('click', function (ev) {
+          var chip = ev.target.closest('.wa-day-chip')
+          if (!chip) return
+          var date = chip.getAttribute('data-date')
+          if (days.some(function (d0) { return d0.date === date })) {
+            days = days.filter(function (d0) { return d0.date !== date })
+          } else {
+            days.push({ date: date, start_time: '19:00', slot_minutes: 50, slot_count: 3 })
+          }
+          sortDays()
+          renderRows()
+          renderPicks()
+        })
+      }
       listEl.addEventListener('input', function (ev) {
         var i = Number(ev.target.getAttribute('data-i'))
         var k = ev.target.getAttribute('data-k')
         if (!days[i] || !k) return
         days[i][k] = (k === 'slot_minutes' || k === 'slot_count') ? Number(ev.target.value) || 0 : ev.target.value
+        if (k === 'date') renderPicks()
       })
       listEl.addEventListener('click', function (ev) {
         var btn = ev.target.closest('.wa-day-del')
         if (!btn) return
         days.splice(Number(btn.getAttribute('data-i')), 1)
         renderRows()
+        renderPicks()
       })
       body.querySelector('#wa-days-add').addEventListener('click', function () {
         days.push({ date: '', start_time: '19:00', slot_minutes: 50, slot_count: 3 })
