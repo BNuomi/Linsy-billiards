@@ -42,15 +42,16 @@
     try {
       var results = await Promise.all([
         window.AppCloud.call('getCompetitionDetail', { competition_id: id }),
-        window.AppCloud.call('getRankings', { scope: 'competition', competition_id: id })
+        window.AppCloud.call('getRankings', { scope: 'competition', competition_id: id }),
+        window.AppCloud.call('getRankings', { scope: 'competition_team', competition_id: id })
       ])
-      render(results[0] || {}, results[1] || [])
+      render(results[0] || {}, results[1] || [], results[2] || [])
     } catch (e) {
       showError(e.message || '加载失败，请稍后重试')
     }
   }
 
-  function render(detail, board) {
+  function render(detail, board, teamBoard) {
     var comp = detail.competition || {}
     currentComp = comp
     el('cd-name').textContent = comp.name || '比赛详情'
@@ -130,6 +131,8 @@
 
     renderBoard(board)
     el('cd-board-section').style.display = ''
+    renderTeamBoard(teamBoard)
+    el('cd-teamboard-section').style.display = ''
     refreshIcons()
   }
 
@@ -158,6 +161,28 @@
         if (id) window.location.href = './member-detail.html?id=' + encodeURIComponent(id)
       })
     })
+  }
+
+  // 组队积分榜：队友组合 + 基础分（两人赛事积分）+ 组队分（全部场次）+ 总分（最低 0）
+  function renderTeamBoard(list) {
+    var tbody = el('cd-team-tbody')
+    if (!list.length) {
+      tbody.innerHTML = '<tr class="cd-empty-row"><td colspan="5">暂无组队记录</td></tr>'
+      return
+    }
+    tbody.innerHTML = list.map(function (t) {
+      var badge = t.rank <= 3
+        ? '<span class="cd-rank-badge ' + ['gold', 'silver', 'bronze'][t.rank - 1] + '">' + t.rank + '</span>'
+        : String(t.rank)
+      var names = (t.members || []).map(function (m) { return U.escapeHtml(m.name || '未命名') }).join(' &amp; ')
+      var teamPts = (t.team_points > 0 ? '+' : '') + (t.team_points || 0)
+      return '<tr>' +
+        '<td>' + badge + '</td>' +
+        '<td>' + names + '</td>' +
+        '<td class="cd-num">' + (t.base_points != null ? t.base_points : 0) + '</td>' +
+        '<td class="cd-num">' + teamPts + '</td>' +
+        '<td class="cd-points">' + (t.points != null ? t.points : 0) + '</td></tr>'
+    }).join('')
   }
 
   function showError(msg) {

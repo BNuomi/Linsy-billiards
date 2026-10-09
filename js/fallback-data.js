@@ -261,6 +261,8 @@ window.FallbackData = (function () {
   function respond(name, data) {
     switch (name) {
       case 'getRankings':
+        // 组队榜离线无演示数据：返回空，避免把个人榜误渲染为组队榜
+        if (data && data.scope === 'competition_team') return Promise.resolve([])
         return Promise.resolve(rankings())
       case 'getOverview': {
         var monthStart = new Date()
