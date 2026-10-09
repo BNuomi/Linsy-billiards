@@ -1321,13 +1321,13 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
         .fx-status.pending { color: #b8860b; background: rgba(218, 165, 32, 0.14); }
         .fx-status.live { color: var(--primary); background: rgba(0, 113, 227, 0.1); }
         .fx-status.done { color: var(--muted-foreground); background: var(--secondary); }
-        .fx-players { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+        .fx-players { display: flex; align-items: center; gap: 24px; }
         .fx-sides { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; min-width: 0; font-size: 16px; font-weight: 600; color: var(--foreground); }
         .fx-side.is-lead { color: var(--primary); }
         .fx-vs { font-size: 12px; font-weight: 700; color: var(--muted-foreground); }
-        /* 比分：显示在选手右侧，领先侧高亮；已结束比分加大 */
-        .fx-score { flex: none; display: flex; align-items: baseline; gap: 2px; font-size: 22px; font-weight: 800; color: var(--muted-foreground); letter-spacing: 0.5px; }
-        .fx-score--done { font-size: 28px; }
+        /* 比分：紧跟选手右侧显示，领先侧高亮；已结束比分加大 */
+        .fx-score { flex: none; display: flex; align-items: baseline; gap: 6px; font-size: 26px; font-weight: 800; color: var(--muted-foreground); letter-spacing: 0.5px; }
+        .fx-score--done { font-size: 32px; }
         .fx-score-num.is-lead { color: var(--primary); }
         .fx-score-sep { font-size: 15px; font-weight: 600; }
         .fx-players--ph .fx-sides { font-size: 14px; font-weight: 500; color: var(--muted-foreground); }
