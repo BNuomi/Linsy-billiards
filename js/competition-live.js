@@ -1,14 +1,17 @@
-/* 比赛实况页：进行中对局（5s 轮询实时比分）/ 即将上场（每台最近一场）/ 后续预告 / 已结束
+/* 比赛实况页：进行中对局（5s 轮询实时比分）/ 即将上场（每台最近一场）/ 刚结束（比分+记分+组队积分）/ 后续预告
+ * + 积分榜两栏（对局积分榜 / 组队积分榜，随完赛增量刷新）
  * 公开只读：入口无需权限；比分由 getFixtures 按 fixture 关联对局合并（进行中=实时 frame_score/balances）
  * 轮询：页面隐藏（visibilitychange）时暂停，恢复可见立即刷新 */
 ;(function () {
   var U = window.AppUI
   var WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
   var POLL_MS = 5000
-  var DONE_SHOW = 8 // 已结束区展示最近场次数
+  var DONE_SHOW = 6 // 刚结束区展示最近场次数
   var UPCOMING_SHOW = 10 // 后续预告展示场次数
+  var BOARD_SHOW = 10 // 积分榜展示名次数
   var timer = null
   var polling = false
+  var boardKey = null // 积分榜缓存键：完赛数 + 最新完赛对局（变化才重拉榜单）
 
   function el(id) { return document.getElementById(id) }
 
@@ -151,6 +154,7 @@
       hasScore: !!nums,
       clears: f.clears || 0, // 中八进行中实时一杆清台局数（getFixtures 推导）
       teamChips: teamChipsOf(f),
+      points: f.points || [], // 已结束：本场积分流水（getFixtures 按 match_id 聚合）
       matchId: f.match_id || ''
     }
   }
@@ -208,13 +212,103 @@
       '</div><div class="up-names' + (d.isPlaceholder ? ' ph' : '') + '">' + U.escapeHtml(d.namesText) + '</div></div>'
   }
 
+  // 刚结束卡片记分情况：每人本场积分 chip（胜方高亮，remark 提取清台标记）
+  function donePtsHtml(d) {
+    if (!d.points.length) return ''
+    var chips = d.points.map(function (p) {
+      var delta = (p.delta > 0 ? '+' : '') + p.delta
+      var clearM = /清台(\d+)×/.exec(p.remark || '')
+      var clear = clearM ? '<span class="dn-pt-clear"> · 清台×' + clearM[1] + '</span>' : ''
+      return '<span class="dn-pt' + (p.result === 'win' ? ' win' : '') + '">' +
+        U.escapeHtml(p.name || '选手') + ' ' + delta + clear + '</span>'
+    }).join('')
+    return '<div class="dn-pts">' + chips + '</div>'
+  }
+
   function doneCardHtml(d) {
+    var teams = d.teamChips.length
+      ? '<div class="dn-teams">' + d.teamChips.map(function (c) { return '<span class="lv-team">' + U.escapeHtml(c) + '</span>' }).join('') + '</div>'
+      : ''
     return '<a class="dn-card" href="./match-detail.html?matchId=' + encodeURIComponent(d.matchId) + '&from=live&cid=' + encodeURIComponent(compId()) + '">' +
       '<div class="dn-meta">' +
       (d.noText ? '<span class="dn-no">' + d.noText + '</span>' : '') +
       (d.dateText ? '<span class="dn-slot">' + d.dateText + (d.tableText ? ' · ' + d.tableText : '') + '</span>' : '') +
       (d.stageText ? '<span class="dn-stage">' + d.stageText + (d.groupText ? ' ' + U.escapeHtml(d.groupText) : '') + '</span>' : '') +
-      '</div>' + sidesHtml(d, 'dn-side', 'dn-score') + '</a>'
+      '</div>' + sidesHtml(d, 'dn-side', 'dn-score') + donePtsHtml(d) + teams + '</a>'
+  }
+
+  // ---------- 积分榜（对局/组队，随完赛增量刷新） ----------
+  function rankBadge(rank) {
+    return rank <= 3
+      ? '<span class="bd-rank ' + ['gold', 'silver', 'bronze'][rank - 1] + '">' + rank + '</span>'
+      : String(rank)
+  }
+
+  function renderBoard(list) {
+    var tbody = el('lv-board-tbody')
+    if (!list.length) {
+      tbody.innerHTML = '<tr class="bd-empty"><td colspan="6">该比赛暂无积分数据</td></tr>'
+      el('lv-board-more').textContent = ''
+      el('lv-board-section').style.display = ''
+      return
+    }
+    tbody.innerHTML = list.slice(0, BOARD_SHOW).map(function (m) {
+      var total = (m.wins || 0) + (m.losses || 0)
+      return '<tr class="link" data-id="' + m._id + '">' +
+        '<td>' + rankBadge(m.rank) + '</td>' +
+        '<td>' + U.escapeHtml(m.name || '未命名') + '</td>' +
+        '<td class="bd-points">' + (m.points != null ? m.points : 0) + '</td>' +
+        '<td class="bd-num">' + (m.wins || 0) + ' / ' + total + '</td>' +
+        '<td class="bd-num">' + (m.clears || 0) + '</td>' +
+        '<td class="bd-num">' + (m.winRate || 0) + '%</td></tr>'
+    }).join('')
+    tbody.querySelectorAll('tr[data-id]').forEach(function (tr) {
+      tr.addEventListener('click', function () {
+        var id = tr.getAttribute('data-id')
+        if (id) window.location.href = './member-detail.html?id=' + encodeURIComponent(id)
+      })
+    })
+    el('lv-board-more').textContent = list.length > BOARD_SHOW
+      ? '仅展示前 ' + BOARD_SHOW + ' 名，完整榜单见「比赛详情」'
+      : ''
+    el('lv-board-section').style.display = ''
+  }
+
+  function renderTeamBoard(list) {
+    var tbody = el('lv-team-tbody')
+    if (!list.length) {
+      tbody.innerHTML = '<tr class="bd-empty"><td colspan="5">暂无组队记录</td></tr>'
+      el('lv-teamboard-section').style.display = ''
+      return
+    }
+    tbody.innerHTML = list.slice(0, BOARD_SHOW).map(function (t) {
+      var names = (t.members || []).map(function (m) { return U.escapeHtml(m.name || '未命名') }).join(' &amp; ')
+      var teamPts = (t.team_points > 0 ? '+' : '') + (t.team_points || 0)
+      return '<tr>' +
+        '<td>' + rankBadge(t.rank) + '</td>' +
+        '<td>' + names + '</td>' +
+        '<td class="bd-num">' + (t.base_points != null ? t.base_points : 0) + '</td>' +
+        '<td class="bd-num">' + teamPts + '</td>' +
+        '<td class="bd-points">' + (t.points != null ? t.points : 0) + '</td></tr>'
+    }).join('')
+    el('lv-teamboard-section').style.display = ''
+  }
+
+  // 榜单只在完赛变化时重拉（5s 轮询不重复请求）；失败清空缓存键下次重试
+  function loadBoards(doneAll) {
+    var key = doneAll.length + ':' + (doneAll.length ? (doneAll[0].raw.match_id || '') : '')
+    if (key === boardKey) return
+    boardKey = key
+    var id = compId()
+    Promise.all([
+      window.AppCloud.call('getRankings', { scope: 'competition', competition_id: id }),
+      window.AppCloud.call('getRankings', { scope: 'competition_team', competition_id: id })
+    ]).then(function (rs) {
+      renderBoard(rs[0] || [])
+      renderTeamBoard(rs[1] || [])
+    }).catch(function () {
+      boardKey = null
+    })
   }
 
   function render(d) {
@@ -237,6 +331,8 @@
       el('lv-next-section').style.display = 'none'
       el('lv-upcoming-section').style.display = 'none'
       el('lv-done-section').style.display = 'none'
+      el('lv-board-section').style.display = 'none'
+      el('lv-teamboard-section').style.display = 'none'
       el('lv-sync').style.display = 'none'
       return
     }
@@ -300,14 +396,20 @@
       el('lv-upcoming-section').style.display = 'none'
     }
 
-    // 已结束
+    // 刚结束（最近场次在前，含比分/记分/组队积分）
     if (doneAll.length) {
       el('lv-done-count').textContent = doneAll.length
       el('lv-done').innerHTML = doneAll.slice(0, DONE_SHOW).map(doneCardHtml).join('')
+      el('lv-done-more').textContent = doneAll.length > DONE_SHOW
+        ? '仅展示最近 ' + DONE_SHOW + ' 场，完整记录见「对阵列表」'
+        : ''
       el('lv-done-section').style.display = ''
     } else {
       el('lv-done-section').style.display = 'none'
     }
+
+    // 积分榜（对局/组队）：仅完赛变化时重拉
+    loadBoards(doneAll)
   }
 
   async function load(silent) {

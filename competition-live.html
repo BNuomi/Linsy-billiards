@@ -1248,18 +1248,47 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
           </section>
         </div>
 
-        <!-- 后续预告（排期顺序） -->
-        <section class="section" id="lv-upcoming-section" style="display:none;">
-          <div class="section-eyebrow">后续预告（<span id="lv-upcoming-count">0</span>）</div>
-          <div class="up-list" id="lv-upcoming"></div>
-          <div class="lv-more-tip" id="lv-upcoming-more"></div>
-        </section>
+        <!-- 刚结束（左 1/2：比分+记分+组队积分）+ 后续预告（右 1/2，排期顺序） -->
+        <div class="lv-mid">
+          <section class="section" id="lv-done-section" style="display:none;">
+            <div class="section-eyebrow">刚结束（<span id="lv-done-count">0</span>）</div>
+            <div class="dn-grid" id="lv-done"></div>
+            <div class="lv-more-tip" id="lv-done-more"></div>
+          </section>
+          <section class="section" id="lv-upcoming-section" style="display:none;">
+            <div class="section-eyebrow">后续预告（<span id="lv-upcoming-count">0</span>）</div>
+            <div class="up-list" id="lv-upcoming"></div>
+            <div class="lv-more-tip" id="lv-upcoming-more"></div>
+          </section>
+        </div>
 
-        <!-- 已结束（最近场次在前） -->
-        <section class="section" id="lv-done-section" style="display:none;">
-          <div class="section-eyebrow">已结束（<span id="lv-done-count">0</span>）</div>
-          <div class="dn-grid" id="lv-done"></div>
-        </section>
+        <!-- 积分榜：对局积分榜（左）+ 组队积分榜（右） -->
+        <div class="lv-boards">
+          <section class="section" id="lv-board-section" style="display:none;">
+            <div class="section-eyebrow">对局积分榜</div>
+            <div class="bd-wrap">
+              <table class="bd-table">
+                <thead>
+                  <tr><th>排名</th><th>会员</th><th>榜单积分</th><th>胜 / 总</th><th>清台</th><th>胜率</th></tr>
+                </thead>
+                <tbody id="lv-board-tbody"></tbody>
+              </table>
+            </div>
+            <div class="lv-more-tip" id="lv-board-more"></div>
+          </section>
+          <section class="section" id="lv-teamboard-section" style="display:none;">
+            <div class="section-eyebrow">组队积分榜</div>
+            <div class="bd-wrap">
+              <table class="bd-table">
+                <thead>
+                  <tr><th>排名</th><th>队友组合</th><th>基础分</th><th>组队分</th><th>总分</th></tr>
+                </thead>
+                <tbody id="lv-team-tbody"></tbody>
+              </table>
+            </div>
+            <div class="lv-more-tip">总分 = 两人赛事积分之和 + 全部场次组队分之和（最低 0）</div>
+          </section>
+        </div>
       </div>
 
       <!-- 页面专用样式 -->
@@ -1285,8 +1314,12 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
 
         /* ---------- 进行中（左 2/3）+ 即将上场（右 1/3）分栏 ---------- */
         .lv-top { display: grid; grid-template-columns: 2fr 1fr; gap: calc(var(--spacing) * 6); align-items: start; }
+        .lv-mid { display: grid; grid-template-columns: 1fr 1fr; gap: calc(var(--spacing) * 6); align-items: start; }
+        .lv-boards { display: grid; grid-template-columns: 1fr 1fr; gap: calc(var(--spacing) * 6); align-items: start; }
         @media (max-width: 900px) {
           .lv-top { grid-template-columns: 1fr; }
+          .lv-mid { grid-template-columns: 1fr; }
+          .lv-boards { grid-template-columns: 1fr; }
         }
         .lv-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: calc(var(--spacing) * 4); }
         @media (max-width: 900px) {
@@ -1370,8 +1403,8 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
         .up-names.ph { font-weight: 500; color: var(--muted-foreground); }
         .lv-more-tip { margin-top: calc(var(--spacing) * 3); font-size: 12px; color: var(--muted-foreground); }
 
-        /* ---------- 已结束 ---------- */
-        .dn-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: calc(var(--spacing) * 4); }
+        /* ---------- 刚结束（左半区单列） ---------- */
+        .dn-grid { display: grid; grid-template-columns: 1fr; gap: calc(var(--spacing) * 4); }
         .dn-card {
           display: block; text-decoration: none;
           background: var(--card); border: 1px solid var(--border);
@@ -1394,6 +1427,47 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
         .dn-score { flex: none; display: flex; align-items: baseline; gap: 5px; font-size: 26px; font-weight: 800; color: var(--muted-foreground); }
         .dn-score-num.is-lead { color: var(--foreground); }
         .dn-score-sep { font-size: 14px; font-weight: 600; }
+        /* 刚结束卡片：记分情况 + 组队积分 */
+        .dn-pts { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: calc(var(--spacing) * 3); }
+        .dn-pt {
+          font-size: 12px; font-weight: 700; font-family: var(--font-mono);
+          color: var(--muted-foreground); background: var(--secondary);
+          border-radius: 6px; padding: 2px 8px; white-space: nowrap;
+        }
+        .dn-pt.win { color: var(--primary); background: rgba(0, 113, 227, 0.1); }
+        .dn-pt .dn-pt-clear { color: #b45309; }
+        html.dark .dn-pt .dn-pt-clear { color: #fcd34d; }
+        .dn-teams { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: calc(var(--spacing) * 2); }
+
+        /* ---------- 积分榜（对局/组队两栏） ---------- */
+        .bd-wrap {
+          background: var(--card); border: 1px solid var(--border);
+          border-radius: var(--radius); box-shadow: var(--shadow-sm);
+          overflow-x: auto;
+        }
+        html.dark .bd-wrap { background: linear-gradient(145deg, #2c2c2e, #262628); border-color: rgba(58,58,60,0.5); }
+        .bd-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        .bd-table th, .bd-table td {
+          padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap;
+        }
+        .bd-table th {
+          font-size: 12px; font-weight: 700; color: var(--muted-foreground);
+          letter-spacing: 0.05em; text-transform: uppercase;
+        }
+        .bd-table tbody tr:last-child td { border-bottom: none; }
+        .bd-table tbody tr.link { cursor: pointer; transition: background-color 0.15s ease; }
+        .bd-table tbody tr.link:hover { background: var(--secondary); }
+        .bd-table .bd-points { font-family: var(--font-mono); font-weight: 800; color: var(--primary); }
+        .bd-table .bd-num { font-family: var(--font-mono); }
+        .bd-rank {
+          display: inline-flex; align-items: center; justify-content: center;
+          width: 26px; height: 26px; border-radius: 999px;
+          font-size: 12px; font-weight: 800; color: #fff;
+        }
+        .bd-rank.gold { background: linear-gradient(135deg, #f6c453, #e6a23c); }
+        .bd-rank.silver { background: linear-gradient(135deg, #c0c4cc, #909399); }
+        .bd-rank.bronze { background: linear-gradient(135deg, #d9a07b, #b8825a); }
+        .bd-empty td { text-align: center; color: var(--muted-foreground); padding: 30px 16px; }
       </style>
       <!-- Footer -->
       <footer class="page-footer">
@@ -1416,7 +1490,7 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
     <script src="./js/cloud.js?v=20260926a"></script>
     <script src="./js/fallback-data.js?v=20261008b"></script>
     <script src="./js/common.js?v=20261007a"></script>
-    <script src="./js/competition-live.js?v=20261011b"></script>
+    <script src="./js/competition-live.js?v=20261012a"></script>
     <script>
     /* 主题切换：更新 <html> class + localStorage 记忆，并广播 themechange 事件 */
     (function () {
