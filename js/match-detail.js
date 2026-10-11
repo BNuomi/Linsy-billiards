@@ -23,6 +23,16 @@
     return m ? decodeURIComponent(m[1]) : ''
   }
 
+  // 从比赛实况页进入（from=live&cid=xxx）时显示「返回比赛实况」按钮
+  function applyBackLive() {
+    if (!/[?&]from=live(?:&|$)/.test(location.search || '')) return
+    var m = /[?&]cid=([^&]+)/.exec(location.search || '')
+    if (!m) return
+    var btn = el('md-back-live')
+    btn.href = './competition-live.html?id=' + encodeURIComponent(m[1])
+    btn.style.display = 'inline-flex'
+  }
+
   function fmtClock(ts) {
     if (!ts) return ''
     var d = new Date(ts)
@@ -313,6 +323,7 @@
   document.addEventListener('DOMContentLoaded', function () {
     U.fixNav('matches')
     U.mountCloudBar(function () { load(false) })
+    applyBackLive()
     state.matchId = parseMatchId()
     if (!state.matchId) {
       el('md-error-text').textContent = '缺少 matchId 参数'

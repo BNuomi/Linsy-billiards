@@ -182,7 +182,7 @@
     if (d.clears > 0) items += '<span class="lv-clear">一杆清台 ×' + d.clears + '</span>'
     if (d.teamChips.length) items += d.teamChips.map(function (c) { return '<span class="lv-team">' + U.escapeHtml(c) + '</span>' }).join('')
     if (items) extra = '<div class="lv-extra">' + items + '</div>'
-    return '<a class="lv-card" href="./match-detail.html?matchId=' + encodeURIComponent(d.matchId) + '">' +
+    return '<a class="lv-card" href="./match-detail.html?matchId=' + encodeURIComponent(d.matchId) + '&from=live&cid=' + encodeURIComponent(compId()) + '">' +
       '<div class="lv-head"><span class="lv-table' + (d.tableText ? '' : ' none') + '">' + (d.tableText || '未排台') + '</span>' + chips + '</div>' +
       sidesHtml(d, 'lv-side', 'lv-score') + extra + '</a>'
   }
@@ -209,7 +209,7 @@
   }
 
   function doneCardHtml(d) {
-    return '<a class="dn-card" href="./match-detail.html?matchId=' + encodeURIComponent(d.matchId) + '">' +
+    return '<a class="dn-card" href="./match-detail.html?matchId=' + encodeURIComponent(d.matchId) + '&from=live&cid=' + encodeURIComponent(compId()) + '">' +
       '<div class="dn-meta">' +
       (d.noText ? '<span class="dn-no">' + d.noText + '</span>' : '') +
       (d.dateText ? '<span class="dn-slot">' + d.dateText + (d.tableText ? ' · ' + d.tableText : '') + '</span>' : '') +
