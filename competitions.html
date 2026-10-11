@@ -1230,8 +1230,11 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
       <style>
         .section { padding: calc(var(--spacing) * 6) 0; border-top: 1px solid var(--border); }
         .section:first-of-type { border-top: none; }
-        /* 比赛卡片列表 */
-        .cl-list { display: flex; flex-direction: column; gap: calc(var(--spacing) * 4); }
+        /* 比赛卡片列表：每行两个卡片，窄屏回单列 */
+        .cl-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: calc(var(--spacing) * 4); }
+        @media (max-width: 720px) {
+          .cl-list { grid-template-columns: 1fr; }
+        }
         .cl-card {
           display: block; text-decoration: none; color: inherit;
           padding: calc(var(--spacing) * 5);

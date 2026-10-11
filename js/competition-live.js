@@ -94,6 +94,29 @@
     return nums.length === playerCount ? nums : null
   }
 
+  // 对阵卡片组队展示 chips：互选合并「甲⇄乙 0/+2」，单向「甲→乙 +2」；0 分不附分值
+  // 口径与小程序 utils/competition.js teamChipsOf 一致
+  function teamChipsOf(f) {
+    var entries = ((f && f.teams) || []).filter(function (t) { return t && t.pid && t.tid })
+    var used = {}
+    var chips = []
+    function fmt(v) { return (v > 0 ? '+' : '') + v }
+    entries.forEach(function (t) {
+      if (used[t.pid]) return
+      var back = entries.find(function (x) { return x.pid === t.tid && x.tid === t.pid && !used[x.pid] })
+      if (back) {
+        used[t.pid] = true; used[back.pid] = true
+        var hasPts = (t.points || 0) !== 0 || (back.points || 0) !== 0
+        var pts = hasPts ? ' ' + fmt(t.points || 0) + '/' + fmt(back.points || 0) : ''
+        chips.push(t.name + '⇄' + t.tname + pts)
+      } else {
+        used[t.pid] = true
+        chips.push(t.name + '→' + t.tname + (t.points ? ' ' + fmt(t.points) : ''))
+      }
+    })
+    return chips
+  }
+
   // 对阵展示加工：状态/阶段 chip/时间台号/选手+实时比分（领先侧高亮）
   function decorate(fixtures, comp, f) {
     var st = { text: '预告', cls: 'pending' }
@@ -126,6 +149,8 @@
         return { name: p.name, scoreText: nums ? nums[i].text : '', lead: i === leadIdx }
       }),
       hasScore: !!nums,
+      clears: f.clears || 0, // 中八进行中实时一杆清台局数（getFixtures 推导）
+      teamChips: teamChipsOf(f),
       matchId: f.match_id || ''
     }
   }
@@ -151,9 +176,15 @@
       (d.groupText ? '<span class="lv-chip group">' + U.escapeHtml(d.groupText) + '</span>' : '') +
       (d.raceText ? '<span class="lv-chip race">' + d.raceText + '</span>' : '') +
       (d.noText ? '<span class="lv-no">' + d.noText + '</span>' : '')
+    // 信息行：一杆清台数（中八，>0 才显示）+ 组队积分 chips
+    var extra = ''
+    var items = ''
+    if (d.clears > 0) items += '<span class="lv-clear">一杆清台 ×' + d.clears + '</span>'
+    if (d.teamChips.length) items += d.teamChips.map(function (c) { return '<span class="lv-team">' + U.escapeHtml(c) + '</span>' }).join('')
+    if (items) extra = '<div class="lv-extra">' + items + '</div>'
     return '<a class="lv-card" href="./match-detail.html?matchId=' + encodeURIComponent(d.matchId) + '">' +
       '<div class="lv-head"><span class="lv-table' + (d.tableText ? '' : ' none') + '">' + (d.tableText || '未排台') + '</span>' + chips + '</div>' +
-      sidesHtml(d, 'lv-side', 'lv-score') + '</a>'
+      sidesHtml(d, 'lv-side', 'lv-score') + extra + '</a>'
   }
 
   function nextCardHtml(d) {
@@ -241,11 +272,12 @@
       (live.length ? '实时比分轮询中 · ' : '') + '更新于 ' + fmtSyncTime()
     el('lv-sync').style.display = ''
 
-    // 进行中
+    // 进行中：最多展示两行四个（左 2/3 区 grid 两列），超出提示见对阵列表
     el('lv-live-count').textContent = live.length
     el('lv-live').innerHTML = live.length
-      ? live.map(liveCardHtml).join('')
+      ? live.slice(0, 4).map(liveCardHtml).join('')
       : '<div class="lv-empty-inline">当前无进行中对局</div>'
+    el('lv-live-more').textContent = live.length > 4 ? '还有 ' + (live.length - 4) + ' 台进行中，见「对阵列表」' : ''
     el('lv-live-section').style.display = ''
 
     // 即将上场
