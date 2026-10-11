@@ -56,6 +56,7 @@
     currentComp = comp
     el('cd-name').textContent = comp.name || '比赛详情'
     el('cd-fixtures-link').href = './fixtures.html?id=' + encodeURIComponent(comp._id || compId())
+    el('cd-live-link').href = './competition-live.html?id=' + encodeURIComponent(comp._id || compId())
     el('cd-subtitle').textContent = comp.created_at ? (fmtDate(comp.created_at) + ' 创建') : ''
     document.title = (comp.name || '比赛详情') + ' - 台球协会'
 
