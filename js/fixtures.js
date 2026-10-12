@@ -4,6 +4,8 @@
   var WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
   var COMP = null // 当前比赛（供 CompAdmin 编辑比赛日读取）
   var FX_BY_ID = {} // 当前对阵按 _id 索引（调整排序入口取数）
+  var LAST_DATA = null // 最近一次 getFixtures 返回（搜索重渲染复用，不重复请求）
+  var QUERY = '' // 对局搜索关键词（选手姓名 / 场次号）
 
   function el(id) { return document.getElementById(id) }
 
@@ -184,7 +186,15 @@
     if (window.lucide) window.lucide.createIcons()
   }
 
+  // 对局搜索过滤：选手姓名（含占位文案）/ 场次号命中即保留；轮空随分区展示不过滤
+  function matchQuery(f, q) {
+    if (String(f.match_no || '').indexOf(q) >= 0) return true
+    var names = (f.players || []).map(function (p) { return p.name || '' }).concat(f.placeholders || [])
+    return names.some(function (n) { return n.toLowerCase().indexOf(q) >= 0 })
+  }
+
   function render(d) {
+    LAST_DATA = d
     var comp = d.competition || {}
     COMP = comp
     var participants = d.participants || []
@@ -282,9 +292,11 @@
     // 对阵：未抽签
     if (!fixtures.length) {
       el('fx-empty').style.display = ''
+      el('fx-search-bar').style.display = 'none'
       refreshIcons()
       return
     }
+    el('fx-search-bar').style.display = ''
 
     // 赛程进度
     var real = fixtures.filter(function (f) { return f.status !== 'bye' })
@@ -297,9 +309,15 @@
       el('fx-progress').style.display = ''
     }
 
+    // 搜索过滤：仅影响对阵卡片展示；抽签门控/赛程进度/名单分组仍按完整对阵计算
+    var q = QUERY.trim().toLowerCase()
+    var view = q ? fixtures.filter(function (f) { return f.status === 'bye' || matchQuery(f, q) }) : fixtures
+    var hitCount = q ? view.filter(function (f) { return f.status !== 'bye' }).length : 0
+    el('fx-search-count').textContent = q ? '命中 ' + hitCount + ' 场' : ''
+
     // 分区：GK = 小组赛合并单分区（按时间排序，不再按组区分）/ 淘汰赛按轮；rounds = 按轮
     var sections = new Map()
-    fixtures.forEach(function (f) {
+    view.forEach(function (f) {
       var key, title, order
       if (gk && f.stage === 'qualifier') {
         key = 'qualifier'
@@ -331,7 +349,8 @@
     FX_BY_ID = {}
     fixtures.forEach(function (f) { FX_BY_ID[f._id] = f })
 
-    var html = [...sections.values()].sort(function (a, b) { return a.order - b.order }).map(function (sec) {
+    var nonEmpty = [...sections.values()].filter(function (sec) { return sec.items.length || sec.byes.length })
+    var html = nonEmpty.sort(function (a, b) { return a.order - b.order }).map(function (sec) {
       var dayMap = new Map()
       // 按排期顺序排序（时间→台号→场次），日期分组随之按时间先后呈现，时间待定在最后
       sec.items.slice().sort(cmpSched).forEach(function (f) {
@@ -401,7 +420,8 @@
       return '<section class="section"><div class="section-eyebrow">' + sec.title + '</div>' + byeHtml + dayHtml + '</section>'
     }).join('')
 
-    el('fx-rounds').innerHTML = html
+    el('fx-rounds').innerHTML = html ||
+      '<div class="fx-empty-box">未找到与「' + U.escapeHtml(QUERY.trim()) + '」相关的对局</div>'
     refreshIcons()
   }
 
@@ -431,6 +451,11 @@
     el('fx-retry').addEventListener('click', function () {
       el('fx-error').style.display = 'none'
       load()
+    })
+    // 对局搜索：输入即过滤（复用最近数据重渲染，不重复请求云端）
+    el('fx-search').addEventListener('input', function (ev) {
+      QUERY = ev.target.value || ''
+      if (LAST_DATA) render(LAST_DATA)
     })
     // 对局卡片「调整排序」（扫码鉴权由 CompAdmin 处理）
     el('fx-rounds').addEventListener('click', function (ev) {

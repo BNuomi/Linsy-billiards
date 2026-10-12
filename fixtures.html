@@ -1251,12 +1251,38 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
         <!-- 赛程进度 -->
         <div class="fx-progress" id="fx-progress" style="display:none;"></div>
 
+        <!-- 对局搜索（按选手姓名 / 场次号过滤对阵卡片） -->
+        <section class="filter-bar" id="fx-search-bar" style="display:none;">
+          <div class="field">
+            <i data-lucide="search" style="width:16px;height:16px;" class="icon-lucide"></i>
+            <input class="control" id="fx-search" type="text" aria-label="搜索选手或场次号" placeholder="搜索选手 / 场次号">
+          </div>
+          <span class="filter-count" id="fx-search-count"></span>
+        </section>
+
         <!-- 对阵列表（按分区渲染：小组赛按组 / 淘汰赛按轮 / 逐轮抽签按轮） -->
         <div id="fx-rounds"></div>
       </div>
 
       <!-- 页面专用样式 -->
       <style>
+        /* 对局搜索栏（与 match-records 筛选栏同风格） */
+        .filter-bar {
+          display: flex;
+          align-items: center;
+          gap: calc(var(--spacing) * 4);
+          flex-wrap: wrap;
+          padding: 0 0 calc(var(--spacing) * 4);
+        }
+        .filter-bar .field { min-width: 260px; }
+        .filter-bar .field .icon-lucide { color: var(--muted-foreground); display: inline-flex; }
+        .filter-count { margin-left: auto; font-size: 13px; color: var(--muted-foreground); font-weight: 600; }
+        @media (max-width: 768px) {
+          .filter-bar { flex-direction: column; align-items: stretch; }
+          .filter-bar .field { min-width: 0; width: 100%; }
+          .filter-count { margin-left: 0; }
+        }
+        html.dark .filter-bar .field { background: #2c2c2e; border: 1px solid var(--border); border-radius: 14px; }
         .section { padding: calc(var(--spacing) * 6) 0; border-top: 1px solid var(--border); }
         .section:first-of-type { border-top: none; }
         .section-eyebrow {
@@ -1383,7 +1409,7 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
     <script src="./js/fallback-data.js?v=20261008b"></script>
     <script src="./js/common.js?v=20261007a"></script>
     <script src="./js/competition-admin.js?v=20261012c"></script>
-    <script src="./js/fixtures.js?v=20261012c"></script>
+    <script src="./js/fixtures.js?v=20261013a"></script>
     <script>
     /* 主题切换：更新 <html> class + localStorage 记忆，并广播 themechange 事件 */
     (function () {
