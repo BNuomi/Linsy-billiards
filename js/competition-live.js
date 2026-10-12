@@ -254,7 +254,7 @@
     }
     tbody.innerHTML = list.slice(0, BOARD_SHOW).map(function (m) {
       var total = (m.wins || 0) + (m.losses || 0)
-      return '<tr class="link" data-id="' + m._id + '">' +
+      return '<tr data-id="' + m._id + '">' +
         '<td>' + rankBadge(m.rank) + '</td>' +
         '<td>' + U.escapeHtml(m.name || '未命名') + '</td>' +
         '<td class="bd-points">' + (m.points != null ? m.points : 0) + '</td>' +

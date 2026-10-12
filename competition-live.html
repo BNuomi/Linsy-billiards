@@ -1470,8 +1470,8 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
           letter-spacing: 0.05em; text-transform: uppercase;
         }
         .bd-table tbody tr:last-child td { border-bottom: none; }
-        .bd-table tbody tr.link { cursor: pointer; transition: background-color 0.15s ease; }
-        .bd-table tbody tr.link:hover { background: var(--secondary); }
+        .bd-table tbody tr[data-id] { cursor: pointer; transition: background-color 0.15s ease; }
+        .bd-table tbody tr[data-id]:hover { background: var(--secondary); }
         .bd-table .bd-points { font-family: var(--font-mono); font-weight: 800; color: var(--primary); }
         .bd-table .bd-num { font-family: var(--font-mono); }
         .bd-rank {
@@ -1581,7 +1581,7 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
     <script src="./js/cloud.js?v=20260926a"></script>
     <script src="./js/fallback-data.js?v=20261008b"></script>
     <script src="./js/common.js?v=20261007a"></script>
-    <script src="./js/competition-live.js?v=20261012b"></script>
+    <script src="./js/competition-live.js?v=20261012c"></script>
     <script>
     /* 主题切换：更新 <html> class + localStorage 记忆，并广播 themechange 事件 */
     (function () {
