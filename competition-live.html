@@ -1276,7 +1276,6 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
             <div class="section-eyebrow">对局积分榜</div>
             <div class="bd-wrap">
               <table class="bd-table">
-                <colgroup><col class="bd-col-rank"><col class="bd-col-name"><col class="bd-col-pts"><col class="bd-col-num"><col class="bd-col-num"><col class="bd-col-num"></colgroup>
                 <thead>
                   <tr><th>排名</th><th>会员</th><th>榜单积分</th><th>胜 / 总</th><th>清台</th><th>胜率</th></tr>
                 </thead>
@@ -1289,7 +1288,6 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
             <div class="section-eyebrow">组队积分榜</div>
             <div class="bd-wrap">
               <table class="bd-table">
-                <colgroup><col class="bd-col-rank"><col class="bd-col-name"><col class="bd-col-num"><col class="bd-col-num"><col class="bd-col-pts"></colgroup>
                 <thead>
                   <tr><th>排名</th><th>队友组合</th><th>基础分</th><th>组队分</th><th>总分</th></tr>
                 </thead>
@@ -1456,14 +1454,10 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
           overflow-x: auto;
         }
         html.dark .bd-wrap { background: linear-gradient(145deg, #2c2c2e, #262628); border-color: rgba(58,58,60,0.5); }
-        .bd-table { width: 100%; border-collapse: collapse; font-size: 14px; table-layout: fixed; }
-        /* 固定列宽：排名窄、名称自适应，表头与数据列严格对齐（窄面板不横向滚动） */
-        .bd-col-rank { width: 44px; }
-        .bd-col-pts { width: 72px; }
-        .bd-col-num { width: 58px; }
+        /* 列宽匹配内容（自动布局）：名称列不再独占剩余空间，数值列完整显示；面板过窄时 bd-wrap 横向滚动兜底 */
+        .bd-table { width: auto; border-collapse: collapse; font-size: 14px; }
         .bd-table th, .bd-table td {
-          padding: 10px 8px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap;
-          overflow: hidden; text-overflow: ellipsis;
+          padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap;
         }
         .bd-table th {
           font-size: 12px; font-weight: 700; color: var(--muted-foreground);
