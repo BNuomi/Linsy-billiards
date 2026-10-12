@@ -311,11 +311,28 @@
     })
   }
 
+  // ---------- 比赛看板（投屏模式：组件重排填满整屏；尝试原生全屏，Esc/退出按钮还原） ----------
+  function setBoard(on) {
+    document.body.classList.toggle('board-on', on)
+    if (on) {
+      try {
+        var req = document.documentElement.requestFullscreen && document.documentElement.requestFullscreen()
+        if (req && req.catch) req.catch(function () {})
+      } catch (e) {}
+    } else if (document.fullscreenElement && document.exitFullscreen) {
+      try {
+        var p = document.exitFullscreen()
+        if (p && p.catch) p.catch(function () {})
+      } catch (e) {}
+    }
+  }
+
   function render(d) {
     var comp = d.competition || {}
     var fixtures = d.fixtures || []
 
     el('lv-name').textContent = (comp.name || '比赛') + ' · 比赛实况'
+    el('lv-board-title').textContent = (comp.name || '比赛') + ' · 比赛看板'
     var sub = []
     if (comp.start_date || comp.end_date) sub.push((comp.start_date || '未定') + ' 至 ' + (comp.end_date || '未定'))
     if (comp.venue) sub.push(comp.venue)
@@ -461,6 +478,15 @@
     el('lv-retry').addEventListener('click', function () {
       el('lv-error').style.display = 'none'
       load()
+    })
+    // 比赛看板：进入/退出（Esc 或原生全屏退出联动还原）
+    el('lv-board-btn').addEventListener('click', function () { setBoard(true) })
+    el('lv-board-exit').addEventListener('click', function () { setBoard(false) })
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && document.body.classList.contains('board-on')) setBoard(false)
+    })
+    document.addEventListener('fullscreenchange', function () {
+      if (!document.fullscreenElement && document.body.classList.contains('board-on')) setBoard(false)
     })
     // 页面恢复可见时立即刷新一次
     document.addEventListener('visibilitychange', function () {

@@ -1216,8 +1216,16 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
               <i data-lucide="swords" style="width:16px;height:16px;"></i>
               对阵列表
             </a>
+            <button class="btn btn-primary" id="lv-board-btn" type="button" style="display:inline-flex;align-items:center;gap:6px;">
+              <i data-lucide="monitor" style="width:16px;height:16px;"></i>
+              比赛看板
+            </button>
           </div>
         </section>
+
+        <!-- 看板模式：顶部悬浮标题与退出按钮 -->
+        <div id="lv-board-title"></div>
+        <button id="lv-board-exit" type="button">✕ 退出看板</button>
 
         <!-- 错误提示 -->
         <section id="lv-error" style="display:none;padding:calc(var(--spacing) * 6);border:1px solid var(--border);border-radius:var(--radius);background:var(--card);color:var(--muted-foreground);text-align:center;margin-bottom:calc(var(--spacing) * 6);">
@@ -1468,6 +1476,70 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
         .bd-rank.silver { background: linear-gradient(135deg, #c0c4cc, #909399); }
         .bd-rank.bronze { background: linear-gradient(135deg, #d9a07b, #b8825a); }
         .bd-empty td { text-align: center; color: var(--muted-foreground); padding: 30px 16px; }
+
+        /* ---------- 比赛看板模式（投屏：组件重排填满整屏） ---------- */
+        #lv-board-title, #lv-board-exit { display: none; }
+        body.board-on { overflow: hidden; }
+        body.board-on .rk-nav, body.board-on .hero-section, body.board-on .page-footer { display: none; }
+        body.board-on #lv-sync, body.board-on #lv-error { display: none !important; }
+        body.board-on #lv-board-title {
+          display: block; position: fixed; top: 0; left: 20px; z-index: 300; height: 44px; line-height: 44px;
+          font-size: 16px; font-weight: 800; color: var(--foreground); pointer-events: none;
+        }
+        body.board-on #lv-board-exit {
+          display: block; position: fixed; top: 8px; right: 16px; z-index: 300;
+          font-size: 13px; font-weight: 700; color: var(--foreground);
+          background: var(--card); border: 1px solid var(--border); border-radius: 999px;
+          padding: 6px 14px; cursor: pointer; box-shadow: var(--shadow-sm);
+        }
+        body.board-on #lv-board-exit:hover { border-color: var(--primary); color: var(--primary); }
+        body.board-on .page-container {
+          position: fixed; inset: 0; z-index: 200; max-width: none; margin: 0;
+          padding: 52px 18px 14px;
+          display: grid; gap: 14px;
+          grid-template-columns: 1.25fr 1fr 1fr;
+          grid-template-rows: minmax(0, 1.15fr) minmax(0, 1fr) minmax(0, 1fr);
+          grid-template-areas:
+            "live next board"
+            "live done board"
+            "upcoming done team";
+          background: var(--background); overflow: hidden;
+        }
+        body.board-on .lv-top, body.board-on .lv-mid, body.board-on .lv-boards { display: contents; }
+        body.board-on #lv-live-section { grid-area: live; }
+        body.board-on #lv-next-section { grid-area: next; }
+        body.board-on #lv-done-section { grid-area: done; }
+        body.board-on #lv-upcoming-section { grid-area: upcoming; }
+        body.board-on #lv-board-section { grid-area: board; }
+        body.board-on #lv-teamboard-section { grid-area: team; }
+        body.board-on #lv-empty { grid-column: 1 / -1; }
+        /* 区块面板化 + 内部滚动兜底 */
+        body.board-on .section {
+          padding: 14px 18px; border-top: none;
+          background: var(--card); border: 1px solid var(--border);
+          border-radius: var(--radius); box-shadow: var(--shadow-sm);
+          overflow-y: auto; min-height: 0; min-width: 0;
+        }
+        html.dark body.board-on .section { background: linear-gradient(145deg, #2c2c2e, #262628); border-color: rgba(58,58,60,0.5); }
+        body.board-on .section-eyebrow { margin-bottom: 10px; font-size: 15px; }
+        body.board-on .nx-list, body.board-on .up-list, body.board-on .bd-wrap {
+          border: none; background: transparent; box-shadow: none; padding: 0; border-radius: 0;
+        }
+        html.dark body.board-on .nx-list, html.dark body.board-on .up-list, html.dark body.board-on .bd-wrap { background: transparent; }
+        body.board-on .lv-grid { gap: 10px; }
+        /* 投影字号放大 */
+        body.board-on .lv-score { font-size: 40px; }
+        body.board-on .lv-sides { font-size: 18px; }
+        body.board-on .dn-sides { font-size: 16px; }
+        body.board-on .nx-names { font-size: 16px; }
+        body.board-on .up-names { font-size: 15px; }
+        body.board-on .bd-table { font-size: 15px; }
+        body.board-on .dn-pt { font-size: 13px; }
+        @media (max-width: 900px) {
+          body.board-on .page-container { overflow-y: auto; grid-template-columns: 1fr; grid-template-rows: none; grid-template-areas: none; }
+          body.board-on #lv-live-section, body.board-on #lv-next-section, body.board-on #lv-done-section,
+          body.board-on #lv-upcoming-section, body.board-on #lv-board-section, body.board-on #lv-teamboard-section { grid-area: auto; }
+        }
       </style>
       <!-- Footer -->
       <footer class="page-footer">
@@ -1490,7 +1562,7 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
     <script src="./js/cloud.js?v=20260926a"></script>
     <script src="./js/fallback-data.js?v=20261008b"></script>
     <script src="./js/common.js?v=20261007a"></script>
-    <script src="./js/competition-live.js?v=20261012a"></script>
+    <script src="./js/competition-live.js?v=20261012b"></script>
     <script>
     /* 主题切换：更新 <html> class + localStorage 记忆，并广播 themechange 事件 */
     (function () {
