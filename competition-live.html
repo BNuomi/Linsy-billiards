@@ -1497,12 +1497,12 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
           position: fixed; inset: 0; z-index: 200; max-width: none; margin: 0;
           padding: 52px 18px 14px;
           display: grid; gap: 14px;
-          grid-template-columns: 1.25fr 1fr 1fr;
-          grid-template-rows: minmax(0, 1.15fr) minmax(0, 1fr) minmax(0, 1fr);
+          grid-template-columns: 1fr 1fr 1fr;
+          grid-template-rows: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 0.75fr);
           grid-template-areas:
-            "live next board"
-            "live done board"
-            "upcoming done team";
+            "live live next"
+            "done board team"
+            "upcoming upcoming upcoming";
           background: var(--background); overflow: hidden;
         }
         body.board-on .lv-top, body.board-on .lv-mid, body.board-on .lv-boards { display: contents; }
@@ -1526,10 +1526,22 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
           border: none; background: transparent; box-shadow: none; padding: 0; border-radius: 0;
         }
         html.dark body.board-on .nx-list, html.dark body.board-on .up-list, html.dark body.board-on .bd-wrap { background: transparent; }
-        body.board-on .lv-grid { gap: 10px; }
-        /* 投影字号放大 */
-        body.board-on .lv-score { font-size: 40px; }
-        body.board-on .lv-sides { font-size: 18px; }
+        body.board-on .lv-grid { gap: 14px; }
+        /* 后续预告通栏：横向三列排布 */
+        body.board-on .up-list { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0 28px; align-content: start; }
+        /* 投影字号放大（进行中卡片整体放大，占上方 2/3） */
+        body.board-on .lv-card { padding: 20px 22px; }
+        body.board-on .lv-head { gap: 8px; margin-bottom: 14px; }
+        body.board-on .lv-table { font-size: 16px; }
+        body.board-on .lv-chip { font-size: 13px; padding: 3px 10px; }
+        body.board-on .lv-no { font-size: 13px; }
+        body.board-on .lv-side-row { min-height: 64px; gap: 20px; }
+        body.board-on .lv-sides { font-size: 22px; gap: 10px; }
+        body.board-on .lv-score { font-size: 56px; gap: 8px; }
+        body.board-on .lv-score-sep { font-size: 22px; }
+        body.board-on .lv-extra { margin-top: 12px; gap: 8px; }
+        body.board-on .lv-clear { font-size: 14px; }
+        body.board-on .lv-team { font-size: 14px; padding: 3px 10px; }
         body.board-on .dn-sides { font-size: 16px; }
         body.board-on .nx-names { font-size: 16px; }
         body.board-on .up-names { font-size: 15px; }
