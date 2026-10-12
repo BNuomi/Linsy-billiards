@@ -1228,6 +1228,7 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
             <span style="display:inline-flex;gap:8px;">
               <button class="fx-days-edit" id="fx-drawcfg-btn" type="button" style="display:none;"><i data-lucide="sliders-horizontal"></i>抽签条件</button>
               <button class="fx-days-edit" id="fx-draw-btn" type="button"><i data-lucide="shuffle"></i><span id="fx-draw-label">开始抽签</span></button>
+              <button class="fx-days-edit" id="fx-redraw-btn" type="button" style="display:none;"><i data-lucide="rotate-ccw"></i><span id="fx-redraw-label">重新抽签</span></button>
             </span>
           </div>
           <div id="fx-roster"></div>
@@ -1381,8 +1382,8 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
     <script src="./js/cloud.js?v=20260926a"></script>
     <script src="./js/fallback-data.js?v=20261008b"></script>
     <script src="./js/common.js?v=20261007a"></script>
-    <script src="./js/competition-admin.js?v=20261012b"></script>
-    <script src="./js/fixtures.js?v=20261012b"></script>
+    <script src="./js/competition-admin.js?v=20261012c"></script>
+    <script src="./js/fixtures.js?v=20261012c"></script>
     <script>
     /* 主题切换：更新 <html> class + localStorage 记忆，并广播 themechange 事件 */
     (function () {

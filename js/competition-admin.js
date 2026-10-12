@@ -11,7 +11,7 @@ window.CompAdmin = (function () {
 
   var ctx = { getComp: null, onChanged: null }
   var authing = false // 授权弹窗是否打开（防止并发创建会话）
-  var pendingAction = null // 授权完成后要执行的动作：'edit' | 'import' | 'days' | 'draw' | 'drawcfg' | 'reorder'
+  var pendingAction = null // 授权完成后要执行的动作：'edit' | 'import' | 'days' | 'draw' | 'redraw' | 'drawcfg' | 'reorder'
   var pendingFixture = null // reorder 动作的目标对阵
 
   // ---------- 弹窗样式（单源注入，页面无需内联） ----------
@@ -240,6 +240,7 @@ window.CompAdmin = (function () {
     else if (action === 'import') openImport()
     else if (action === 'days') openDays()
     else if (action === 'draw') openDraw()
+    else if (action === 'redraw') openRedraw()
     else if (action === 'drawcfg') openDrawCfg()
     else if (action === 'reorder') {
       var f = pendingFixture
@@ -974,17 +975,17 @@ window.CompAdmin = (function () {
     })
   }
 
-  async function doDraw(card) {
+  async function doDraw(card, action) {
     var comp = ctx.getComp ? (ctx.getComp() || {}) : {}
     var auth = readAuth()
-    if (!auth) { U.toast('授权已失效，请重新扫码', 'error'); startAuth('draw'); return }
+    if (!auth) { U.toast('授权已失效，请重新扫码', 'error'); startAuth(action === 'redraw' ? 'redraw' : 'draw'); return }
     var btn = card.querySelector('#wa-draw-go')
     btn.disabled = true
     btn.textContent = '抽签中…'
     try {
       var d = await window.AppCloud.call('drawCompetition', {
         competition_id: comp._id,
-        action: 'draw',
+        action: action || 'draw',
         web_token: auth.token
       })
       closeModal()
@@ -1009,6 +1010,24 @@ window.CompAdmin = (function () {
     }
   }
 
+  // ---------- 重抽 ----------
+  // 与小程序端同口径：小组赛制清空整份签表重建（须全部对阵未开打）；逐轮制重抽最新一轮（须该轮未开打）
+  // 前端按钮在已有对阵开打时禁用，云端 drawCompetition action='redraw' 二次校验
+  function openRedraw() {
+    var comp = ctx.getComp ? (ctx.getComp() || {}) : {}
+    var gk = comp.format === 'groups_knockout' && comp.game_type !== 'nine_ball'
+    var tip = gk
+      ? '将清空整份签表（小组赛+淘汰赛占位）并重新随机分组配对，确定？'
+      : '将清除本轮尚未开打的对阵并重新随机配对，确定？'
+    var card = openModal('重新抽签', function (body) {
+      body.innerHTML =
+        '<div class="wa-days-tip">比赛：<b>' + U.escapeHtml(comp.name || '') + '</b></div>' +
+        '<div class="wa-days-tip">' + U.escapeHtml(tip) + '</div>' +
+        '<div class="wa-foot"><button class="btn btn-primary" id="wa-draw-go" type="button">确认重抽</button></div>'
+      body.querySelector('#wa-draw-go').addEventListener('click', function () { doDraw(card, 'redraw') })
+    })
+  }
+
   // ---------- 入口 ----------
   function init(opts) {
     ctx.getComp = opts && opts.getComp
@@ -1022,6 +1041,8 @@ window.CompAdmin = (function () {
     if (importBtn) importBtn.addEventListener('click', function () { startAuth('import') })
     if (daysBtn) daysBtn.addEventListener('click', function () { startAuth('days') })
     if (drawBtn) drawBtn.addEventListener('click', function () { startAuth('draw') })
+    var redrawBtn = document.getElementById('fx-redraw-btn')
+    if (redrawBtn) redrawBtn.addEventListener('click', function () { startAuth('redraw') })
     if (drawcfgBtn) drawcfgBtn.addEventListener('click', function () { startAuth('drawcfg') })
   }
 

@@ -252,6 +252,17 @@
       el('fx-draw-label').textContent = drawLabel
       drawBtn.disabled = drawDisabled
     }
+    // 重抽按钮（与小程序端同口径）：有对阵即显示；小组赛制须全部对阵未开打（清空整份签表重建），
+    // 逐轮制须最新一轮未开打（重抽本轮）；已开打则禁用，云端二次校验
+    var redrawBtn = el('fx-redraw-btn')
+    if (redrawBtn) {
+      var canRedraw = maxRound > 0 && (gk
+        ? fixtures.every(function (f) { return !f.match_id })
+        : fixtures.filter(function (f) { return f.round === maxRound }).every(function (f) { return !f.match_id }))
+      redrawBtn.style.display = fixtures.length ? '' : 'none'
+      redrawBtn.disabled = !canRedraw
+      el('fx-redraw-label').textContent = gk ? '重新抽签' : '重抽本轮'
+    }
     // 抽签条件入口：仅小组赛制（条件按组别/半区生效）
     var drawcfgBtn = el('fx-drawcfg-btn')
     if (drawcfgBtn) drawcfgBtn.style.display = gk ? '' : 'none'
