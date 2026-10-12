@@ -1499,17 +1499,17 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
           padding: 52px 18px 14px;
           display: grid; gap: 14px;
           grid-template-columns: 1fr 1fr 1fr;
-          grid-template-rows: auto minmax(0, 1fr) minmax(0, 1fr) minmax(0, 0.75fr);
+          grid-template-rows: auto minmax(0, 1fr) minmax(0, 0.8fr);
           grid-template-areas:
             "live live next"
-            "live live done"
             "board team done"
-            "upcoming upcoming upcoming";
+            "upcoming upcoming done";
           background: var(--background); overflow: hidden;
         }
         body.board-on .lv-top, body.board-on .lv-mid, body.board-on .lv-boards { display: contents; }
-        body.board-on #lv-live-section { grid-area: live; }
-        body.board-on #lv-next-section { grid-area: next; }
+        /* 进行中/即将上场：面板贴合内容高度（行高由两者较大者决定，短者不撑出面板内空白） */
+        body.board-on #lv-live-section { grid-area: live; align-self: start; }
+        body.board-on #lv-next-section { grid-area: next; align-self: start; }
         body.board-on #lv-done-section { grid-area: done; }
         body.board-on #lv-upcoming-section { grid-area: upcoming; }
         body.board-on #lv-board-section { grid-area: board; }
@@ -1529,8 +1529,8 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
         }
         html.dark body.board-on .nx-list, html.dark body.board-on .up-list, html.dark body.board-on .bd-wrap { background: transparent; }
         body.board-on .lv-grid { gap: 14px; }
-        /* 后续预告通栏：横向三列排布 */
-        body.board-on .up-list { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0 28px; align-content: start; }
+        /* 后续预告（左下 2/3 宽）：横向两列排布 */
+        body.board-on .up-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0 28px; align-content: start; }
         /* 投影字号放大（进行中卡片整体放大，占上方 2/3） */
         body.board-on .lv-card { padding: 20px 22px; }
         body.board-on .lv-head { gap: 8px; margin-bottom: 14px; }
@@ -1544,11 +1544,22 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
         body.board-on .lv-extra { margin-top: 12px; gap: 8px; }
         body.board-on .lv-clear { font-size: 14px; }
         body.board-on .lv-team { font-size: 14px; padding: 3px 10px; }
-        body.board-on .dn-sides { font-size: 16px; }
         body.board-on .nx-names { font-size: 16px; }
         body.board-on .up-names { font-size: 15px; }
         body.board-on .bd-table { font-size: 15px; }
-        body.board-on .dn-pt { font-size: 13px; }
+        /* 刚结束卡片看板内缩小：信息完整可读前提下尽量多放卡片 */
+        body.board-on .dn-grid { gap: 10px; }
+        body.board-on .dn-card { padding: 8px 14px; }
+        body.board-on .dn-meta { gap: 8px; margin-bottom: 4px; }
+        body.board-on .dn-no, body.board-on .dn-stage { font-size: 10px; }
+        body.board-on .dn-slot { font-size: 11px; }
+        body.board-on .dn-sides { font-size: 13px; gap: 6px; }
+        body.board-on .dn-score { font-size: 18px; gap: 4px; }
+        body.board-on .dn-score-sep { font-size: 12px; }
+        body.board-on .dn-pts { gap: 4px; margin-top: 6px; }
+        body.board-on .dn-pt { font-size: 11px; padding: 1px 6px; }
+        body.board-on .dn-teams { gap: 4px; margin-top: 4px; }
+        body.board-on .dn-teams .lv-team { font-size: 11px; padding: 2px 7px; }
         @media (max-width: 900px) {
           body.board-on .page-container { overflow-y: auto; grid-template-columns: 1fr; grid-template-rows: none; grid-template-areas: none; }
           body.board-on #lv-live-section, body.board-on #lv-next-section, body.board-on #lv-done-section,
@@ -1576,7 +1587,7 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
     <script src="./js/cloud.js?v=20260926a"></script>
     <script src="./js/fallback-data.js?v=20261008b"></script>
     <script src="./js/common.js?v=20261007a"></script>
-    <script src="./js/competition-live.js?v=20261012c"></script>
+    <script src="./js/competition-live.js?v=20261012d"></script>
     <script>
     /* 主题切换：更新 <html> class + localStorage 记忆，并广播 themechange 事件 */
     (function () {

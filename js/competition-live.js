@@ -6,7 +6,7 @@
   var U = window.AppUI
   var WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
   var POLL_MS = 5000
-  var DONE_SHOW = 6 // 刚结束区展示最近场次数
+  var DONE_SHOW = 10 // 刚结束区展示最近场次数（看板卡片紧凑后可容纳更多）
   var UPCOMING_SHOW = 10 // 后续预告展示场次数
   var BOARD_SHOW = 10 // 积分榜展示名次数
   var timer = null
