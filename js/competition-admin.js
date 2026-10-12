@@ -1,5 +1,5 @@
 /*
- * 比赛管理模块（网页端）：扫码鉴权 + 编辑比赛信息 + 导入报名名单 + 编辑比赛日
+ * 比赛管理模块（网页端）：扫码鉴权 + 编辑比赛信息 + 导入报名名单 + 编辑比赛日 + 抽签
  * - 鉴权流程：创建 webAuthSession 会话 → getWebAuthQrcode 出小程序码 → 微信扫码小程序内确认 → 轮询拿 token（2h）
  * - 小程序码 env_version：web-auth 页未随正式版发布前用 trial 体验版联调，发布后改 release
  * - 弹窗样式由本模块注入（wa-*），使用页无需内联重复样式
@@ -222,6 +222,7 @@ window.CompAdmin = (function () {
     if (action === 'edit') openEdit()
     else if (action === 'import') openImport()
     else if (action === 'days') openDays()
+    else if (action === 'draw') openDraw()
     else if (action === 'reorder') {
       var f = pendingFixture
       pendingFixture = null
@@ -735,6 +736,60 @@ window.CompAdmin = (function () {
     }
   }
 
+  // ---------- 抽签 ----------
+  // 与小程序端同一云函数 drawCompetition：小组赛制一次生成完整签表（>32 人先附加赛争席位），逐轮制随机配对新一轮
+  function openDraw() {
+    var comp = ctx.getComp ? (ctx.getComp() || {}) : {}
+    var participants = Array.isArray(comp.participants) ? comp.participants : []
+    var n = participants.length
+    var gk = comp.format === 'groups_knockout' && comp.game_type !== 'nine_ball'
+    var excess = n - 32
+    var tip
+    if (gk && excess > 0) {
+      tip = '报名 ' + n + ' 人超出正赛 32 席：报名顺序后 ' + (2 * excess) + ' 名两两配对先打附加赛争席位' +
+        '（第 33 名 vs 第 32 名争 32 席、第 34 名 vs 第 31 名争 31 席，如此类推），前 ' + (32 - excess) + ' 名直进正赛。'
+    } else if (gk) {
+      tip = '按报名 ' + n + ' 人一次生成完整签表：小组赛实名对阵 + 淘汰赛占位对阵，晋级随赛况自动填充。'
+    } else {
+      tip = '按报名名单随机配对生成新一轮对阵（中八每场 2 人、九球每场 3 人，剩余轮空）。'
+    }
+    var card = openModal('确认抽签', function (body) {
+      body.innerHTML =
+        '<div class="wa-days-tip">比赛：<b>' + U.escapeHtml(comp.name || '') + '</b> · 报名 <b>' + n + '</b> 人</div>' +
+        '<div class="wa-days-tip">' + U.escapeHtml(tip) + '</div>' +
+        '<div class="wa-foot"><button class="btn btn-primary" id="wa-draw-go" type="button">确认抽签</button></div>'
+      body.querySelector('#wa-draw-go').addEventListener('click', function () { doDraw(card) })
+    })
+  }
+
+  async function doDraw(card) {
+    var comp = ctx.getComp ? (ctx.getComp() || {}) : {}
+    var auth = readAuth()
+    if (!auth) { U.toast('授权已失效，请重新扫码', 'error'); startAuth('draw'); return }
+    var btn = card.querySelector('#wa-draw-go')
+    btn.disabled = true
+    btn.textContent = '抽签中…'
+    try {
+      var d = await window.AppCloud.call('drawCompetition', {
+        competition_id: comp._id,
+        action: 'draw',
+        web_token: auth.token
+      })
+      closeModal()
+      var parts = []
+      if (d && d.qualifiers) parts.push('附加赛 ' + d.qualifiers + ' 场')
+      if (d && d.fixtures) parts.push((d.stage === 'group' ? '小组赛 ' : '对阵 ') + d.fixtures + ' 场')
+      if (d && d.ko_fixtures) parts.push('淘汰赛 ' + d.ko_fixtures + ' 场')
+      if (d && d.byes && d.byes.length) parts.push('轮空 ' + d.byes.length + ' 人')
+      U.toast('抽签完成' + (parts.length ? '：' + parts.join('，') : ''), 'success')
+      if (typeof ctx.onChanged === 'function') ctx.onChanged()
+    } catch (e) {
+      btn.disabled = false
+      btn.textContent = '确认抽签'
+      if (!handleAuthError(e)) U.toast('抽签失败：' + (e.message || e), 'error')
+    }
+  }
+
   // ---------- 入口 ----------
   function init(opts) {
     ctx.getComp = opts && opts.getComp
@@ -742,9 +797,11 @@ window.CompAdmin = (function () {
     var editBtn = document.getElementById('cd-edit-btn')
     var importBtn = document.getElementById('cd-import-btn')
     var daysBtn = document.getElementById('fx-days-edit-btn')
+    var drawBtn = document.getElementById('fx-draw-btn')
     if (editBtn) editBtn.addEventListener('click', function () { startAuth('edit') })
     if (importBtn) importBtn.addEventListener('click', function () { startAuth('import') })
     if (daysBtn) daysBtn.addEventListener('click', function () { startAuth('days') })
+    if (drawBtn) drawBtn.addEventListener('click', function () { startAuth('draw') })
   }
 
   return { init: init, openReorder: openReorder }

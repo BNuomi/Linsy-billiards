@@ -138,6 +138,43 @@
     return gs + ' 人小组 × ' + nGroups + ' 组 · 前 ' + adv + ' 出线 · 共 ' + (groupMatches + ko) + ' 场（小组 ' + groupMatches + ' + 淘汰 ' + ko + '）'
   }
 
+  // 抽签完成后的名单分组（与小程序端 competition-fixtures 同口径）：
+  // 小组归属 = 小组赛对阵实名选手 + 占位对阵中 player 槽位（附加赛占位对阵的直进选手）；
+  // 附加赛选手单列；报名但未入组/未进附加赛的归入「未入组」。无小组赛对阵返回 null（保持平铺名单）
+  function groupRosterOf(fixtures, participants) {
+    var byGroup = new Map()
+    var inGroup = {}
+    fixtures.forEach(function (f) {
+      if (f.stage !== 'group') return
+      var gno = f.group_no || 'A'
+      var ids = (f.players || []).map(function (p) { return p.id })
+      ;(f.slots || []).forEach(function (s) { if (s && s.type === 'player' && s.id) ids.push(s.id) })
+      if (!byGroup.has(gno)) byGroup.set(gno, [])
+      ids.forEach(function (id) {
+        if (inGroup[id]) return
+        inGroup[id] = true
+        byGroup.get(gno).push(id)
+      })
+    })
+    if (!byGroup.size) return null
+    var inQualifier = {}
+    fixtures.forEach(function (f) {
+      if (f.stage !== 'qualifier') return
+      ;(f.players || []).forEach(function (p) { inQualifier[p.id] = true })
+    })
+    var nameOf = {}
+    participants.forEach(function (p) { nameOf[p.member_id] = p.name })
+    var label = function (id) { return { id: id, name: nameOf[id] || '' } }
+    var groups = [...byGroup.keys()].sort().map(function (gno) {
+      return { group_no: gno, members: byGroup.get(gno).map(label) }
+    })
+    return {
+      groups: groups,
+      qualifier: Object.keys(inQualifier).map(label),
+      unassigned: participants.filter(function (p) { return !inGroup[p.member_id] && !inQualifier[p.member_id] })
+    }
+  }
+
   function showError(msg) {
     el('fx-error-text').textContent = msg || '加载失败，请稍后重试'
     el('fx-error').style.display = ''
@@ -161,16 +198,58 @@
     document.title = (comp.name || '比赛') + '对阵 - 台球协会'
     el('fx-back').href = './competition-detail.html?id=' + encodeURIComponent(comp._id || compId())
 
-    // 报名名单
+    // 报名名单：抽签完成后（存在小组赛对阵）按小组显示，附加赛选手单列；否则平铺 chips
     el('fx-part-count').textContent = participants.length
-    el('fx-participants').innerHTML = participants.length
-      ? participants.map(function (p) { return '<span class="fx-chip">' + U.escapeHtml(p.name) + '</span>' }).join('')
-      : '<div class="fx-empty-inline">暂无报名</div>'
-    el('fx-part-section').style.display = ''
+    var chipsHtml = function (list) {
+      return list.map(function (p) { return '<span class="fx-chip">' + U.escapeHtml(p.name) + '</span>' }).join('')
+    }
+    var roster = groupRosterOf(fixtures, participants)
+    var rosterHtml
+    if (roster && participants.length) {
+      rosterHtml = '<div class="fx-groups">' +
+        roster.groups.map(function (g) {
+          return '<div class="fx-group"><div class="fx-group-title">' + U.escapeHtml(g.group_no) + '组（' + g.members.length + '）</div>' +
+            '<div class="fx-chips">' + chipsHtml(g.members) + '</div></div>'
+        }).join('') +
+        (roster.qualifier.length
+          ? '<div class="fx-group fx-group--qualifier"><div class="fx-group-title">附加赛（' + roster.qualifier.length + '）</div>' +
+            '<div class="fx-chips">' + chipsHtml(roster.qualifier) + '</div></div>'
+          : '') +
+        (roster.unassigned.length
+          ? '<div class="fx-group"><div class="fx-group-title">未入组（' + roster.unassigned.length + '）</div>' +
+            '<div class="fx-chips">' + chipsHtml(roster.unassigned) + '</div></div>'
+          : '') +
+        '</div>'
+    } else {
+      rosterHtml = participants.length
+        ? '<div class="fx-chips">' + chipsHtml(participants) + '</div>'
+        : '<div class="fx-empty-inline">暂无报名</div>'
+    }
     // 赛制说明（小组赛制）
     var fd = formatDesc(comp, participants.length)
-    if (fd) {
-      el('fx-participants').insertAdjacentHTML('afterend', '<div class="fx-format">赛制：' + U.escapeHtml(fd) + '</div>')
+    if (fd) rosterHtml += '<div class="fx-format">赛制：' + U.escapeHtml(fd) + '</div>'
+    el('fx-roster').innerHTML = rosterHtml
+    el('fx-part-section').style.display = ''
+
+    // 抽签按钮状态（与小程序端同口径）：小组赛制首抽「小组抽签」，签表生成后禁用；逐轮制「开始抽签/抽下一轮」
+    var drawBtn = el('fx-draw-btn')
+    if (drawBtn) {
+      var groupSize = comp.game_type === 'nine_ball' ? 3 : 2
+      var maxRound = fixtures.reduce(function (mx, f) { return Math.max(mx, f.round || 0) }, 0)
+      var drawLabel = '开始抽签'
+      var drawDisabled = participants.length < groupSize
+      if (isGK(comp)) {
+        if (maxRound > 0) {
+          drawLabel = '签表已生成'
+          drawDisabled = true
+        } else {
+          drawLabel = '小组抽签'
+        }
+      } else if (fixtures.length) {
+        drawLabel = '抽下一轮'
+      }
+      el('fx-draw-label').textContent = drawLabel
+      drawBtn.disabled = drawDisabled
     }
 
     // 比赛日

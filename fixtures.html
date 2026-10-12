@@ -1223,8 +1223,11 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
 
         <!-- 报名名单 -->
         <section class="section" id="fx-part-section" style="display:none;">
-          <div class="section-eyebrow">报名名单（<span id="fx-part-count">0</span> 人）</div>
-          <div class="fx-chips" id="fx-participants"></div>
+          <div class="section-eyebrow fx-days-head">
+            <span>报名名单（<span id="fx-part-count">0</span> 人）</span>
+            <button class="fx-days-edit" id="fx-draw-btn" type="button"><i data-lucide="shuffle"></i><span id="fx-draw-label">开始抽签</span></button>
+          </div>
+          <div id="fx-roster"></div>
         </section>
 
         <!-- 比赛日 -->
@@ -1238,7 +1241,7 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
 
         <!-- 未抽签提示 -->
         <section class="section" id="fx-empty" style="display:none;">
-          <div class="fx-empty-box">尚未抽签，请等待管理员在小程序端完成抽签配对</div>
+          <div class="fx-empty-box">尚未抽签，管理员可点报名名单右侧「抽签」按钮（或在小程序端）完成抽签配对</div>
         </section>
 
         <!-- 赛程进度 -->
@@ -1310,7 +1313,20 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
           background: rgba(0, 113, 227, 0.08); border-radius: 999px; padding: 4px 12px;
         }
         .fx-days-edit:hover { background: rgba(0, 113, 227, 0.14); }
+        .fx-days-edit:disabled { opacity: .45; cursor: not-allowed; }
+        .fx-days-edit:disabled:hover { background: rgba(0, 113, 227, 0.08); }
         .fx-days-edit i { width: 12px; height: 12px; }
+        /* 报名名单按小组显示（抽签完成后） */
+        .fx-groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: calc(var(--spacing) * 3); }
+        .fx-group {
+          background: var(--card); border: 1px solid var(--border);
+          border-radius: var(--radius); box-shadow: var(--shadow-sm);
+          padding: calc(var(--spacing) * 3) calc(var(--spacing) * 4);
+        }
+        html.dark .fx-group { background: linear-gradient(145deg, #2c2c2e, #262628); border-color: rgba(58,58,60,0.5); }
+        .fx-group-title { font-size: 12px; font-weight: 700; color: var(--muted-foreground); margin-bottom: calc(var(--spacing) * 2); }
+        .fx-group--qualifier .fx-group-title { color: #be123c; }
+        html.dark .fx-group--qualifier .fx-group-title { color: #fda4af; }
         .fx-ph { font-size: 14px; font-weight: 500; color: var(--muted-foreground); }
         .fx-progress { font-size: 13px; color: var(--muted-foreground); margin-bottom: calc(var(--spacing) * 4); }
         .fx-progress b { color: var(--foreground); }
@@ -1362,8 +1378,8 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
     <script src="./js/cloud.js?v=20260926a"></script>
     <script src="./js/fallback-data.js?v=20261008b"></script>
     <script src="./js/common.js?v=20261007a"></script>
-    <script src="./js/competition-admin.js?v=20261009a"></script>
-    <script src="./js/fixtures.js?v=20261009b"></script>
+    <script src="./js/competition-admin.js?v=20261012a"></script>
+    <script src="./js/fixtures.js?v=20261012a"></script>
     <script>
     /* 主题切换：更新 <html> class + localStorage 记忆，并广播 themechange 事件 */
     (function () {
