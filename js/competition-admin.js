@@ -1,5 +1,5 @@
 /*
- * 比赛管理模块（网页端）：扫码鉴权 + 编辑比赛信息 + 导入报名名单 + 编辑比赛日 + 抽签
+ * 比赛管理模块（网页端）：扫码鉴权 + 编辑比赛信息 + 导入报名名单 + 编辑比赛日 + 抽签 + 抽签条件
  * - 鉴权流程：创建 webAuthSession 会话 → getWebAuthQrcode 出小程序码 → 微信扫码小程序内确认 → 轮询拿 token（2h）
  * - 小程序码 env_version：web-auth 页未随正式版发布前用 trial 体验版联调，发布后改 release
  * - 弹窗样式由本模块注入（wa-*），使用页无需内联重复样式
@@ -11,7 +11,7 @@ window.CompAdmin = (function () {
 
   var ctx = { getComp: null, onChanged: null }
   var authing = false // 授权弹窗是否打开（防止并发创建会话）
-  var pendingAction = null // 授权完成后要执行的动作：'edit' | 'import' | 'days' | 'reorder'
+  var pendingAction = null // 授权完成后要执行的动作：'edit' | 'import' | 'days' | 'draw' | 'drawcfg' | 'reorder'
   var pendingFixture = null // reorder 动作的目标对阵
 
   // ---------- 弹窗样式（单源注入，页面无需内联） ----------
@@ -80,7 +80,24 @@ window.CompAdmin = (function () {
       '.wa-rs-opt.is-on{border-color:var(--primary);background:rgba(0,113,227,0.06);}' +
       '.wa-rs-label{font-size:13px;font-weight:600;color:var(--foreground);}' +
       '.wa-rs-sub{font-size:12px;color:var(--muted-foreground);margin-top:2px;}' +
-      '.wa-rs-loading{font-size:13px;color:var(--muted-foreground);padding:12px 0;}'
+      '.wa-rs-loading{font-size:13px;color:var(--muted-foreground);padding:12px 0;}' +
+      /* 抽签条件 */
+      '.wa-dc-sec{margin-bottom:18px;}' +
+      '.wa-dc-sec-title{font-size:13px;font-weight:700;margin-bottom:4px;}' +
+      '.wa-dc-sec-tip{font-size:12px;color:var(--muted-foreground);line-height:1.7;margin-bottom:10px;}' +
+      '.wa-dc-row{display:flex;gap:10px;align-items:center;margin-bottom:10px;}' +
+      '.wa-dc-row .wa-input{margin-bottom:0;}' +
+      '.wa-dc-sel{flex:1;min-width:0;}' +
+      '.wa-dc-chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;}' +
+      '.wa-dc-list{display:flex;flex-direction:column;gap:8px;}' +
+      '.wa-dc-item{display:flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid var(--border);border-radius:10px;background:var(--background);}' +
+      '.wa-dc-item-name{font-size:13px;font-weight:600;flex:none;}' +
+      '.wa-dc-item-dates{flex:1;min-width:0;font-size:12px;color:var(--muted-foreground);line-height:1.6;}' +
+      '.wa-dc-del{flex:none;width:28px;height:28px;border:none;border-radius:8px;cursor:pointer;background:var(--secondary);color:var(--muted-foreground);display:inline-flex;align-items:center;justify-content:center;}' +
+      '.wa-dc-del:hover{color:var(--state-error);}' +
+      '.wa-dc-del i{width:13px;height:13px;}' +
+      '.wa-dc-empty{font-size:12px;color:var(--muted-foreground);padding:4px 0;}' +
+      '.wa-dc-add{flex:none;}'
     document.head.appendChild(style)
   }
 
@@ -223,6 +240,7 @@ window.CompAdmin = (function () {
     else if (action === 'import') openImport()
     else if (action === 'days') openDays()
     else if (action === 'draw') openDraw()
+    else if (action === 'drawcfg') openDrawCfg()
     else if (action === 'reorder') {
       var f = pendingFixture
       pendingFixture = null
@@ -736,6 +754,188 @@ window.CompAdmin = (function () {
     }
   }
 
+  // ---------- 抽签条件 ----------
+  // 小组赛制抽签自定义条件（随下次抽签/重抽生效）：
+  // ① 选手不可参赛日期——避免分入对应日期有赛程的组别；② 队友分区——两人分入上下半区，小组赛不相遇
+  // 保存走 updateCompetition（全量字段写入，需带上现有文本字段避免被清空，与编辑比赛日同口径）
+  function openDrawCfg() {
+    var comp = ctx.getComp ? (ctx.getComp() || {}) : {}
+    var participants = Array.isArray(comp.participants) ? comp.participants : []
+    var days = (comp.match_days || []).map(function (d0) { return d0.date }).filter(Boolean)
+    var dc = (comp.draw_config && typeof comp.draw_config === 'object' && !Array.isArray(comp.draw_config)) ? comp.draw_config : {}
+    var unState = {} // member_id -> [date]
+    ;(Array.isArray(dc.unavailable) ? dc.unavailable : []).forEach(function (u) {
+      if (u && u.member_id && Array.isArray(u.dates) && u.dates.length) unState[u.member_id] = u.dates.slice()
+    })
+    var pairState = (Array.isArray(dc.teammate_pairs) ? dc.teammate_pairs : [])
+      .filter(function (pr) { return Array.isArray(pr) && pr.length === 2 })
+      .map(function (pr) { return pr.slice() })
+    var nameOf = {}
+    participants.forEach(function (p) { nameOf[p.member_id] = p.name })
+    var dayLabel = function (date) {
+      var d = new Date(date + 'T00:00:00')
+      return isNaN(d.getTime()) ? date : date.slice(5) + ' ' + WA_WEEKDAYS[d.getDay()]
+    }
+    var optionsHtml = function (ph) {
+      return '<option value="">' + ph + '</option>' + participants.map(function (p) {
+        return '<option value="' + U.escapeHtml(p.member_id) + '">' + U.escapeHtml(p.name) + '</option>'
+      }).join('')
+    }
+
+    var card = openModal('抽签条件', function (body) {
+      body.innerHTML =
+        '<div class="wa-days-tip">仅小组赛制抽签生效，随下次抽签（或重抽）应用；条件无法全部满足时按违规最少方案生成并提示。</div>' +
+        '<div class="wa-dc-sec">' +
+        '<div class="wa-dc-sec-title">不可参赛日期</div>' +
+        '<div class="wa-dc-sec-tip">选手指定日期无法参赛，抽签时避免分入对应日期有赛程的组别</div>' +
+        (days.length
+          ? '<div class="wa-dc-row"><select class="wa-input wa-dc-sel" id="wa-dc-player">' + optionsHtml('选择选手') + '</select></div>' +
+            '<div class="wa-dc-chips" id="wa-dc-datechips"></div>'
+          : '<div class="wa-dc-empty">需先在「比赛日设定」添加比赛日后才能配置不可参赛日期</div>') +
+        '<div class="wa-dc-list" id="wa-dc-unlist"></div>' +
+        '</div>' +
+        '<div class="wa-dc-sec">' +
+        '<div class="wa-dc-sec-title">队友分区</div>' +
+        '<div class="wa-dc-sec-tip">成对选手分入上下半区（不同小组），小组赛不相遇；同一选手只能有一对</div>' +
+        (participants.length >= 2
+          ? '<div class="wa-dc-row">' +
+            '<select class="wa-input wa-dc-sel" id="wa-dc-pa">' + optionsHtml('选手 A') + '</select>' +
+            '<select class="wa-input wa-dc-sel" id="wa-dc-pb">' + optionsHtml('选手 B') + '</select>' +
+            '<button class="btn btn-secondary wa-dc-add" id="wa-dc-pair-add" type="button">+ 添加</button></div>'
+          : '<div class="wa-dc-empty">报名不足 2 人，无法配置队友分区</div>') +
+        '<div class="wa-dc-list" id="wa-dc-pairlist"></div>' +
+        '</div>' +
+        '<div class="wa-foot"><button class="btn btn-primary" id="wa-dc-save" type="button">保存</button></div>'
+
+      var playerSel = body.querySelector('#wa-dc-player')
+      var chipsEl = body.querySelector('#wa-dc-datechips')
+      var unListEl = body.querySelector('#wa-dc-unlist')
+      var pairListEl = body.querySelector('#wa-dc-pairlist')
+
+      function renderDateChips() {
+        if (!chipsEl) return
+        var mid = playerSel.value
+        if (!mid) { chipsEl.innerHTML = '<div class="wa-dc-empty">选择选手后勾选其无法参赛的比赛日</div>'; return }
+        var picked = {}
+        ;(unState[mid] || []).forEach(function (d) { picked[d] = 1 })
+        chipsEl.innerHTML = days.map(function (d) {
+          return '<button class="wa-day-chip' + (picked[d] ? ' is-on' : '') + '" type="button" data-date="' + d + '">' + dayLabel(d) + '</button>'
+        }).join('')
+      }
+      function renderUnList() {
+        var ids = Object.keys(unState).filter(function (mid) { return (unState[mid] || []).length })
+        unListEl.innerHTML = ids.length ? ids.map(function (mid) {
+          var dates = unState[mid].slice().sort().map(dayLabel).join('、')
+          return '<div class="wa-dc-item"><span class="wa-dc-item-name">' + U.escapeHtml(nameOf[mid] || mid) + '</span>' +
+            '<span class="wa-dc-item-dates">' + U.escapeHtml(dates) + '</span>' +
+            '<button class="wa-dc-del" type="button" data-mid="' + U.escapeHtml(mid) + '" aria-label="删除"><i data-lucide="x"></i></button></div>'
+        }).join('') : '<div class="wa-dc-empty">暂未配置</div>'
+        if (window.lucide) window.lucide.createIcons()
+      }
+      function renderPairList() {
+        pairListEl.innerHTML = pairState.length ? pairState.map(function (pr, i) {
+          return '<div class="wa-dc-item"><span class="wa-dc-item-name">' + U.escapeHtml(nameOf[pr[0]] || pr[0]) +
+            ' ⇄ ' + U.escapeHtml(nameOf[pr[1]] || pr[1]) + '</span><span class="wa-dc-item-dates">上下半区</span>' +
+            '<button class="wa-dc-del" type="button" data-i="' + i + '" aria-label="删除"><i data-lucide="x"></i></button></div>'
+        }).join('') : '<div class="wa-dc-empty">暂未配置</div>'
+        if (window.lucide) window.lucide.createIcons()
+      }
+      renderDateChips()
+      renderUnList()
+      renderPairList()
+
+      if (playerSel) playerSel.addEventListener('change', renderDateChips)
+      if (chipsEl) chipsEl.addEventListener('click', function (ev) {
+        var chip = ev.target.closest('.wa-day-chip')
+        if (!chip) return
+        var mid = playerSel.value
+        if (!mid) return
+        var date = chip.getAttribute('data-date')
+        var list = (unState[mid] || []).slice()
+        var idx = list.indexOf(date)
+        if (idx >= 0) list.splice(idx, 1)
+        else list.push(date)
+        if (list.length) unState[mid] = list
+        else delete unState[mid]
+        renderDateChips()
+        renderUnList()
+      })
+      unListEl.addEventListener('click', function (ev) {
+        var btn = ev.target.closest('.wa-dc-del')
+        if (!btn) return
+        delete unState[btn.getAttribute('data-mid')]
+        renderDateChips()
+        renderUnList()
+      })
+      var pairAddBtn = body.querySelector('#wa-dc-pair-add')
+      if (pairAddBtn) pairAddBtn.addEventListener('click', function () {
+        var a = body.querySelector('#wa-dc-pa').value
+        var b = body.querySelector('#wa-dc-pb').value
+        if (!a || !b) { U.toast('请选择两名选手', 'error'); return }
+        if (a === b) { U.toast('队友不能是同一名选手', 'error'); return }
+        for (var i = 0; i < pairState.length; i++) {
+          if (pairState[i].indexOf(a) >= 0 || pairState[i].indexOf(b) >= 0) {
+            U.toast('同一选手只能配置一对队友分区', 'error')
+            return
+          }
+        }
+        pairState.push([a, b])
+        body.querySelector('#wa-dc-pa').value = ''
+        body.querySelector('#wa-dc-pb').value = ''
+        renderPairList()
+      })
+      pairListEl.addEventListener('click', function (ev) {
+        var btn = ev.target.closest('.wa-dc-del')
+        if (!btn) return
+        pairState.splice(Number(btn.getAttribute('data-i')), 1)
+        renderPairList()
+      })
+      body.querySelector('#wa-dc-save').addEventListener('click', function () {
+        saveDrawCfg(card, unState, pairState)
+      })
+    }, { wide: true })
+  }
+
+  async function saveDrawCfg(card, unState, pairState) {
+    var comp = ctx.getComp ? (ctx.getComp() || {}) : {}
+    var auth = readAuth()
+    if (!auth) { U.toast('授权已失效，请重新扫码', 'error'); startAuth('drawcfg'); return }
+    var unavailable = Object.keys(unState)
+      .filter(function (mid) { return (unState[mid] || []).length })
+      .map(function (mid) { return { member_id: mid, dates: unState[mid].slice().sort() } })
+    var drawConfig = (unavailable.length || pairState.length)
+      ? { unavailable: unavailable, teammate_pairs: pairState }
+      : ''
+    var btn = card.querySelector('#wa-dc-save')
+    btn.disabled = true
+    btn.textContent = '保存中…'
+    try {
+      await window.AppCloud.call('updateCompetition', {
+        competition_id: comp._id,
+        web_token: auth.token,
+        name: comp.name || '',
+        description: comp.description || '',
+        start_date: comp.start_date || '',
+        end_date: comp.end_date || '',
+        venue: comp.venue || '',
+        signup_deadline: comp.signup_deadline || '',
+        signup_url: comp.signup_url || '',
+        rules_url: comp.rules_url || '',
+        rules_text: comp.rules_text || '',
+        contact: comp.contact || '',
+        prize: comp.prize || '',
+        draw_config: drawConfig
+      })
+      closeModal()
+      U.toast('抽签条件已保存，随下次抽签生效', 'success')
+      if (typeof ctx.onChanged === 'function') ctx.onChanged()
+    } catch (e) {
+      btn.disabled = false
+      btn.textContent = '保存'
+      if (!handleAuthError(e)) U.toast('保存失败：' + (e.message || e), 'error')
+    }
+  }
+
   // ---------- 抽签 ----------
   // 与小程序端同一云函数 drawCompetition：小组赛制一次生成完整签表（>32 人先附加赛争席位），逐轮制随机配对新一轮
   function openDraw() {
@@ -752,6 +952,18 @@ window.CompAdmin = (function () {
       tip = '按报名 ' + n + ' 人一次生成完整签表：小组赛实名对阵 + 淘汰赛占位对阵，晋级随赛况自动填充。'
     } else {
       tip = '按报名名单随机配对生成新一轮对阵（中八每场 2 人、九球每场 3 人，剩余轮空）。'
+    }
+    // 已配置抽签条件（小组赛制）：抽签自动遵循，随结果提示未满足项
+    var dc = (comp.draw_config && typeof comp.draw_config === 'object' && !Array.isArray(comp.draw_config)) ? comp.draw_config : null
+    if (gk && dc) {
+      var unN = (Array.isArray(dc.unavailable) ? dc.unavailable : []).length
+      var prN = (Array.isArray(dc.teammate_pairs) ? dc.teammate_pairs : []).length
+      if (unN || prN) {
+        var cfgParts = []
+        if (unN) cfgParts.push(unN + ' 人不可参赛日期')
+        if (prN) cfgParts.push(prN + ' 对队友分区')
+        tip += ' 已配置抽签条件（' + cfgParts.join('、') + '），抽签将自动遵循。'
+      }
     }
     var card = openModal('确认抽签', function (body) {
       body.innerHTML =
@@ -782,6 +994,13 @@ window.CompAdmin = (function () {
       if (d && d.ko_fixtures) parts.push('淘汰赛 ' + d.ko_fixtures + ' 场')
       if (d && d.byes && d.byes.length) parts.push('轮空 ' + d.byes.length + ' 人')
       U.toast('抽签完成' + (parts.length ? '：' + parts.join('，') : ''), 'success')
+      // 抽签条件未全部满足 / 附加赛日期冲突等告警，弹窗逐条提示
+      if (d && d.warnings && d.warnings.length) {
+        openModal('抽签结果提示', function (body) {
+          body.innerHTML = '<div class="wa-days-tip" style="margin-bottom:0;">' +
+            d.warnings.map(function (w) { return U.escapeHtml(w) }).join('<br>') + '</div>'
+        })
+      }
       if (typeof ctx.onChanged === 'function') ctx.onChanged()
     } catch (e) {
       btn.disabled = false
@@ -798,10 +1017,12 @@ window.CompAdmin = (function () {
     var importBtn = document.getElementById('cd-import-btn')
     var daysBtn = document.getElementById('fx-days-edit-btn')
     var drawBtn = document.getElementById('fx-draw-btn')
+    var drawcfgBtn = document.getElementById('fx-drawcfg-btn')
     if (editBtn) editBtn.addEventListener('click', function () { startAuth('edit') })
     if (importBtn) importBtn.addEventListener('click', function () { startAuth('import') })
     if (daysBtn) daysBtn.addEventListener('click', function () { startAuth('days') })
     if (drawBtn) drawBtn.addEventListener('click', function () { startAuth('draw') })
+    if (drawcfgBtn) drawcfgBtn.addEventListener('click', function () { startAuth('drawcfg') })
   }
 
   return { init: init, openReorder: openReorder }

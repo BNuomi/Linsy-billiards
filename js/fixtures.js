@@ -232,13 +232,14 @@
     el('fx-part-section').style.display = ''
 
     // 抽签按钮状态（与小程序端同口径）：小组赛制首抽「小组抽签」，签表生成后禁用；逐轮制「开始抽签/抽下一轮」
+    var gk = isGK(comp)
     var drawBtn = el('fx-draw-btn')
     if (drawBtn) {
       var groupSize = comp.game_type === 'nine_ball' ? 3 : 2
       var maxRound = fixtures.reduce(function (mx, f) { return Math.max(mx, f.round || 0) }, 0)
       var drawLabel = '开始抽签'
       var drawDisabled = participants.length < groupSize
-      if (isGK(comp)) {
+      if (gk) {
         if (maxRound > 0) {
           drawLabel = '签表已生成'
           drawDisabled = true
@@ -251,6 +252,9 @@
       el('fx-draw-label').textContent = drawLabel
       drawBtn.disabled = drawDisabled
     }
+    // 抽签条件入口：仅小组赛制（条件按组别/半区生效）
+    var drawcfgBtn = el('fx-drawcfg-btn')
+    if (drawcfgBtn) drawcfgBtn.style.display = gk ? '' : 'none'
 
     // 比赛日
     var days = comp.match_days || []
@@ -283,7 +287,6 @@
     }
 
     // 分区：GK = 小组赛合并单分区（按时间排序，不再按组区分）/ 淘汰赛按轮；rounds = 按轮
-    var gk = isGK(comp)
     var sections = new Map()
     fixtures.forEach(function (f) {
       var key, title, order
