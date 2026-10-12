@@ -1249,20 +1249,25 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
             <div class="lv-more-tip" id="lv-live-more"></div>
           </section>
 
-          <!-- 即将上场：每个台号排期最近的一场（预告台号 + 名单） -->
-          <section class="section" id="lv-next-section" style="display:none;">
-            <div class="section-eyebrow">即将上场</div>
-            <div class="nx-list" id="lv-next"></div>
-          </section>
+          <!-- 右侧栏：即将上场 + 刚结束（看板模式下刚结束占满上场下方全部剩余空间） -->
+          <div class="lv-side">
+            <!-- 即将上场：每个台号排期最近的一场（预告台号 + 名单） -->
+            <section class="section" id="lv-next-section" style="display:none;">
+              <div class="section-eyebrow">即将上场</div>
+              <div class="nx-list" id="lv-next"></div>
+            </section>
+
+            <!-- 刚结束：比分 + 记分情况 + 组队积分 -->
+            <section class="section" id="lv-done-section" style="display:none;">
+              <div class="section-eyebrow">刚结束（<span id="lv-done-count">0</span>）</div>
+              <div class="dn-grid" id="lv-done"></div>
+              <div class="lv-more-tip" id="lv-done-more"></div>
+            </section>
+          </div>
         </div>
 
-        <!-- 刚结束（左 1/2：比分+记分+组队积分）+ 后续预告（右 1/2，排期顺序） -->
+        <!-- 后续预告（全宽，排期顺序） -->
         <div class="lv-mid">
-          <section class="section" id="lv-done-section" style="display:none;">
-            <div class="section-eyebrow">刚结束（<span id="lv-done-count">0</span>）</div>
-            <div class="dn-grid" id="lv-done"></div>
-            <div class="lv-more-tip" id="lv-done-more"></div>
-          </section>
           <section class="section" id="lv-upcoming-section" style="display:none;">
             <div class="section-eyebrow">后续预告（<span id="lv-upcoming-count">0</span>）</div>
             <div class="up-list" id="lv-upcoming"></div>
@@ -1320,13 +1325,16 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
         .sync-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted-foreground); flex: none; }
         .sync-dot.on { background: #22c55e; box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.18); }
 
-        /* ---------- 进行中（左 2/3）+ 即将上场（右 1/3）分栏 ---------- */
+        /* ---------- 进行中（左 2/3）+ 右侧栏（即将上场 + 刚结束，右 1/3） ---------- */
         .lv-top { display: grid; grid-template-columns: 2fr 1fr; gap: calc(var(--spacing) * 6); align-items: start; }
-        .lv-mid { display: grid; grid-template-columns: 1fr 1fr; gap: calc(var(--spacing) * 6); align-items: start; }
+        .lv-side { display: grid; gap: calc(var(--spacing) * 6); align-content: start; }
+        .lv-mid { display: grid; grid-template-columns: 1fr; gap: calc(var(--spacing) * 6); align-items: start; }
+        .lv-mid .up-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0 28px; align-content: start; }
         .lv-boards { display: grid; grid-template-columns: 1fr 1fr; gap: calc(var(--spacing) * 6); align-items: start; }
         @media (max-width: 900px) {
           .lv-top { grid-template-columns: 1fr; }
           .lv-mid { grid-template-columns: 1fr; }
+          .lv-mid .up-list { grid-template-columns: 1fr; }
           .lv-boards { grid-template-columns: 1fr; }
         }
         .lv-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: calc(var(--spacing) * 4); }
@@ -1501,16 +1509,19 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
           grid-template-columns: 1fr 1fr 1fr;
           grid-template-rows: auto minmax(0, 1fr) minmax(0, 0.8fr);
           grid-template-areas:
-            "live live next"
-            "board team done"
-            "upcoming upcoming done";
+            "live live side"
+            "board team side"
+            "upcoming upcoming side";
           background: var(--background); overflow: hidden;
         }
         body.board-on .lv-top, body.board-on .lv-mid, body.board-on .lv-boards { display: contents; }
-        /* 进行中/即将上场：面板贴合内容高度（行高由两者较大者决定，短者不撑出面板内空白） */
+        /* 右列容器：跨满全高；即将上场按内容定高，刚结束占满其下方全部剩余空间 */
+        body.board-on .lv-side {
+          grid-area: side; display: grid; grid-template-rows: auto minmax(0, 1fr);
+          gap: 14px; min-height: 0; align-content: stretch;
+        }
+        /* 进行中和即将上场：面板贴合内容高度，不撑出面板内空白 */
         body.board-on #lv-live-section { grid-area: live; align-self: start; }
-        body.board-on #lv-next-section { grid-area: next; align-self: start; }
-        body.board-on #lv-done-section { grid-area: done; }
         body.board-on #lv-upcoming-section { grid-area: upcoming; }
         body.board-on #lv-board-section { grid-area: board; }
         body.board-on #lv-teamboard-section { grid-area: team; }
@@ -1562,6 +1573,7 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
         body.board-on .dn-teams .lv-team { font-size: 11px; padding: 2px 7px; }
         @media (max-width: 900px) {
           body.board-on .page-container { overflow-y: auto; grid-template-columns: 1fr; grid-template-rows: none; grid-template-areas: none; }
+          body.board-on .lv-side { grid-area: auto; display: grid; grid-template-rows: none; }
           body.board-on #lv-live-section, body.board-on #lv-next-section, body.board-on #lv-done-section,
           body.board-on #lv-upcoming-section, body.board-on #lv-board-section, body.board-on #lv-teamboard-section { grid-area: auto; }
         }
