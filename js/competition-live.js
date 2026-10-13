@@ -1,11 +1,11 @@
-/* 比赛实况页：进行中对局（5s 轮询实时比分）/ 即将上场（每台最近一场）/ 刚结束（比分+记分+组队积分）/ 后续预告
+/* 比赛实况页：进行中对局（30s 轮询实时比分）/ 即将上场（每台最近一场）/ 刚结束（比分+记分+组队积分）/ 后续预告
  * + 积分榜两栏（对局积分榜 / 组队积分榜，随完赛增量刷新）
  * 公开只读：入口无需权限；比分由 getFixtures 按 fixture 关联对局合并（进行中=实时 frame_score/balances）
  * 轮询：页面隐藏（visibilitychange）时暂停，恢复可见立即刷新 */
 ;(function () {
   var U = window.AppUI
   var WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
-  var POLL_MS = 5000
+  var POLL_MS = 30000
   var DONE_SHOW = 10 // 刚结束区展示最近场次数（看板卡片紧凑后可容纳更多）
   var UPCOMING_SHOW = 10 // 后续预告展示场次数
   var BOARD_SHOW = 10 // 积分榜展示名次数

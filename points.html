@@ -835,13 +835,13 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
         </section>
         <section class="doc-section" id="general">
           <div class="doc-section-head"><span class="doc-badge">总则</span><h2 class="title" style="font-size:24px;margin:0;">积分总则</h2></div>
-          <p class="doc-sub">积分引擎 v2.3 的设计原则：参与即得分、胜率导向、全程可追溯。以下规则适用于协会内全部中八与九球追分对局。</p>
+          <p class="doc-sub">积分引擎 v2.5 的设计原则：参与即得分、胜率导向、全程可追溯。以下规则适用于协会内全部中八与九球追分对局。</p>
           <div class="rule-grid">
             <div class="rule-card">
               <h3><span class="rule-num">1</span>参与即得分</h3>
               <ul>
               <li>任何一场完赛，<strong>双方/各方都获得正积分</strong>，不存在负分结算</li>
-              <li>每打一局，每位选手额外获得 <strong>+0.1 局参与分</strong>（中八/九球通用，鼓励多打多赛）</li>
+              <li>九球追分每打一局，每位选手额外获得 <strong>+0.1 局参与分</strong>（鼓励多打多赛；中八已取消局参与分）</li>
               </ul>
             </div>
             <div class="rule-card">
@@ -855,7 +855,7 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
               <h3><span class="rule-num">3</span>可追溯</h3>
               <ul>
               <li>每场对战结束后由积分引擎统一结算，变动写入<strong>积分流水（points_logs）</strong></li>
-              <li>每条流水标注<strong>算法版本号</strong>（当前 v2.3），历史结算可按原版本追溯</li>
+              <li>每条流水标注<strong>算法版本号</strong>（当前 v2.5），历史结算可按原版本追溯</li>
               </ul>
             </div>
             <div class="rule-card">
@@ -869,24 +869,24 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
         </section>
         <section class="doc-section" id="c8-points">
           <div class="doc-section-head"><span class="doc-badge">中八</span><h2 class="title" style="font-size:24px;margin:0;">中八积分规则</h2></div>
-          <p class="doc-sub">中八按对战模式分别结算，胜者基础分 +3、负者参与分 +1，再叠加清台奖励与局参与分。</p>
+          <p class="doc-sub">中八按对战模式分别结算，胜者基础分 +3、负者参与分 +1，再叠加清台奖励（v2.5 起中八不再记局参与分）。</p>
           <div class="rule-grid">
             <div class="rule-card">
               <h3><span class="rule-num">1</span>模式一 / 模式三（定点击球 / 逐杆记录）</h3>
               <ul>
               <li>胜者基础分 <strong>+3</strong>，负者参与分 <strong>+1</strong></li>
-              <li>叠加：一杆清台每局 <strong>+1</strong>（胜负双方均计）＋ 局参与分（总局数 × 0.1，双方均计）</li>
+              <li>叠加：一杆清台每局 <strong>+1</strong>（归完成清台的选手）</li>
               </ul>
-              <div class="rule-example">示例：模式一战满 5 局，胜者清台 1 局 → 胜者 3 + 1×1 + 5×0.1 = <strong>4.5 分</strong>，负者 1 + 5×0.1 = <strong>1.5 分</strong></div>
+              <div class="rule-example">示例：模式一战满 5 局，胜者清台 1 局 → 胜者 3 + 1×1 = <strong>4 分</strong>，负者 <strong>1 分</strong></div>
             </div>
             <div class="rule-card">
               <h3><span class="rule-num">2</span>模式二（记分制）</h3>
               <ul>
               <li>单局净胜球 = 1 + 对方剩余球数；全场净胜球为各局之和</li>
               <li>胜者得分 = <strong>max(3, 3 + 净胜球 × 0.5)</strong>：净胜球只放大胜者收益，净胜为负时保底 +3</li>
-              <li>负者固定参与分 <strong>+1</strong>；清台奖励与局参与分与模式一相同</li>
+              <li>负者固定参与分 <strong>+1</strong>；清台奖励与模式一相同</li>
               </ul>
-              <div class="rule-example">示例：净胜球 +5、清台 1 局、共 4 局 → 胜者 3 + 5×0.5 + 1 + 4×0.1 = <strong>6.9 分</strong>，负者 1 + 4×0.1 = <strong>1.4 分</strong></div>
+              <div class="rule-example">示例：净胜球 +5、清台 1 局 → 胜者 3 + 5×0.5 + 1 = <strong>6.5 分</strong>，负者 <strong>1 分</strong></div>
             </div>
           </div>
         </section>
@@ -928,7 +928,7 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
         </div>
       </footer>
     </main>
-    <script src="./js/common.js?v=20261007a"></script>
+    <script src="./js/common.js?v=20261013b"></script>
     <script>lucide.createIcons();</script>
     <script>
     (function () {
