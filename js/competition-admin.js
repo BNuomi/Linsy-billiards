@@ -1,12 +1,12 @@
 /*
  * 比赛管理模块（网页端）：扫码鉴权 + 编辑比赛信息 + 导入报名名单 + 编辑比赛日 + 抽签 + 抽签条件
  * - 鉴权流程：创建 webAuthSession 会话 → getWebAuthQrcode 出小程序码 → 微信扫码小程序内确认 → 轮询拿 token（2h）
- * - 小程序码 env_version：web-auth 页未随正式版发布前用 trial 体验版联调，发布后改 release
+ * - 小程序码 env_version：小程序已正式发布，统一走 release
  * - 弹窗样式由本模块注入（wa-*），使用页无需内联重复样式
  */
 window.CompAdmin = (function () {
   var U = window.AppUI
-  var QR_ENV_VERSION = 'trial'
+  var QR_ENV_VERSION = 'release'
   var STORE_KEY = 'wa_comp_auth'
 
   var ctx = { getComp: null, onChanged: null }
@@ -284,15 +284,29 @@ window.CompAdmin = (function () {
     { key: 'signup_url', label: '报名链接', type: 'url', max: 200, placeholder: 'https://…' },
     { key: 'rules_url', label: '规则链接', type: 'url', max: 200, placeholder: 'https://…' },
     { key: 'description', label: '比赛简介', type: 'textarea', max: 200 },
-    { key: 'rules_text', label: '规则说明', type: 'textarea', max: 500 }
+    { key: 'rules_text', label: '规则说明', type: 'textarea', max: 500 },
+    { key: 'scheme_p1', label: '名次积分·冠军（总榜按此汇总）', type: 'number', placeholder: '如 100' },
+    { key: 'scheme_p2', label: '名次积分·亚军', type: 'number', placeholder: '如 80' },
+    { key: 'scheme_p3', label: '名次积分·季军', type: 'number', placeholder: '如 60' },
+    { key: 'scheme_p4', label: '名次积分·第四名', type: 'number', placeholder: '如 40' },
+    { key: 'scheme_p8', label: '名次积分·8强（5-8名）', type: 'number', placeholder: '如 30' },
+    { key: 'scheme_p16', label: '名次积分·16强（9-16名）', type: 'number', placeholder: '如 20' },
+    { key: 'scheme_pother', label: '名次积分·其他名次（留空不计入总榜）', type: 'number', placeholder: '如 10' }
   ]
+
+  // 名次积分表单键 ↔ points_scheme 字段
+  var SCHEME_KEYS = ['p1', 'p2', 'p3', 'p4', 'p8', 'p16', 'pother']
 
   function openEdit() {
     var comp = ctx.getComp ? (ctx.getComp() || {}) : {}
     var card = openModal('编辑比赛信息', function (body) {
       var html = '<form class="wa-form" id="wa-edit-form">'
       EDIT_FIELDS.forEach(function (f) {
-        var val = comp[f.key] == null ? '' : String(comp[f.key])
+        // scheme_* 表单键读 comp.points_scheme 对应字段；其余读比赛文档顶层字段
+        var raw = f.key.indexOf('scheme_') === 0
+          ? (comp.points_scheme || {})[f.key.slice(7)]
+          : comp[f.key]
+        var val = raw == null ? '' : String(raw)
         html += '<label class="wa-field"><span class="wa-label">' + f.label + (f.required ? ' *' : '') + '</span>'
         if (f.type === 'textarea') {
           html += '<textarea class="wa-input" name="' + f.key + '" rows="3" maxlength="' + f.max + '">' + U.escapeHtml(val) + '</textarea>'
@@ -356,6 +370,20 @@ window.CompAdmin = (function () {
     payload.table_count = get('table_count')
     payload.group_size = get('group_size')
     payload.advance_count = get('advance_count')
+    // 名次积分方案：有任一档填值则全量提交（0-999 整数）；全部留空时原本有方案传 '' 清除、原本无方案不传
+    var scheme = {}
+    for (var si = 0; si < SCHEME_KEYS.length; si++) {
+      var sv = get('scheme_' + SCHEME_KEYS[si])
+      if (sv === '') continue
+      var sn = Number(sv)
+      if (!Number.isInteger(sn) || sn < 0 || sn > 999) {
+        U.toast('名次积分各档需为 0-999 的整数', 'error')
+        return
+      }
+      scheme[SCHEME_KEYS[si]] = sn
+    }
+    if (Object.keys(scheme).length > 0) payload.points_scheme = scheme
+    else if (comp.points_scheme) payload.points_scheme = ''
 
     btn.disabled = true
     btn.textContent = '保存中…'

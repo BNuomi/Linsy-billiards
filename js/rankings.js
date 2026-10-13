@@ -97,13 +97,15 @@
     return { scope: 'game_type', game_type: key }
   }
 
-  // 积分列文案随维度切换（维度榜展示的是该维度积分，非总积分）
+  // 积分列文案随维度切换（维度榜展示的是该维度积分，非总积分）；总榜口径提示仅总榜展示
   function renderPointsLabel() {
     var label = state.scopeKey === 'overall' ? '总积分' : '榜单积分'
     var th = el('th-points')
     if (th) th.textContent = label
     var pl = document.querySelectorAll('.podium-points-label')
     pl.forEach(function (n) { n.textContent = label })
+    var tip = el('scope-tip')
+    if (tip) tip.style.display = state.scopeKey === 'overall' ? '' : 'none'
   }
 
   function renderStats(ov) {

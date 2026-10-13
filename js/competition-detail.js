@@ -96,6 +96,13 @@
     if (comp.signup_deadline) rows.push(['报名截止', comp.signup_deadline])
     if (comp.contact) rows.push(['联系方式', comp.contact])
     if (comp.prize) rows.push(['奖品设置', comp.prize])
+    // 名次积分方案（总榜按各比赛名次积分实时保底汇总）：仅展示已配置档位
+    var SCHEME_LABELS = [['p1', '冠军'], ['p2', '亚军'], ['p3', '季军'], ['p4', '第四'], ['p8', '8强'], ['p16', '16强'], ['pother', '其他']]
+    if (comp.points_scheme && typeof comp.points_scheme === 'object') {
+      var schemeStr = SCHEME_LABELS.filter(function (p) { return comp.points_scheme[p[0]] != null })
+        .map(function (p) { return p[1] + ' ' + comp.points_scheme[p[0]] }).join(' · ')
+      if (schemeStr) rows.push(['名次积分', schemeStr])
+    }
     if (rows.length) {
       el('cd-meta').innerHTML = rows.map(function (r) {
         return '<div class="cd-meta-row"><div class="cd-meta-label">' + r[0] +

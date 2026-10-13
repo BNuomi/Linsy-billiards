@@ -252,7 +252,7 @@ window.AppUI = (function () {
       stopPoll()
       try {
         var s = await window.AppCloud.call('webAuthSession', { action: 'create', purpose: 'data_admin' })
-        var qr = await window.AppCloud.call('getWebAuthQrcode', { session_id: s.session_id, env_version: 'trial' })
+        var qr = await window.AppCloud.call('getWebAuthQrcode', { session_id: s.session_id, env_version: 'release' })
         var wrap = card.querySelector('.da-qr')
         if (!wrap || !document.body.contains(mask)) return
         wrap.innerHTML = '<img alt="授权小程序码" style="width:220px;height:220px;border-radius:12px;' +

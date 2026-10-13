@@ -841,6 +841,13 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
         text-decoration: none;
       }
       .rk-comp-entry:hover { text-decoration: underline; }
+      /* 总榜口径提示（仅总榜激活时显示） */
+      .rk-scope-tip {
+        margin: -20px 0 24px;
+        font-size: 12px;
+        line-height: 1.6;
+        color: var(--muted-foreground);
+      }
       .rk-scope-tab {
         flex-shrink: 0;
         max-width: 220px;
@@ -1197,6 +1204,9 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
         <!-- 比赛 tab 激活时：比赛详情入口 -->
         <a class="rk-comp-entry" id="comp-entry" href="#" style="display:none;">查看该比赛详细信息 ›</a>
 
+        <!-- 总榜口径提示（仅总榜激活时展示） -->
+        <div class="rk-scope-tip" id="scope-tip" style="display:none;">总榜 = 各比赛名次积分实时保底汇总（名次对应积分在比赛详情页配置），不统计对局记分</div>
+
         <!-- Top 3 Podium -->
         <section class="rk-podium" id="podium" aria-label="前三名">
           <div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted-foreground);">加载中…</div>
@@ -1244,7 +1254,7 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
     <script src="./js/cloud.js?v=20260919c"></script>
     <script src="./js/fallback-data.js?v=20261008b"></script>
     <script src="./js/common.js?v=20261013d"></script>
-    <script src="./js/rankings.js?v=20261006a"></script>
+    <script src="./js/rankings.js?v=20261014a"></script>
     <script>lucide.createIcons();</script>
     <script>
     /* 主题切换：更新 <html> class + localStorage 记忆，并广播 themechange 事件 */
