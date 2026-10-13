@@ -315,6 +315,9 @@ window.AppUI = (function () {
       '<button class="acb-btn" data-act="seedNumbered" style="height:34px;padding:0 14px;border:none;border-radius:999px;' +
       'background:var(--primary,#007aff);color:var(--primary-foreground,#fff);font-size:12px;font-weight:700;cursor:pointer;' +
       'box-shadow:0 4px 12px rgba(0,122,255,.28);">追加序号演示赛</button>' +
+      '<button class="acb-btn" data-act="clearNumbered" style="height:34px;padding:0 14px;border-radius:999px;' +
+      'border:1px solid var(--border,#e5e5ea);background:var(--card,#fff);color:var(--foreground,#1d1d1f);' +
+      'font-size:12px;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.06);">删除序号演示赛</button>' +
       '<button class="acb-btn" data-act="clear" style="height:34px;padding:0 14px;border-radius:999px;' +
       'border:1px solid var(--border,#e5e5ea);background:var(--card,#fff);color:var(--foreground,#1d1d1f);' +
       'font-size:12px;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.06);">清除演示数据</button>' +
@@ -364,7 +367,7 @@ window.AppUI = (function () {
     })
 
     async function run(action) {
-      var LABELS = { seed: '生成', seedNumbered: '追加', clear: '清除', clearAll: '清空' }
+      var LABELS = { seed: '生成', seedNumbered: '追加', clearNumbered: '删除', clear: '清除', clearAll: '清空' }
       var label = LABELS[action] || '操作'
       var tip = action === 'clear'
         ? '确定清除全部演示数据？（仅删除 demo 标记数据，不影响正式数据）'
@@ -372,7 +375,9 @@ window.AppUI = (function () {
           ? '高危操作：将清空数据库中全部数据（含真实会员、全部对局与积分流水），仅保留表结构，且不可恢复。确定继续？'
           : action === 'seedNumbered'
             ? '将在现有数据基础上追加一个序号演示赛（选手1-选手32，赛制日程与秋季杯一致），不影响现有数据，继续？'
-            : '将重建全部演示数据（会员/对局/积分流水），约需半分钟，继续？'
+            : action === 'clearNumbered'
+              ? '将删除序号演示赛及其全部相关数据（选手1-选手32 会员、对阵、对局与积分流水），正式名单赛与其他数据不受影响。确定删除？'
+              : '将重建全部演示数据（会员/对局/积分流水），约需半分钟，继续？'
       if (!(await confirmBox(tip, label))) return
       var st = window.AppCloud.status()
       if (!st.sdkReady) {
@@ -401,6 +406,12 @@ window.AppUI = (function () {
           var sn = await call({ action: 'seedNumbered', token: TOKEN })
           paint()
           toast('已追加：' + sn.name + '（' + sn.members + ' 名选手）', 'success')
+        } else if (action === 'clearNumbered') {
+          // 删除序号演示赛相关数据：级联删除比赛/对阵/对局/产物/序号会员，单步云调用完成
+          text.textContent = '正在删除序号演示赛…'
+          var cn = await call({ action: 'clearNumbered', token: TOKEN })
+          paint()
+          toast('已删除序号演示赛：会员 ' + cn.members + ' / 对阵 ' + cn.fixtures + ' / 对局 ' + cn.matches + ' / 流水 ' + cn.points_logs, 'success')
         } else {
           // 分步编排：clear → begin → match×N → finish（每步 1 次云调用，绕开函数 3s 超时限制）
           text.textContent = '正在清空旧演示数据 (1/4)…'
