@@ -11,8 +11,9 @@ window.CompAdmin = (function () {
 
   var ctx = { getComp: null, onChanged: null }
   var authing = false // 授权弹窗是否打开（防止并发创建会话）
-  var pendingAction = null // 授权完成后要执行的动作：'edit' | 'import' | 'days' | 'draw' | 'redraw' | 'drawcfg' | 'reorder'
+  var pendingAction = null // 授权完成后要执行的动作：'edit' | 'import' | 'days' | 'draw' | 'redraw' | 'drawcfg' | 'reorder' | 'advance'
   var pendingFixture = null // reorder 动作的目标对阵
+  var pendingGroup = null // advance 动作的目标小组（group_no）
 
   // ---------- 弹窗样式（单源注入，页面无需内联） ----------
   function ensureStyle() {
@@ -246,6 +247,10 @@ window.CompAdmin = (function () {
       var f = pendingFixture
       pendingFixture = null
       if (f) openReorderModal(f)
+    } else if (action === 'advance') {
+      var g = pendingGroup
+      pendingGroup = null
+      if (g) openAdvanceModal(g)
     }
   }
 
@@ -755,6 +760,105 @@ window.CompAdmin = (function () {
     }
   }
 
+  // ---------- 调整晋级名单 ----------
+  // 小组赛制：小组完赛后系统按积分自动推断前 N 名晋级（advanceFixtures 随赛况填充淘汰赛对阵），
+  // 本动作允许管理员/裁判手动覆盖名次名单；保存走 advanceFixtures action='set_override'，
+  // 云端校验小组已完赛 + 名单为本组选手 + 引用对阵未开打，并同步重写引用对阵的实名选手
+  function openAdvance(groupNo) {
+    if (!groupNo) return
+    if (readAuth()) { openAdvanceModal(groupNo); return }
+    pendingGroup = groupNo
+    startAuth('advance')
+  }
+
+  function openAdvanceModal(groupNo) {
+    var comp = ctx.getComp ? (ctx.getComp() || {}) : {}
+    var card = openModal('调整晋级名单（' + groupNo + '组）', function (body) {
+      body.innerHTML = '<div class="wa-rs-loading" id="wa-adv-loading">正在加载小组积分…</div>' +
+        '<div id="wa-adv-body" style="display:none;"></div>' +
+        '<div class="wa-foot" id="wa-adv-foot" style="display:none;">' +
+        '<button class="btn btn-secondary" id="wa-adv-clear" type="button" style="display:none;">恢复自动推断</button>' +
+        '<button class="btn btn-primary" id="wa-adv-save" type="button">保存</button></div>'
+    })
+    window.AppCloud.call('getFixtures', { competition_id: comp._id }).then(function (d) {
+      var g = (d.group_standings || []).find(function (x) { return x.group_no === groupNo })
+      var body = card.querySelector('.wa-body')
+      if (!g) {
+        body.querySelector('#wa-adv-loading').textContent = '未找到该小组积分数据'
+        return
+      }
+      body.querySelector('#wa-adv-loading').style.display = 'none'
+      var bodyEl = body.querySelector('#wa-adv-body')
+      bodyEl.style.display = ''
+      body.querySelector('#wa-adv-foot').style.display = ''
+      var statOf = {}
+      g.rows.forEach(function (p) { statOf[p.id] = p.wins + ' 胜 · 净' + (p.net >= 0 ? '+' : '') + p.net })
+      // 预选名单：手动覆盖 > 自动推断 > 当前暂列
+      var preset = (g.advancing && g.advancing.length ? g.advancing : g.provisional).map(function (p) { return p.id })
+      var optionsHtml = g.rows.map(function (p) {
+        return '<option value="' + U.escapeHtml(p.id) + '">' + U.escapeHtml(p.name) + '（' + statOf[p.id] + '）</option>'
+      }).join('')
+      var selHtml = ''
+      for (var r = 1; r <= g.advance; r++) {
+        selHtml += '<label class="wa-field"><span class="wa-label">第 ' + r + ' 名（晋级）</span>' +
+          '<select class="wa-input wa-adv-sel" data-rank="' + r + '">' + optionsHtml + '</select></label>'
+      }
+      bodyEl.innerHTML =
+        '<div class="wa-days-tip">' + groupNo + ' 组共 ' + g.rows.length + ' 人，出线 <b>' + g.advance + '</b> 席；' +
+        '按名次选择晋级选手，保存后引用该组名次的淘汰赛对阵同步更新实名。' +
+        (g.overridden ? '<br>当前名单为<b>手动调整</b>结果，可点「恢复自动推断」回到积分榜名次。' : '') + '</div>' + selHtml
+      // 预选值落到下拉框
+      bodyEl.querySelectorAll('.wa-adv-sel').forEach(function (sel, i) {
+        if (preset[i]) sel.value = preset[i]
+      })
+      if (g.overridden) body.querySelector('#wa-adv-clear').style.display = ''
+      body.querySelector('#wa-adv-save').addEventListener('click', function () { saveAdvance(card, groupNo, false) })
+      body.querySelector('#wa-adv-clear').addEventListener('click', function () { saveAdvance(card, groupNo, true) })
+    }).catch(function (e) {
+      var loading = card.querySelector('#wa-adv-loading')
+      if (loading) loading.textContent = e.message || '小组积分加载失败'
+    })
+  }
+
+  async function saveAdvance(card, groupNo, clear) {
+    var comp = ctx.getComp ? (ctx.getComp() || {}) : {}
+    var auth = readAuth()
+    if (!auth) {
+      U.toast('授权已失效，请重新扫码', 'error')
+      pendingGroup = groupNo
+      startAuth('advance')
+      return
+    }
+    var memberIds = []
+    if (!clear) {
+      card.querySelectorAll('.wa-adv-sel').forEach(function (sel) { memberIds.push(sel.value) })
+      if (new Set(memberIds).size !== memberIds.length) {
+        U.toast('各名次须选择不同选手', 'error')
+        return
+      }
+    }
+    var btn = clear ? card.querySelector('#wa-adv-clear') : card.querySelector('#wa-adv-save')
+    btn.disabled = true
+    btn.textContent = '保存中…'
+    try {
+      var res = await window.AppCloud.call('advanceFixtures', {
+        action: 'set_override',
+        competition_id: comp._id,
+        group_no: groupNo,
+        member_ids: memberIds,
+        web_token: auth.token
+      })
+      closeModal()
+      var names = (res && res.advancing || []).map(function (p) { return p.name }).join('、')
+      U.toast(clear ? '已恢复自动推断' : ('晋级名单已保存：' + names), 'success')
+      if (typeof ctx.onChanged === 'function') ctx.onChanged()
+    } catch (e) {
+      btn.disabled = false
+      btn.textContent = clear ? '恢复自动推断' : '保存'
+      if (!handleAuthError(e)) U.toast('保存失败：' + (e.message || e), 'error')
+    }
+  }
+
   // ---------- 抽签条件 ----------
   // 小组赛制抽签自定义条件（随下次抽签/重抽生效）：
   // ① 选手不可参赛日期——避免分入对应日期有赛程的组别；② 队友分区——两人分入上下半区，小组赛不相遇
@@ -1046,5 +1150,5 @@ window.CompAdmin = (function () {
     if (drawcfgBtn) drawcfgBtn.addEventListener('click', function () { startAuth('drawcfg') })
   }
 
-  return { init: init, openReorder: openReorder }
+  return { init: init, openReorder: openReorder, openAdvance: openAdvance }
 })()

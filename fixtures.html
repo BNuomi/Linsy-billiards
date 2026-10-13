@@ -1234,6 +1234,12 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
           <div id="fx-roster"></div>
         </section>
 
+        <!-- 小组积分榜 · 晋级名单（小组赛制抽签完成后展示） -->
+        <section class="section" id="fx-adv-section" style="display:none;">
+          <div class="section-eyebrow">小组积分榜 · 晋级名单</div>
+          <div class="fx-adv-grid" id="fx-adv"></div>
+        </section>
+
         <!-- 比赛日 -->
         <section class="section" id="fx-days-section" style="display:none;">
           <div class="section-eyebrow fx-days-head">
@@ -1385,6 +1391,45 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
         .fx-resched:hover { color: var(--primary); border-color: var(--primary); background: rgba(0, 113, 227, 0.08); }
         .fx-teams { display: flex; flex-wrap: wrap; gap: 6px; margin-top: calc(var(--spacing) * 2); }
         .fx-team { font-size: 11px; font-weight: 600; color: var(--primary); background: rgba(0, 113, 227, 0.08); border-radius: 999px; padding: 2px 10px; }
+        /* 小组积分榜 · 晋级名单 */
+        .fx-adv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: calc(var(--spacing) * 3); }
+        .fx-stand-card {
+          background: var(--card); border: 1px solid var(--border);
+          border-radius: var(--radius); box-shadow: var(--shadow-sm);
+          padding: calc(var(--spacing) * 3) calc(var(--spacing) * 4);
+        }
+        html.dark .fx-stand-card { background: linear-gradient(145deg, #2c2c2e, #262628); border-color: rgba(58,58,60,0.5); }
+        .fx-stand-head { display: flex; align-items: center; gap: 8px; margin-bottom: calc(var(--spacing) * 2); }
+        .fx-stand-title { font-size: 13px; font-weight: 700; color: var(--foreground); }
+        .fx-stand-meta { flex: 1; font-size: 11px; color: var(--muted-foreground); }
+        .fx-adv-edit {
+          display: inline-flex; align-items: center; gap: 4px; border: none; cursor: pointer;
+          font-size: 11px; font-weight: 600; color: var(--primary);
+          background: rgba(0, 113, 227, 0.08); border-radius: 999px; padding: 3px 10px;
+        }
+        .fx-adv-edit:hover { background: rgba(0, 113, 227, 0.14); }
+        .fx-adv-edit i { width: 11px; height: 11px; }
+        .fx-stand-rows { display: flex; flex-direction: column; }
+        .fx-stand-row {
+          display: flex; align-items: center; gap: 8px; padding: 6px 8px;
+          font-size: 13px; color: var(--foreground); border-radius: 8px;
+        }
+        .fx-stand-row + .fx-stand-row { border-top: 1px solid var(--border); }
+        .fx-stand-row.is-adv { background: rgba(22, 163, 74, 0.06); }
+        html.dark .fx-stand-row.is-adv { background: rgba(22, 163, 74, 0.12); }
+        .fx-stand-rank {
+          flex: none; width: 20px; height: 20px; border-radius: 999px; font-size: 11px; font-weight: 700;
+          display: inline-flex; align-items: center; justify-content: center;
+          color: var(--muted-foreground); background: var(--secondary);
+        }
+        .fx-stand-row.is-adv .fx-stand-rank { color: #fff; background: #16a34a; }
+        .fx-stand-name { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .fx-stand-stat { flex: 1; font-size: 12px; color: var(--muted-foreground); white-space: nowrap; }
+        .fx-stand-chip {
+          flex: none; font-size: 10px; font-weight: 700; border-radius: 999px; padding: 1px 8px;
+          color: #16a34a; background: rgba(22, 163, 74, 0.12);
+        }
+        .fx-stand-chip.is-provisional { color: var(--muted-foreground); background: var(--secondary); }
       </style>
 
       <!-- Footer -->

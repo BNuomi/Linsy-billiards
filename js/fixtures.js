@@ -277,6 +277,41 @@
     var drawcfgBtn = el('fx-drawcfg-btn')
     if (drawcfgBtn) drawcfgBtn.style.display = gk ? '' : 'none'
 
+    // 小组积分榜 · 晋级名单（小组赛制）：小组完赛自动推断前 adv 名晋级；手动调整的名单带「手动」标记
+    var compDone0 = !!(comp.end_date && todayStr() > comp.end_date)
+    var standings = d.group_standings || []
+    if (gk && standings.length) {
+      el('fx-adv').innerHTML = standings.map(function (g) {
+        var chipOf = function (i) {
+          if (!g.complete && !g.played_matches) return ''
+          if (i < g.advance) {
+            return g.complete
+              ? '<span class="fx-stand-chip">' + (g.overridden ? '晋级 · 手动' : '晋级') + '</span>'
+              : '<span class="fx-stand-chip is-provisional">暂列</span>'
+          }
+          return ''
+        }
+        var rowsHtml = g.rows.map(function (p, i) {
+          return '<div class="fx-stand-row' + (i < g.advance && (g.complete || g.played_matches) ? ' is-adv' : '') + '">' +
+            '<span class="fx-stand-rank">' + (i + 1) + '</span>' +
+            '<span class="fx-stand-name">' + U.escapeHtml(p.name) + '</span>' +
+            '<span class="fx-stand-stat">' + p.wins + ' 胜 · 净' + (p.net >= 0 ? '+' : '') + p.net + '</span>' +
+            chipOf(i) + '</div>'
+        }).join('')
+        var meta = g.complete ? '小组赛已完赛' : (g.played_matches ? '进行中 ' + g.played_matches + '/' + g.total_matches + ' 场' : '尚未开赛')
+        var editBtn = (g.complete && !compDone0)
+          ? '<button class="fx-adv-edit" type="button" data-group="' + U.escapeHtml(g.group_no) + '"><i data-lucide="pencil"></i>调整晋级</button>'
+          : ''
+        return '<div class="fx-stand-card">' +
+          '<div class="fx-stand-head"><span class="fx-stand-title">' + U.escapeHtml(g.group_no) + '组</span>' +
+          '<span class="fx-stand-meta">' + meta + '</span>' + editBtn + '</div>' +
+          '<div class="fx-stand-rows">' + rowsHtml + '</div></div>'
+      }).join('')
+      el('fx-adv-section').style.display = ''
+    } else {
+      el('fx-adv-section').style.display = 'none'
+    }
+
     // 比赛日
     var days = comp.match_days || []
     if (days.length) {
@@ -463,6 +498,12 @@
       if (!btn || !window.CompAdmin || typeof window.CompAdmin.openReorder !== 'function') return
       var f = FX_BY_ID[btn.getAttribute('data-fixture-id')]
       if (f) window.CompAdmin.openReorder(f)
+    })
+    // 晋级名单「调整晋级」（扫码鉴权由 CompAdmin 处理）
+    el('fx-adv').addEventListener('click', function (ev) {
+      var btn = ev.target.closest('.fx-adv-edit')
+      if (!btn || !window.CompAdmin || typeof window.CompAdmin.openAdvance !== 'function') return
+      window.CompAdmin.openAdvance(btn.getAttribute('data-group'))
     })
     load()
   })
