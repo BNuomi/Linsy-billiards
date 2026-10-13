@@ -826,11 +826,12 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
         <section class="doc-hero">
           <div class="eyebrow" style="color: var(--primary); font-weight:700;">POINTS SYSTEM</div>
           <h1 class="title" style="font-size: 36px; margin: 8px 0 0; line-height:1.15;">积分说明</h1>
-          <p class="body-copy" style="margin-top: 12px; max-width: 680px; font-size: 15px; color: var(--muted-foreground); line-height: 1.8;">本页整理当前应用的积分结算规则（算法版本 v2.3）：中八三种模式的胜负结算、九球追分的净胜分折算与球数难度系数，以及排名统计口径。所有规则由积分引擎统一执行，保证全员口径一致。</p>
+          <p class="body-copy" style="margin-top: 12px; max-width: 680px; font-size: 15px; color: var(--muted-foreground); line-height: 1.8;">本页整理当前应用的积分结算规则（算法版本 v2.3）：中八三种模式的胜负结算、九球追分的净胜分折算与球数难度系数、总榜的名次积分汇总口径，以及排名统计口径。所有规则由积分引擎统一执行，保证全员口径一致。</p>
           <div class="doc-pills">
             <a class="doc-pill" href="#general">总则</a>
             <a class="doc-pill" href="#c8-points">中八积分</a>
             <a class="doc-pill" href="#pursuit-points">九球追分积分</a>
+            <a class="doc-pill" href="#overall-board">总榜 · 名次积分</a>
           </div>
         </section>
         <section class="doc-section" id="general">
@@ -861,8 +862,9 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
             <div class="rule-card">
               <h3><span class="rule-num">4</span>排名口径</h3>
               <ul>
-              <li>积分榜按<strong>总积分降序</strong>排列，赛季口径为<strong>每年 9 月至次年 8 月</strong></li>
-              <li>胜率 = 胜场 ÷ 总场次；九球追分按净胜分判胜/平/负计入战绩</li>
+              <li>总榜 = 各比赛<strong>名次积分</strong>实时保底汇总，<strong>不统计对局记分</strong>（详见下方「总榜 · 名次积分」）</li>
+              <li>中八榜 / 九球榜 / 单场比赛榜按<strong>对局积分</strong>降序；胜率 = 胜场 ÷ 总场次，九球追分按净胜分判胜/平/负</li>
+              <li>排行榜页顶赛季标签按<strong>每年 9 月至次年 8 月</strong>轮换展示</li>
               </ul>
             </div>
           </div>
@@ -913,7 +915,36 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
             </div>
           </div>
         </section>
-        <div class="doc-note">说明：本页参数与积分引擎配置（algo v2.3）保持一致；后续如有调整，将升级算法版本号并体现在新增积分流水中，历史流水仍按原版本追溯。个人积分明细可在「会员详情」页查看。</div>
+        <section class="doc-section" id="overall-board">
+          <div class="doc-section-head"><span class="doc-badge">总榜</span><h2 class="title" style="font-size:24px;margin:0;">总榜 · 名次积分</h2></div>
+          <p class="doc-sub">总榜不再统计对局记分，改为选手在各比赛获得名次对应积分的实时保底汇总：每个比赛单独配置名次积分方案，未配置方案的比赛不计入总榜。</p>
+          <div class="rule-grid">
+            <div class="rule-card">
+              <h3><span class="rule-num">1</span>名次积分方案</h3>
+              <ul>
+              <li>每场比赛可配置七档分值：<strong>冠军 / 亚军 / 季军 / 第四 / 8强(5-8名) / 16强(9-16名) / 其他</strong>，各档填 0-999 整数</li>
+              <li>由管理员/裁判在「比赛详情 → 编辑」面板配置；<strong>全部留空则该比赛不计入总榜</strong></li>
+              <li>年度赛积分等级最高，参考配置：冠军 100、亚军 80、季军 60、第四 40、8强 30、16强 20、其他 10</li>
+              </ul>
+            </div>
+            <div class="rule-card">
+              <h3><span class="rule-num">2</span>实时保底口径</h3>
+              <ul>
+              <li>选手被淘汰即<strong>锁定</strong>对应名次档积分</li>
+              <li>仍在赛的选手按当前最深一轮对阵的负者档<strong>保底</strong>计入（如半决赛选手保底第四/季军），随赛程深入自动上涨，无需等比赛全部结束</li>
+              <li>有季军赛时半决赛负者保底第四，无季军赛则并列季军；仅出战小组赛/附加赛按「其他」档</li>
+              </ul>
+            </div>
+            <div class="rule-card">
+              <h3><span class="rule-num">3</span>与对局积分的关系</h3>
+              <ul>
+              <li>对局积分（上方中八/九球规则）仍每场正常结算，用于<strong>中八榜、九球榜、单场比赛榜</strong>与会员详情的积分明细</li>
+              <li>总榜的胜负 / 胜率 / 清台 / 趋势列不受影响，仅「总积分」列改按名次积分汇总</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+        <div class="doc-note">说明：本页参数与积分引擎配置（algo v2.3）保持一致；后续如有调整，将升级算法版本号并体现在新增积分流水中，历史流水仍按原版本追溯。各比赛的名次积分方案见对应「比赛详情」页；个人积分明细可在「会员详情」页查看。</div>
       </div>
 
       <footer class="rk-footer">
