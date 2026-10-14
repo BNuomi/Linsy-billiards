@@ -6,7 +6,8 @@
     { key: 'c8', label: '中八' },
     { key: 'nine_ball', label: '九球' }
   ]
-  var state = { list: [], filter: 'all', keyword: '', scopeKey: 'overall', scopeTabs: BASE_TABS.slice() }
+  var state = { list: [], filter: 'all', keyword: '', scopeKey: 'overall', scopeTabs: BASE_TABS.slice(), page: 1 }
+  var PAGE_SIZE = 20 // 总榜分页大小（仅总榜分页，维度榜全量展示）
   var U = window.AppUI
 
   function el(id) { return document.getElementById(id) }
@@ -68,6 +69,7 @@
         var key = btn.getAttribute('data-key')
         if (!key || key === state.scopeKey) return
         state.scopeKey = key
+        state.page = 1
         box.querySelectorAll('.rk-scope-tab').forEach(function (b) { b.classList.remove('is-active') })
         btn.classList.add('is-active')
         renderCompEntry()
@@ -182,12 +184,18 @@
     var tbody = el('ranking-tbody')
     if (!tbody) return
     var rows = filtered()
-    if (!rows.length) {
+    // 仅总榜分页（一页 20 条）；搜索/筛选/切换维度时 page 已重置为 1，此处仅做越界钳制
+    var paged = state.scopeKey === 'overall'
+    var totalPages = paged ? Math.max(1, Math.ceil(rows.length / PAGE_SIZE)) : 1
+    if (state.page > totalPages) state.page = totalPages
+    var view = paged ? rows.slice((state.page - 1) * PAGE_SIZE, state.page * PAGE_SIZE) : rows
+    renderPager(totalPages, rows.length, paged)
+    if (!view.length) {
       tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--muted-foreground);">没有符合条件的会员</td></tr>'
       refreshIcons()
       return
     }
-    tbody.innerHTML = rows.map(function (m) {
+    tbody.innerHTML = view.map(function (m) {
       var badge = m.rank <= 3
         ? '<span class="rank-badge ' + ['gold', 'silver', 'bronze'][m.rank - 1] + '">' + m.rank + '</span>'
         : String(m.rank)
@@ -203,6 +211,20 @@
     }).join('')
     bindMemberLinks(tbody)
     refreshIcons()
+  }
+
+  // 总榜分页条：≤20 人（单页）或非总榜维度时隐藏
+  function renderPager(totalPages, totalCount, paged) {
+    var box = el('rk-pagination')
+    if (!box) return
+    if (!paged || totalCount <= PAGE_SIZE) {
+      box.style.display = 'none'
+      return
+    }
+    box.style.display = ''
+    el('rk-page-info').textContent = '第 ' + state.page + ' / ' + totalPages + ' 页 · 共 ' + totalCount + ' 人'
+    el('rk-page-prev').disabled = state.page <= 1
+    el('rk-page-next').disabled = state.page >= totalPages
   }
 
   function bindMemberLinks(root) {
@@ -223,6 +245,7 @@
     if (input) {
       input.addEventListener('input', function () {
         state.keyword = input.value
+        state.page = 1
         renderTable()
       })
       var clear = document.querySelector('.rk-filter-bar .clear')
@@ -230,6 +253,7 @@
         clear.addEventListener('click', function () {
           input.value = ''
           state.keyword = ''
+          state.page = 1
           renderTable()
         })
       }
@@ -241,9 +265,15 @@
         document.querySelectorAll('.rk-pills .rk-pill').forEach(function (p) { p.classList.remove('is-active') })
         pill.classList.add('is-active')
         state.filter = pill.getAttribute('data-filter') || 'all'
+        state.page = 1
         renderTable()
       })
     })
+    // 总榜分页翻页
+    var prev = el('rk-page-prev')
+    var next = el('rk-page-next')
+    if (prev) prev.addEventListener('click', function () { state.page--; renderTable() })
+    if (next) next.addEventListener('click', function () { state.page++; renderTable() })
   }
 
   document.addEventListener('DOMContentLoaded', function () {

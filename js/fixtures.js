@@ -208,28 +208,31 @@
     document.title = (comp.name || '比赛') + '对阵 - 台球协会'
     el('fx-back').href = './competition-detail.html?id=' + encodeURIComponent(comp._id || compId())
 
-    // 报名名单：抽签完成后（存在小组赛对阵）按小组显示，附加赛选手单列；否则平铺 chips
-    el('fx-part-count').textContent = participants.length
+    // 名单区：未抽签平铺报名 chips；抽签完成后改展示晋级名单（每组前 N 名，紧凑一行一组），
+    // 详细积分排名见下方「小组积分榜 · 晋级名单」分区
     var chipsHtml = function (list) {
       return list.map(function (p) { return '<span class="fx-chip">' + U.escapeHtml(p.name) + '</span>' }).join('')
     }
     var roster = groupRosterOf(fixtures, participants)
+    var drawn = !!(roster && participants.length)
+    var standings0 = d.group_standings || []
+    el('fx-part-title').textContent = drawn ? '晋级名单' : '报名名单（' + participants.length + ' 人）'
     var rosterHtml
-    if (roster && participants.length) {
-      rosterHtml = '<div class="fx-groups">' +
-        roster.groups.map(function (g) {
-          return '<div class="fx-group"><div class="fx-group-title">' + U.escapeHtml(g.group_no) + '组（' + g.members.length + '）</div>' +
-            '<div class="fx-chips">' + chipsHtml(g.members) + '</div></div>'
-        }).join('') +
-        (roster.qualifier.length
-          ? '<div class="fx-group fx-group--qualifier"><div class="fx-group-title">附加赛（' + roster.qualifier.length + '）</div>' +
-            '<div class="fx-chips">' + chipsHtml(roster.qualifier) + '</div></div>'
-          : '') +
-        (roster.unassigned.length
-          ? '<div class="fx-group"><div class="fx-group-title">未入组（' + roster.unassigned.length + '）</div>' +
-            '<div class="fx-chips">' + chipsHtml(roster.unassigned) + '</div></div>'
-          : '') +
-        '</div>'
+    if (drawn) {
+      rosterHtml = standings0.length
+        ? '<div class="fx-advsum">' + standings0.map(function (g) {
+            var names
+            if (g.complete || g.played_matches) {
+              names = g.rows.slice(0, g.advance).map(function (p) {
+                return '<span class="fx-chip' + (g.complete ? ' fx-chip--adv' : '') + '">' + U.escapeHtml(p.name) + '</span>'
+              }).join('') + (g.complete ? '' : '<span class="fx-advsum-tbd">暂列</span>')
+            } else {
+              names = '<span class="fx-advsum-tbd">待定</span>'
+            }
+            return '<div class="fx-advsum-row"><span class="fx-advsum-g">' + U.escapeHtml(g.group_no) + '组</span>' +
+              '<span class="fx-advsum-names">' + names + '</span></div>'
+          }).join('') + '</div>'
+        : '<div class="fx-empty-inline">暂无小组数据</div>'
     } else {
       rosterHtml = participants.length
         ? '<div class="fx-chips">' + chipsHtml(participants) + '</div>'
