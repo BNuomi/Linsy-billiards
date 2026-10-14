@@ -6,8 +6,9 @@
     { key: 'c8', label: '中八' },
     { key: 'nine_ball', label: '九球' }
   ]
-  var state = { list: [], filter: 'all', keyword: '', scopeKey: 'overall', scopeTabs: BASE_TABS.slice(), page: 1 }
+  var state = { list: [], filter: 'all', keyword: '', scopeKey: 'overall', scopeTabs: BASE_TABS.slice(), page: 1, expandedTies: {} }
   var PAGE_SIZE = 20 // 总榜分页大小（仅总榜分页，维度榜全量展示）
+  var TIE_COLLAPSE_SIZE = 3 // 并列组折叠阈值：同一名次并列超过 3 人时默认只显示第一行，点击展开栏查看全部
   var U = window.AppUI
 
   function el(id) { return document.getElementById(id) }
@@ -70,6 +71,7 @@
         if (!key || key === state.scopeKey) return
         state.scopeKey = key
         state.page = 1
+        state.expandedTies = {}
         box.querySelectorAll('.rk-scope-tab').forEach(function (b) { b.classList.remove('is-active') })
         btn.classList.add('is-active')
         renderCompEntry()
@@ -141,16 +143,25 @@
   function renderPodium() {
     var box = el('podium')
     if (!box) return
-    var top3 = state.list.slice(0, 3)
-    if (!top3.length) {
+    if (!state.list.length) {
       box.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted-foreground);">暂无数据，点击右下角「生成演示数据」开始体验</div>'
       return
     }
-    var icons = ['crown', 'medal', 'award']
-    box.innerHTML = top3.map(function (m, i) {
+    // 同分并列共享名次：podium 取 rank≤3 全部人选，每档最多展示 3 张卡，超出底部提示
+    var icons = { 1: 'crown', 2: 'medal', 3: 'award' }
+    var perRank = {}
+    var cards = []
+    var overflow = 0
+    state.list.forEach(function (m) {
+      if (m.rank > 3) return
+      perRank[m.rank] = (perRank[m.rank] || 0) + 1
+      if (perRank[m.rank] <= 3) cards.push(m)
+      else overflow++
+    })
+    box.innerHTML = cards.map(function (m) {
       var total = (m.wins || 0) + (m.losses || 0)
-      return '<article class="rk-podium-card rank-' + (i + 1) + '" data-id="' + m._id + '" style="cursor:pointer;">' +
-        '<div class="podium-rank-icon"><i data-lucide="' + icons[i] + '" style="width:28px;height:28px;"></i></div>' +
+      return '<article class="rk-podium-card rank-' + m.rank + '" data-id="' + m._id + '" style="cursor:pointer;">' +
+        '<div class="podium-rank-icon"><i data-lucide="' + icons[m.rank] + '" style="width:28px;height:28px;"></i></div>' +
         '<div class="podium-name">' + U.escapeHtml(m.name || '未命名') + '</div>' +
         '<div class="podium-points">' + (m.points != null ? m.points : 0) + '</div>' +
         '<div class="podium-points-label">总积分</div>' +
@@ -159,7 +170,9 @@
         '<div class="podium-meta-item"><div class="podium-meta-value">' + total + '</div><div class="podium-meta-label">对战场次</div></div>' +
         '<div class="podium-meta-item"><div class="podium-meta-value">' + (m.clears || 0) + '</div><div class="podium-meta-label">一杆清台</div></div>' +
         '</div></article>'
-    }).join('')
+    }).join('') + (overflow > 0
+      ? '<div class="podium-tie-note">另有 ' + overflow + ' 人并列前三名，可在下方榜单展开查看</div>'
+      : '')
     bindMemberLinks(box)
     refreshIcons()
   }
@@ -184,6 +197,9 @@
     var tbody = el('ranking-tbody')
     if (!tbody) return
     var rows = filtered()
+    // 每个名次档的完整并列人数（跨分页保持「共 X 人」口径一致）
+    var tieCount = {}
+    rows.forEach(function (m) { tieCount[m.rank] = (tieCount[m.rank] || 0) + 1 })
     // 仅总榜分页（一页 20 条）；搜索/筛选/切换维度时 page 已重置为 1，此处仅做越界钳制
     var paged = state.scopeKey === 'overall'
     var totalPages = paged ? Math.max(1, Math.ceil(rows.length / PAGE_SIZE)) : 1
@@ -195,12 +211,19 @@
       refreshIcons()
       return
     }
-    tbody.innerHTML = view.map(function (m) {
+    // 并列组 >3 人折叠：组首行后渲染展开栏，其余行仅在展开时输出
+    var html = ''
+    for (var i = 0; i < view.length; i++) {
+      var m = view[i]
+      var size = tieCount[m.rank] || 1
+      var collapsible = size > TIE_COLLAPSE_SIZE
+      var prevSame = i > 0 && view[i - 1].rank === m.rank
+      if (collapsible && prevSame && !state.expandedTies[m.rank]) continue
       var badge = m.rank <= 3
         ? '<span class="rank-badge ' + ['gold', 'silver', 'bronze'][m.rank - 1] + '">' + m.rank + '</span>'
         : String(m.rank)
       var total = (m.wins || 0) + (m.losses || 0)
-      return '<tr data-id="' + m._id + '" style="cursor:pointer;">' +
+      html += '<tr data-id="' + m._id + '" style="cursor:pointer;">' +
         '<td class="col-rank">' + badge + '</td>' +
         '<td>' + U.escapeHtml(m.name || '未命名') + '</td>' +
         '<td class="col-points">' + (m.points != null ? m.points : 0) + '</td>' +
@@ -208,7 +231,23 @@
         '<td class="col-clears">' + (m.clears || 0) + '</td>' +
         '<td class="col-winrate">' + (m.winRate || 0) + '%</td>' +
         '<td>' + trendHtml(m) + '</td></tr>'
-    }).join('')
+      if (collapsible && !prevSame) {
+        var open = !!state.expandedTies[m.rank]
+        html += '<tr class="tie-bar" data-tie="' + m.rank + '"><td colspan="7">' +
+          '<i data-lucide="' + (open ? 'chevron-up' : 'chevron-down') + '" style="width:14px;height:14px;"></i>' +
+          '并列第 ' + m.rank + ' 名 · 共 ' + size + ' 人，' + (open ? '点击收起' : '点击展开') +
+          '</td></tr>'
+      }
+    }
+    tbody.innerHTML = html
+    tbody.querySelectorAll('.tie-bar').forEach(function (bar) {
+      bar.addEventListener('click', function (e) {
+        e.stopPropagation()
+        var rank = bar.getAttribute('data-tie')
+        state.expandedTies[rank] = !state.expandedTies[rank]
+        renderTable()
+      })
+    })
     bindMemberLinks(tbody)
     refreshIcons()
   }
@@ -246,6 +285,7 @@
       input.addEventListener('input', function () {
         state.keyword = input.value
         state.page = 1
+        state.expandedTies = {}
         renderTable()
       })
       var clear = document.querySelector('.rk-filter-bar .clear')
@@ -254,6 +294,7 @@
           input.value = ''
           state.keyword = ''
           state.page = 1
+          state.expandedTies = {}
           renderTable()
         })
       }
@@ -266,6 +307,7 @@
         pill.classList.add('is-active')
         state.filter = pill.getAttribute('data-filter') || 'all'
         state.page = 1
+        state.expandedTies = {}
         renderTable()
       })
     })
