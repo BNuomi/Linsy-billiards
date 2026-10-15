@@ -1273,6 +1273,9 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
           <div class="section-eyebrow">赛事积分榜</div>
           <div class="cd-board-wrap">
             <table class="cd-table">
+              <colgroup>
+                <col class="cd-col-rank"><col class="cd-col-name"><col class="cd-col-num"><col class="cd-col-num"><col class="cd-col-num"><col class="cd-col-num">
+              </colgroup>
               <thead>
                 <tr><th>排名</th><th>会员</th><th>榜单积分</th><th>胜 / 总</th><th>一杆清台</th><th>胜率</th></tr>
               </thead>
@@ -1286,6 +1289,9 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
           <div class="section-eyebrow">组队积分榜</div>
           <div class="cd-board-wrap">
             <table class="cd-table">
+              <colgroup>
+                <col class="cd-col-rank"><col class="cd-col-name"><col class="cd-col-num"><col class="cd-col-num"><col class="cd-col-num">
+              </colgroup>
               <thead>
                 <tr><th>排名</th><th>队友组合</th><th>基础分</th><th>组队分</th><th>总分</th></tr>
               </thead>
@@ -1337,9 +1343,22 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
           overflow-x: auto;
         }
         html.dark .cd-board-wrap { background: linear-gradient(145deg, #2c2c2e, #262628); border-color: rgba(58,58,60,0.5); }
-        .cd-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        .cd-table { width: 100%; border-collapse: collapse; font-size: 14px; table-layout: fixed; }
+        /* 字段宽度自适应：排名/数值列按内容定宽，会员列吸收剩余空间并省略号截断 */
+        .cd-table .cd-col-rank { width: 64px; }
+        .cd-table .cd-col-num { width: 92px; }
+        .cd-table .cd-col-name { width: auto; }
         .cd-table th, .cd-table td {
           padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap;
+        }
+        .cd-table td:nth-child(2), .cd-table th:nth-child(2) {
+          overflow: hidden; text-overflow: ellipsis;
+        }
+        @media (max-width: 640px) {
+          .cd-table { font-size: 13px; }
+          .cd-table .cd-col-rank { width: 52px; }
+          .cd-table .cd-col-num { width: 76px; }
+          .cd-table th, .cd-table td { padding: 10px 10px; }
         }
         .cd-table th {
           font-size: 12px; font-weight: 700; color: var(--muted-foreground);
