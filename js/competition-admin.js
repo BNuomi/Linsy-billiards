@@ -267,7 +267,7 @@ window.CompAdmin = (function () {
   // ---------- 编辑比赛信息 ----------
   var EDIT_FIELDS = [
     { key: 'name', label: '比赛名称', type: 'text', required: true, max: 20 },
-    { key: 'game_type', label: '对局类型', type: 'select', options: [['', '未设置'], ['c8', '中八'], ['nine_ball', '九球追分']] },
+    { key: 'game_type', label: '对局类型', type: 'select', options: [['', '未设置'], ['c8', '中八'], ['nine_ball', '九球追分'], ['snooker', '斯诺克']] },
     { key: 'format', label: '赛制（小组赛制仅中八；已抽对阵不可改）', type: 'select', options: [['rounds', '逐轮抽签'], ['groups_knockout', '小组赛+淘汰赛']] },
     { key: 'table_count', label: '同时开赛台数', type: 'number', placeholder: '默认 4' },
     { key: 'group_size', label: '小组人数（小组赛制）', type: 'number', placeholder: '默认 4' },

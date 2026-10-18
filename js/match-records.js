@@ -5,15 +5,17 @@
   var BASE_TABS = [
     { key: 'all', label: '全部' },
     { key: 'c8', label: '中八' },
-    { key: 'nine_ball', label: '九球追分' }
+    { key: 'nine_ball', label: '九球追分' },
+    { key: 'snooker', label: '斯诺克' }
   ]
   var state = { list: [], skip: 0, scopeKey: 'all', scopeTabs: BASE_TABS.slice(), keyword: '', month: '', loading: false, noMore: false }
   var U = window.AppUI
 
   function el(id) { return document.getElementById(id) }
 
-  var GAME_TYPE_LABEL = { c8: '中八', nine_ball: '九球追分' }
+  var GAME_TYPE_LABEL = { c8: '中八', nine_ball: '九球追分', snooker: '斯诺克' }
   var MODE_LABEL = { 1: '翻局', 2: '进球数', 3: '逐杆' }
+  var SN_MODE_LABEL = { 1: '翻局', 2: '比分' }
   var STATUS = {
     finished: { text: '已确认', cls: 'confirmed' },
     ongoing: { text: '进行中', cls: 'pending' },
@@ -114,7 +116,7 @@
   }
 
   function scoreText(m) {
-    if (m.game_type === 'c8' && m.frame_score) {
+    if ((m.game_type === 'c8' || m.game_type === 'snooker') && m.frame_score) {
       return (m.players || []).map(function (p) { return m.frame_score[p] != null ? m.frame_score[p] : 0 }).join(' : ')
     }
     if (m.game_type === 'nine_ball' && m.final_scores) {
@@ -127,7 +129,7 @@
     var st = STATUS[m.status] || STATUS.finished
     var detail = m.players_detail || []
     var playersHtml
-    if (m.game_type === 'c8') {
+    if (m.game_type === 'c8' || m.game_type === 'snooker') {
       playersHtml = detail.map(function (p, i) {
         var winner = m.winner === p._id ? ' winner' : ''
         return (i ? '<span class="vs-label">VS</span>' : '') +
@@ -147,6 +149,10 @@
     var typeLabel = GAME_TYPE_LABEL[m.game_type] || m.game_type
     if (m.game_type === 'c8' && m.mode) typeLabel += ' · ' + (MODE_LABEL[m.mode] || '')
     if (m.game_type === 'nine_ball' && m.ball_count) typeLabel = m.ball_count + '球追分'
+    if (m.game_type === 'snooker') {
+      if (m.red_count) typeLabel += ' · ' + m.red_count + '红'
+      if (m.mode && SN_MODE_LABEL[m.mode]) typeLabel += ' · ' + SN_MODE_LABEL[m.mode]
+    }
     meta += '<span class="status-badge ' + st.cls + '"><span class="dot"></span>' + st.text + '</span>' +
       '<span style="font-size:12px;color:var(--muted-foreground);font-weight:600;">' + typeLabel + '</span>'
     // 关联比赛徽标（对局创建时选中的赛事；点击进比赛详情）+ 阶段徽标（对阵开局落库）

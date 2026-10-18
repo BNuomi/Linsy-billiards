@@ -4,7 +4,7 @@
 ;(function () {
   var U = window.AppUI
 
-  var GAME_TYPE_LABEL = { c8: '中八', nine_ball: '九球追分' }
+  var GAME_TYPE_LABEL = { c8: '中八', nine_ball: '九球追分', snooker: '斯诺克' }
   var PHASE_LABEL = { signup: '报名中', standby: '备战中', live: '进行中', done: '已完成' }
   var PHASE_ORDER = { signup: 0, standby: 1, live: 2, done: 3 }
 

@@ -6,8 +6,9 @@
 
   function el(id) { return document.getElementById(id) }
 
-  var GAME_TYPE_LABEL = { c8: '中八', nine_ball: '九球追分' }
+  var GAME_TYPE_LABEL = { c8: '中八', nine_ball: '九球追分', snooker: '斯诺克' }
   var MODE_LABEL = { 1: '模式一 · 简易翻局', 2: '模式二 · 进球数记录', 3: '模式三 · 逐杆记录' }
+  var SN_MODE_LABEL = { 1: '模式一 · 简易翻局', 2: '模式二 · 单局比分' }
   var SCORE_TYPE_NAMES = {
     kaiqiu_dajin: '开球大金',
     dajin: '大金',
@@ -66,6 +67,11 @@
     }
     if (match.game_type === 'nine_ball') {
       return '初始分 ' + (match.init_score || 100) + ' · 共 ' + (match.round_count || 0) + ' 局'
+    }
+    if (match.game_type === 'snooker') {
+      var snMode = SN_MODE_LABEL[match.mode] || ''
+      return (match.red_count || 15) + '红' + (snMode ? ' · ' + snMode : '') +
+        (match.best_of ? ' · 先抢 ' + match.best_of + ' 局' : '')
     }
     return ''
   }
@@ -149,6 +155,46 @@
     el('md-frames').innerHTML = rows || '<div class="md-empty">暂无逐局记录</div>'
     var clearTotal = (frames || []).filter(function (f) { return f.is_clear }).length
     el('md-clear-total').textContent = clearTotal > 0 ? '共 ' + clearTotal + ' 次一杆清台' : ''
+    el('md-frames-section').style.display = ''
+    el('md-rounds-section').style.display = 'none'
+  }
+
+  /* ---------- 斯诺克（players/frame_score/frames 结构与中八一致，无清台/犯规统计） ---------- */
+  function renderSnooker(container, match, members, frames) {
+    var players = (match.players || []).map(function (id) {
+      return {
+        id: id,
+        name: nameOf(members, id),
+        score: (match.frame_score || {})[id] || 0,
+        isWinner: match.winner === id
+      }
+    })
+    el('md-players').innerHTML = players.map(function (p) {
+      return '<div class="md-player-card' + (p.isWinner ? ' is-winner' : '') + '">' +
+        '<div class="md-player-head">' +
+          '<span class="md-player-name">' + U.escapeHtml(p.name) + '</span>' +
+          (p.isWinner ? '<span class="md-winner-tag"><i data-lucide="trophy" style="width:12px;height:12px;"></i>胜方</span>' : '') +
+        '</div>' +
+        '<div class="md-player-score">' + p.score + '</div>' +
+        '<div class="md-player-meta">' + (match.status === 'ongoing' ? '当前局分' : '终场局分') + '</div>' +
+      '</div>'
+    }).join('')
+
+    var rows = (frames || []).map(function (f) {
+      // 模式二补充单局比分（胜方分 : 负方分）
+      var detail = ''
+      if (match.mode === 2 && typeof f.score_winner === 'number') {
+        detail = f.score_winner + ' : ' + f.score_loser
+      }
+      return '<div class="md-frame-row">' +
+        '<span class="md-frame-seq">第 ' + f.seq + ' 局</span>' +
+        '<span class="md-frame-winner">' + U.escapeHtml(nameOf(members, f.winner)) + '</span>' +
+        '<span></span>' +
+        (detail ? '<span class="md-frame-detail">' + detail + '</span>' : '<span></span>') +
+      '</div>'
+    }).join('')
+    el('md-frames').innerHTML = rows || '<div class="md-empty">暂无逐局记录</div>'
+    el('md-clear-total').textContent = ''
     el('md-frames-section').style.display = ''
     el('md-rounds-section').style.display = 'none'
   }
@@ -265,6 +311,8 @@
     el('md-players-section').style.display = ''
     if (match.game_type === 'c8') {
       renderC8(el('md-players'), match, members, data.frames || [], data.shots || [])
+    } else if (match.game_type === 'snooker') {
+      renderSnooker(el('md-players'), match, members, data.frames || [])
     } else if (match.game_type === 'nine_ball') {
       renderPursuit(el('md-players'), match, members, data.rounds || [])
     }

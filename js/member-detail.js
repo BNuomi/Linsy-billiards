@@ -174,7 +174,7 @@
     })
     var scoreText = ''
     var resultHtml = ''
-    if (m.game_type === 'c8' && m.frame_score) {
+    if ((m.game_type === 'c8' || m.game_type === 'snooker') && m.frame_score) {
       scoreText = order.map(function (p) { return m.frame_score[p] != null ? m.frame_score[p] : 0 }).join(' : ')
       var win = m.winner === selfId
       resultHtml = '<span class="match-result ' + (win ? 'win">胜' : 'lose">负') + '</span>'
@@ -191,7 +191,9 @@
     }
     var d = m.my_delta || 0
     var dCls = d >= 0 ? 'positive' : 'negative'
-    var typeTag = m.game_type === 'nine_ball' && m.ball_count ? ' · ' + m.ball_count + '球' : ''
+    var typeTag = m.game_type === 'nine_ball' && m.ball_count
+      ? ' · ' + m.ball_count + '球'
+      : (m.game_type === 'snooker' ? ' · 斯诺克' + (m.red_count ? ' ' + m.red_count + '红' : '') : '')
     return '<div class="match-row">' +
       '<span class="match-date">' + U.fmtDate(m.created_at) + '</span>' +
       '<span class="match-opponent">vs ' + U.escapeHtml(others.map(function (p) { return p.name }).join(' / ')) + typeTag + '</span>' +

@@ -4,7 +4,8 @@
   var BASE_TABS = [
     { key: 'overall', label: '总榜' },
     { key: 'c8', label: '中八' },
-    { key: 'nine_ball', label: '九球' }
+    { key: 'nine_ball', label: '九球' },
+    { key: 'snooker', label: '斯诺克' }
   ]
   var state = { list: [], filter: 'all', keyword: '', scopeKey: 'overall', scopeTabs: BASE_TABS.slice(), page: 1, expandedTies: {} }
   var PAGE_SIZE = 20 // 总榜分页大小（仅总榜分页，维度榜全量展示）

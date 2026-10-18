@@ -70,7 +70,7 @@
     }
 
     // 基本信息行（仅展示非空字段）
-    var GAME_TYPE_LABEL = { c8: '中八', nine_ball: '九球追分' }
+    var GAME_TYPE_LABEL = { c8: '中八', nine_ball: '九球追分', snooker: '斯诺克' }
     var rows = []
     if (comp.game_type) rows.push(['对局类型', GAME_TYPE_LABEL[comp.game_type] || comp.game_type])
     // 赛制行：小组赛制展示分组/出线/台数；逐轮抽签仅在显式设置时展示
