@@ -180,17 +180,33 @@
       '</div>'
     }).join('')
 
+    var BALL_CLS = { 1: 'red', 2: 'yellow', 3: 'green', 4: 'brown', 5: 'blue', 6: 'pink', 7: 'black' }
+    var ids = match.players || []
     var rows = (frames || []).map(function (f) {
       // 模式二补充单局比分（胜方分 : 负方分）
       var detail = ''
       if (match.mode === 2 && typeof f.score_winner === 'number') {
         detail = f.score_winner + ' : ' + f.score_loser
       }
-      return '<div class="md-frame-row">' +
-        '<span class="md-frame-seq">第 ' + f.seq + ' 局</span>' +
-        '<span class="md-frame-winner">' + U.escapeHtml(nameOf(members, f.winner)) + '</span>' +
-        '<span></span>' +
-        (detail ? '<span class="md-frame-detail">' + detail + '</span>' : '<span></span>') +
+      // 模式二进球流水 chips（events 落库为 player id，side 按 players 顺序还原）
+      var flow = ''
+      if (Array.isArray(f.events) && f.events.length > 0) {
+        flow = '<div class="md-frame-flow">' + f.events.map(function (ev) {
+          var dotCls = ev.type === 'foul' ? 'foul' : (BALL_CLS[ev.pts] || 'red')
+          return '<span class="md-flow-chip' + (ev.player !== ids[0] ? ' md-flow-chip--b' : '') + '">' +
+            '<i class="md-flow-chip__dot md-flow-chip__dot--' + dotCls + '"></i>' +
+            (ev.type === 'foul' ? '<em class="md-flow-chip__label">犯</em>' : '') +
+            '<b class="md-flow-chip__pts">+' + ev.pts + '</b>' +
+          '</span>'
+        }).join('') + '</div>'
+      }
+      return '<div class="md-frame-block">' +
+        '<div class="md-frame-row">' +
+          '<span class="md-frame-seq">第 ' + f.seq + ' 局</span>' +
+          '<span class="md-frame-winner">' + U.escapeHtml(nameOf(members, f.winner)) + '</span>' +
+          '<span></span>' +
+          (detail ? '<span class="md-frame-detail">' + detail + '</span>' : '<span></span>') +
+        '</div>' + flow +
       '</div>'
     }).join('')
     el('md-frames').innerHTML = rows || '<div class="md-empty">暂无逐局记录</div>'

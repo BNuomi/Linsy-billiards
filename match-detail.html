@@ -1325,6 +1325,27 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
         }
         .md-frame-clear.on { background: var(--success); color: var(--success-foreground); }
         html.dark .md-frame-clear.on { background: var(--primary); color: var(--primary-foreground); }
+        /* 斯诺克模式二：本局进球流水 chips（A 蓝 / B 橙） */
+        .md-frame-block { display: flex; flex-direction: column; gap: 6px; }
+        .md-frame-flow { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 4px; }
+        .md-flow-chip {
+          display: inline-flex; align-items: center; gap: 5px;
+          height: 22px; padding: 0 8px; border-radius: 999px;
+          border: 1px solid var(--primary); background: var(--accent);
+        }
+        .md-flow-chip--b { border-color: #c66a00; background: #fff3e0; }
+        html.dark .md-flow-chip--b { background: rgba(198,106,0,0.18); }
+        .md-flow-chip__dot { width: 10px; height: 10px; border-radius: 50%; box-shadow: inset 0 -2px 3px rgba(0,0,0,0.25); }
+        .md-flow-chip__dot--red { background: #c1272d; }
+        .md-flow-chip__dot--yellow { background: #d9a400; }
+        .md-flow-chip__dot--green { background: #1a7a35; }
+        .md-flow-chip__dot--brown { background: #7a4a21; }
+        .md-flow-chip__dot--blue { background: #1256a0; }
+        .md-flow-chip__dot--pink { background: #e07a9a; }
+        .md-flow-chip__dot--black { background: #1d1f24; }
+        .md-flow-chip__dot--foul { background: var(--destructive); border-radius: 3px; }
+        .md-flow-chip__label { font-size: 11px; font-weight: 700; font-style: normal; color: var(--destructive); }
+        .md-flow-chip__pts { font-family: var(--font-mono); font-size: 12px; font-weight: 700; color: var(--foreground); }
         /* 模式三：逐杆进球（双方本局进球球号 + 未进数） */
         .md-frame-row--m3 { grid-template-columns: 56px 1fr auto; align-items: start; }
         .md-m3-lines { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
