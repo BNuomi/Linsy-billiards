@@ -90,11 +90,11 @@
     }
   }
 
-  // ---------- 撤销（二次确认）----------
+  // ---------- 撤销（二次确认：图标态 ↺ → 确认态「确认?」变红，3s 超时恢复）----------
   function disarmUndo() {
     state.undoArmed = false
     var btn = el('btn-undo')
-    btn.textContent = '撤销上一次'
+    btn.textContent = '↺'
     btn.classList.remove('is-confirm')
     if (state.undoTimer) { clearTimeout(state.undoTimer); state.undoTimer = null }
   }
@@ -104,7 +104,7 @@
     if (!state.undoArmed) {
       state.undoArmed = true
       var btn = el('btn-undo')
-      btn.textContent = '确认撤销？'
+      btn.textContent = '确认?'
       btn.classList.add('is-confirm')
       state.undoTimer = setTimeout(disarmUndo, UNDO_CONFIRM_MS)
       return

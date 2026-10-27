@@ -61,8 +61,9 @@
     }
     .season-line b { color: #98989f; font-weight: 600; }
 
-    /* ---------- 记分按钮 ---------- */
+    /* ---------- 记分按钮（flex-shrink:0 防小屏纵向压缩变形） ---------- */
     .btn-add-main {
+      flex-shrink: 0;
       width: clamp(120px, 42vw, 200px);
       height: clamp(120px, 42vw, 200px);
       border-radius: 50%;
@@ -78,6 +79,7 @@
     }
     .btn-add-main:active { transform: scale(.94); }
     .btn-row {
+      flex-shrink: 0;
       display: flex;
       gap: 12px;
       width: 100%;
@@ -98,18 +100,24 @@
     .btn-add-sub:active { transform: scale(.94); background: #2c2c2e; }
     button:disabled { opacity: .45; pointer-events: none; }
 
+    /* 撤销并入按钮排第三格（参考表盘底部 complication 排布） */
     .btn-undo {
-      margin-top: 4px;
-      border: none;
-      background: transparent;
+      flex: 0 1 110px;
+      height: clamp(56px, 15vw, 72px);
+      border-radius: 18px;
+      border: 1px solid #2c2c2e;
+      background: #1c1c1e;
       color: #8e8e93;
-      font-size: 13px;
-      padding: 10px 18px;
+      font-size: clamp(18px, 5vw, 22px);
+      font-weight: 600;
       cursor: pointer;
+      transition: transform .08s ease, opacity .15s ease;
     }
+    .btn-undo:active { transform: scale(.94); background: #2c2c2e; }
     .btn-undo.is-confirm {
       color: #ff453a;
-      font-weight: 600;
+      border-color: #ff453a;
+      font-size: clamp(14px, 4vw, 17px);
     }
 
     /* ---------- 状态提示 ---------- */
@@ -170,16 +178,18 @@
     }
     .loading-mask.is-hide { display: none; }
 
-    /* 手表等小屏：进一步压缩间距，保证一屏放下全部按钮 */
+    /* 手表等小屏：顶部预留 mini Safari chrome 高度（「关闭+域名」浮层约 70px），
+       内容从遮挡区下方起排；压缩间距保证一屏放下全部按钮 */
     @media (max-width: 250px) {
-      .wrap { padding: 8px 8px 14px; gap: 7px; }
+      .wrap { padding: 76px 8px 14px; gap: 7px; justify-content: flex-start; }
       .member-name { font-size: 11px; }
-      .today-num { font-size: 56px; }
+      .today-num { font-size: 52px; }
       .today-label { font-size: 12px; margin-top: -4px; }
       .season-line { font-size: 10px; margin-bottom: 2px; }
-      .btn-add-main { width: 118px; height: 118px; font-size: 38px; }
-      .btn-add-sub { height: 48px; font-size: 19px; border-radius: 14px; }
-      .btn-undo { font-size: 12px; padding: 7px 14px; }
+      .btn-add-main { width: 108px; height: 108px; font-size: 36px; }
+      .btn-add-sub { height: 48px; font-size: 18px; border-radius: 14px; }
+      .btn-undo { height: 48px; font-size: 17px; border-radius: 14px; }
+      .btn-undo.is-confirm { font-size: 13px; }
     }
   </style>
 </head>
@@ -195,8 +205,8 @@
     <div class="btn-row">
       <button type="button" class="btn-add-sub" data-goals="5">+5</button>
       <button type="button" class="btn-add-sub" data-goals="10">+10</button>
+      <button type="button" class="btn-undo" id="btn-undo">↺</button>
     </div>
-    <button type="button" class="btn-undo" id="btn-undo">撤销上一次</button>
   </div>
 
   <!-- 无 token 引导 -->
@@ -214,6 +224,6 @@
   <div class="loading-mask" id="loading">连接中…</div>
 
   <script src="./js/cloud.js?v=20260919d"></script>
-  <script src="./js/practice.js?v=20261027a"></script>
+  <script src="./js/practice.js?v=20261027b"></script>
 </body>
 </html>
