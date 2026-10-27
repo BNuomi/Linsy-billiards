@@ -1257,10 +1257,22 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
           <div class="eyebrow" style="color: var(--primary); margin-bottom: calc(var(--spacing) * 3);">BILLIARDS ASSOCIATION</div>
           <h1 class="hero-title">对战记录</h1>
           <p class="hero-subtitle">记录每一场精彩对决，追踪会员积分变化，回顾赛季中的高光时刻。</p>
-          <div class="qr-anchor">
-            <button class="btn btn-primary btn-lg" id="create-match">
+          <div class="qr-anchor" style="display:flex;gap:12px;flex-wrap:wrap;">
+            <a class="btn btn-primary btn-lg" href="./match-score.html" style="text-decoration:none;">
               <i data-lucide="plus" style="width:20px;height:20px;"></i>
-              记录新对战
+              网页端记分（中八）
+            </a>
+            <a class="btn btn-primary btn-lg" href="./snooker-score.html" style="text-decoration:none;">
+              <i data-lucide="plus" style="width:20px;height:20px;"></i>
+              网页端记分（斯诺克）
+            </a>
+            <a class="btn btn-primary btn-lg" href="./pursuit-score.html" style="text-decoration:none;">
+              <i data-lucide="plus" style="width:20px;height:20px;"></i>
+              网页端记分（九球追分）
+            </a>
+            <button class="btn btn-secondary btn-lg" id="create-match" style="height:56px;">
+              <i data-lucide="smartphone" style="width:20px;height:20px;"></i>
+              小程序记分
             </button>
             <!-- 小程序码浮层：微信扫码直达「新建对局」（类右键菜单，无遮罩） -->
             <div class="qr-pop" id="qr-pop" role="dialog" aria-modal="false" aria-label="扫码记录新对战">
@@ -1275,7 +1287,7 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
                   <button class="qr-retry" id="qr-retry" type="button">重试</button>
                 </div>
               </div>
-              <div class="qr-tip">对战录入仅在小程序端进行，网页版仅供浏览</div>
+              <div class="qr-tip">中八 / 斯诺克可直接网页端记分；九球追分请在小程序端录入</div>
             </div>
           </div>
         </section>

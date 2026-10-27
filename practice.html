@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <!-- disabled-adaptations=watch：阻止 Apple Watch WebKit 按 320px 渲染再缩小的默认行为，按手表真实宽度渲染 -->
+  <meta name="disabled-adaptations" content="watch">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>练球记录 · 林氏台球协会</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { height: 100%; }
+    body {
+      background: #000;
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      user-select: none;
+      -webkit-user-select: none;
+      overflow-x: hidden;
+    }
+    .wrap {
+      width: 100%;
+      max-width: 420px;
+      min-height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 16px 14px 24px;
+      gap: 10px;
+    }
+
+    /* ---------- 顶部：会员与计数 ---------- */
+    .member-name {
+      font-size: 13px;
+      color: #8e8e93;
+      font-weight: 500;
+      max-width: 90%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .today-num {
+      font-size: clamp(64px, 22vw, 120px);
+      font-weight: 700;
+      line-height: 1.05;
+      font-variant-numeric: tabular-nums;
+      color: #fff;
+    }
+    .today-label {
+      font-size: 14px;
+      color: #8e8e93;
+      margin-top: -6px;
+    }
+    .season-line {
+      font-size: 12px;
+      color: #636366;
+      margin-bottom: 6px;
+    }
+    .season-line b { color: #98989f; font-weight: 600; }
+
+    /* ---------- 记分按钮 ---------- */
+    .btn-add-main {
+      width: clamp(120px, 42vw, 200px);
+      height: clamp(120px, 42vw, 200px);
+      border-radius: 50%;
+      border: none;
+      background: #30d158;
+      color: #04160a;
+      font-size: clamp(40px, 13vw, 64px);
+      font-weight: 700;
+      line-height: 1;
+      cursor: pointer;
+      box-shadow: 0 6px 28px rgba(48, 209, 88, .35);
+      transition: transform .08s ease, opacity .15s ease;
+    }
+    .btn-add-main:active { transform: scale(.94); }
+    .btn-row {
+      display: flex;
+      gap: 12px;
+      width: 100%;
+      justify-content: center;
+    }
+    .btn-add-sub {
+      flex: 0 1 110px;
+      height: clamp(56px, 15vw, 72px);
+      border-radius: 18px;
+      border: 1px solid #2c2c2e;
+      background: #1c1c1e;
+      color: #30d158;
+      font-size: clamp(20px, 6vw, 28px);
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform .08s ease, opacity .15s ease;
+    }
+    .btn-add-sub:active { transform: scale(.94); background: #2c2c2e; }
+    button:disabled { opacity: .45; pointer-events: none; }
+
+    .btn-undo {
+      margin-top: 4px;
+      border: none;
+      background: transparent;
+      color: #8e8e93;
+      font-size: 13px;
+      padding: 10px 18px;
+      cursor: pointer;
+    }
+    .btn-undo.is-confirm {
+      color: #ff453a;
+      font-weight: 600;
+    }
+
+    /* ---------- 状态提示 ---------- */
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 14px;
+      transform: translateX(-50%);
+      max-width: 86vw;
+      padding: 8px 16px;
+      border-radius: 999px;
+      background: #2c2c2e;
+      color: #fff;
+      font-size: 12px;
+      opacity: 0;
+      transition: opacity .2s ease;
+      pointer-events: none;
+      text-align: center;
+      z-index: 99;
+    }
+    .toast.is-show { opacity: 1; }
+    .toast.is-error { background: #ff453a; }
+
+    /* ---------- 无 token 引导屏 ---------- */
+    .guide {
+      display: none;
+      width: 100%;
+      max-width: 420px;
+      min-height: 100%;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 28px 22px;
+      gap: 14px;
+      text-align: center;
+    }
+    .guide.is-show { display: flex; }
+    .guide__title { font-size: 18px; font-weight: 700; }
+    .guide__step {
+      font-size: 13px;
+      color: #98989f;
+      line-height: 1.7;
+      text-align: left;
+    }
+    .guide__step b { color: #fff; }
+
+    /* ---------- 加载遮罩 ---------- */
+    .loading-mask {
+      position: fixed;
+      inset: 0;
+      background: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #8e8e93;
+      font-size: 14px;
+      z-index: 50;
+    }
+    .loading-mask.is-hide { display: none; }
+
+    /* 手表等小屏：进一步压缩间距，保证一屏放下全部按钮 */
+    @media (max-width: 250px) {
+      .wrap { padding: 8px 8px 14px; gap: 7px; }
+      .member-name { font-size: 11px; }
+      .today-num { font-size: 56px; }
+      .today-label { font-size: 12px; margin-top: -4px; }
+      .season-line { font-size: 10px; margin-bottom: 2px; }
+      .btn-add-main { width: 118px; height: 118px; font-size: 38px; }
+      .btn-add-sub { height: 48px; font-size: 19px; border-radius: 14px; }
+      .btn-undo { font-size: 12px; padding: 7px 14px; }
+    }
+  </style>
+</head>
+<body>
+  <!-- 记分主界面 -->
+  <div class="wrap" id="main">
+    <div class="member-name" id="member-name">练球记录</div>
+    <div class="today-num" id="today-num">0</div>
+    <div class="today-label">今日进球</div>
+    <div class="season-line">本赛季 <b id="season-num">0</b> · 总计 <b id="total-num">0</b></div>
+
+    <button type="button" class="btn-add-main" id="btn-add-1" data-goals="1">+1</button>
+    <div class="btn-row">
+      <button type="button" class="btn-add-sub" data-goals="5">+5</button>
+      <button type="button" class="btn-add-sub" data-goals="10">+10</button>
+    </div>
+    <button type="button" class="btn-undo" id="btn-undo">撤销上一次</button>
+  </div>
+
+  <!-- 无 token 引导 -->
+  <div class="guide" id="guide">
+    <div class="guide__title">练球记录</div>
+    <div class="guide__step">
+      <b>1.</b> 打开小程序「我的」页，点「练球记录 · 手表链接」<br>
+      <b>2.</b> 复制专属链接，通过手机「信息」发到手表<br>
+      <b>3.</b> 在手表上点开链接即可记分
+    </div>
+    <div class="guide__step" style="text-align:center;">链接即凭证，请勿转发给他人</div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+  <div class="loading-mask" id="loading">连接中…</div>
+
+  <script src="./js/cloud.js?v=20260919d"></script>
+  <script src="./js/practice.js?v=20261027a"></script>
+</body>
+</html>

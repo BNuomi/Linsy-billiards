@@ -5,7 +5,8 @@
     { key: 'overall', label: '总榜' },
     { key: 'c8', label: '中八' },
     { key: 'nine_ball', label: '九球' },
-    { key: 'snooker', label: '斯诺克' }
+    { key: 'snooker', label: '斯诺克' },
+    { key: 'practice', label: '进球数' }
   ]
   var state = { list: [], filter: 'all', keyword: '', scopeKey: 'overall', scopeTabs: BASE_TABS.slice(), page: 1, expandedTies: {} }
   var PAGE_SIZE = 20 // 总榜分页大小（仅总榜分页，维度榜全量展示）
@@ -98,19 +99,42 @@
   function scopeParams() {
     var key = state.scopeKey
     if (key === 'overall') return {}
+    if (key === 'practice') return { scope: 'practice' }
     if (key.indexOf('comp_') === 0) return { scope: 'competition', competition_id: key.slice(5) }
     return { scope: 'game_type', game_type: key }
   }
 
-  // 积分列文案随维度切换（维度榜展示的是该维度积分，非总积分）；总榜口径提示仅总榜展示
+  // 积分列文案随维度切换（维度榜展示的是该维度积分，非总积分）；总榜/进球数榜展示口径提示
   function renderPointsLabel() {
-    var label = state.scopeKey === 'overall' ? '总积分' : '榜单积分'
+    var isPractice = state.scopeKey === 'practice'
+    var label = state.scopeKey === 'overall' ? '总积分' : isPractice ? '进球数' : '榜单积分'
     var th = el('th-points')
     if (th) th.textContent = label
     var pl = document.querySelectorAll('.podium-points-label')
     pl.forEach(function (n) { n.textContent = label })
+    renderTableHead(isPractice)
     var tip = el('scope-tip')
-    if (tip) tip.style.display = state.scopeKey === 'overall' ? '' : 'none'
+    if (tip) {
+      if (state.scopeKey === 'overall') {
+        tip.textContent = '总榜 = 各比赛名次积分实时保底汇总，不统计对局记分'
+        tip.style.display = ''
+      } else if (isPractice) {
+        tip.textContent = '进球数榜 = 本赛季练球进球累计，与对局积分互不影响'
+        tip.style.display = ''
+      } else {
+        tip.style.display = 'none'
+      }
+    }
+  }
+
+  // 进球数榜表头列切换（排名/会员两列不变）
+  function renderTableHead(isPractice) {
+    var ths = document.querySelectorAll('.rk-table thead th')
+    if (ths.length < 7) return
+    ths[3].textContent = isPractice ? '练球次数' : '胜场 / 总场次'
+    ths[4].textContent = isPractice ? '今日进球' : '清台'
+    ths[5].textContent = isPractice ? '场均' : '胜率'
+    ths[6].textContent = isPractice ? '最近练球' : '趋势'
   }
 
   function renderStats(ov) {
@@ -133,10 +157,12 @@
   function filtered() {
     var kw = state.keyword.trim()
     var monthStart = U.monthStartTs()
+    var isPractice = state.scopeKey === 'practice'
     return state.list.filter(function (m) {
       if (kw && (m.name || '').indexOf(kw) < 0) return false
-      if (state.filter === 'active') return (m.wins || 0) + (m.losses || 0) > 0
-      if (state.filter === 'new') return (m.created_at || 0) >= monthStart
+      // 进球数榜无胜负字段：活跃 = 本赛季有进球；「本月新增」按最近练球时间
+      if (state.filter === 'active') return isPractice ? (m.goals || 0) > 0 : (m.wins || 0) + (m.losses || 0) > 0
+      if (state.filter === 'new') return (isPractice ? (m.last_ts || 0) : (m.created_at || 0)) >= monthStart
       return true
     })
   }
@@ -145,11 +171,14 @@
     var box = el('podium')
     if (!box) return
     if (!state.list.length) {
-      box.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted-foreground);">暂无数据，点击右下角「生成演示数据」开始体验</div>'
+      box.innerHTML = state.scopeKey === 'practice'
+        ? '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted-foreground);">暂无进球记录，记分链接请在小程序「我的」页生成</div>'
+        : '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted-foreground);">暂无数据，点击右下角「生成演示数据」开始体验</div>'
       return
     }
     // 同分并列共享名次：podium 取 rank≤3 全部人选，每档最多展示 3 张卡，超出底部提示
     var icons = { 1: 'crown', 2: 'medal', 3: 'award' }
+    var isPractice = state.scopeKey === 'practice'
     var perRank = {}
     var cards = []
     var overflow = 0
@@ -161,21 +190,37 @@
     })
     box.innerHTML = cards.map(function (m) {
       var total = (m.wins || 0) + (m.losses || 0)
+      var meta = isPractice
+        ? '<div class="podium-meta-item"><div class="podium-meta-value">' + (m.sessions || 0) + '</div><div class="podium-meta-label">练球次数</div></div>' +
+          '<div class="podium-meta-item"><div class="podium-meta-value">+' + (m.today || 0) + '</div><div class="podium-meta-label">今日进球</div></div>' +
+          '<div class="podium-meta-item"><div class="podium-meta-value">' + practiceAvg(m) + '</div><div class="podium-meta-label">场均</div></div>'
+        : '<div class="podium-meta-item"><div class="podium-meta-value">' + (m.winRate || 0) + '%</div><div class="podium-meta-label">胜率</div></div>' +
+          '<div class="podium-meta-item"><div class="podium-meta-value">' + total + '</div><div class="podium-meta-label">对战场次</div></div>' +
+          '<div class="podium-meta-item"><div class="podium-meta-value">' + (m.clears || 0) + '</div><div class="podium-meta-label">一杆清台</div></div>'
       return '<article class="rk-podium-card rank-' + m.rank + '" data-id="' + m._id + '" style="cursor:pointer;">' +
         '<div class="podium-rank-icon"><i data-lucide="' + icons[m.rank] + '" style="width:28px;height:28px;"></i></div>' +
         '<div class="podium-name">' + U.escapeHtml(m.name || '未命名') + '</div>' +
         '<div class="podium-points">' + (m.points != null ? m.points : 0) + '</div>' +
         '<div class="podium-points-label">总积分</div>' +
-        '<div class="podium-meta">' +
-        '<div class="podium-meta-item"><div class="podium-meta-value">' + (m.winRate || 0) + '%</div><div class="podium-meta-label">胜率</div></div>' +
-        '<div class="podium-meta-item"><div class="podium-meta-value">' + total + '</div><div class="podium-meta-label">对战场次</div></div>' +
-        '<div class="podium-meta-item"><div class="podium-meta-value">' + (m.clears || 0) + '</div><div class="podium-meta-label">一杆清台</div></div>' +
-        '</div></article>'
+        '<div class="podium-meta">' + meta + '</div></article>'
     }).join('') + (overflow > 0
       ? '<div class="podium-tie-note">另有 ' + overflow + ' 人并列前三名，可在下方榜单展开查看</div>'
       : '')
     bindMemberLinks(box)
     refreshIcons()
+  }
+
+  // 进球数榜：场均进球（练球次数为 0 时显示 -）
+  function practiceAvg(m) {
+    var n = m.sessions || 0
+    if (!n) return '-'
+    return Math.round(((m.goals || 0) / n) * 10) / 10
+  }
+
+  function practiceLast(m) {
+    if (!m.last_ts) return '—'
+    var d = new Date(m.last_ts)
+    return (d.getMonth() + 1) + '.' + d.getDate()
   }
 
   // 趋势列：按最近一场胜负（win/lose/draw）；v2 起每场积分均为正，不再以积分正负判断
@@ -224,14 +269,25 @@
         ? '<span class="rank-badge ' + ['gold', 'silver', 'bronze'][m.rank - 1] + '">' + m.rank + '</span>'
         : String(m.rank)
       var total = (m.wins || 0) + (m.losses || 0)
-      html += '<tr data-id="' + m._id + '" style="cursor:pointer;">' +
-        '<td class="col-rank">' + badge + '</td>' +
-        '<td>' + U.escapeHtml(m.name || '未命名') + '</td>' +
-        '<td class="col-points">' + (m.points != null ? m.points : 0) + '</td>' +
-        '<td class="col-season">' + (m.wins || 0) + ' / ' + total + '</td>' +
-        '<td class="col-clears">' + (m.clears || 0) + '</td>' +
-        '<td class="col-winrate">' + (m.winRate || 0) + '%</td>' +
-        '<td>' + trendHtml(m) + '</td></tr>'
+      if (state.scopeKey === 'practice') {
+        html += '<tr data-id="' + m._id + '" style="cursor:pointer;">' +
+          '<td class="col-rank">' + badge + '</td>' +
+          '<td>' + U.escapeHtml(m.name || '未命名') + '</td>' +
+          '<td class="col-points">' + (m.goals != null ? m.goals : 0) + '</td>' +
+          '<td class="col-season">' + (m.sessions || 0) + ' 次</td>' +
+          '<td class="col-clears">+' + (m.today || 0) + '</td>' +
+          '<td class="col-winrate">' + practiceAvg(m) + '</td>' +
+          '<td>' + practiceLast(m) + '</td></tr>'
+      } else {
+        html += '<tr data-id="' + m._id + '" style="cursor:pointer;">' +
+          '<td class="col-rank">' + badge + '</td>' +
+          '<td>' + U.escapeHtml(m.name || '未命名') + '</td>' +
+          '<td class="col-points">' + (m.points != null ? m.points : 0) + '</td>' +
+          '<td class="col-season">' + (m.wins || 0) + ' / ' + total + '</td>' +
+          '<td class="col-clears">' + (m.clears || 0) + '</td>' +
+          '<td class="col-winrate">' + (m.winRate || 0) + '%</td>' +
+          '<td>' + trendHtml(m) + '</td></tr>'
+      }
       if (collapsible && !prevSame) {
         var open = !!state.expandedTies[m.rank]
         html += '<tr class="tie-bar" data-tie="' + m.rank + '"><td colspan="7">' +

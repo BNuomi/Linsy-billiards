@@ -164,6 +164,16 @@
     }
     var stageLabel = { group: '小组赛', r16: '16强赛', qf: '1/4决赛', semi: '半决赛', third: '季军赛', final: '决赛', ko: '淘汰赛' }[m.stage] || ''
     if (stageLabel) meta += '<span class="stage-badge">' + stageLabel + '</span>'
+    // 进行中的中八/斯诺克/九球对局：网页端可继续记分（扫码授权后以本人身份进入）
+    if (m.status === 'ongoing' && m.game_type === 'c8') {
+      meta += '<a class="comp-badge" href="./match-score.html?match_id=' + encodeURIComponent(m._id) + '" style="border-color:var(--primary);color:var(--primary);">继续记分 ›</a>'
+    }
+    if (m.status === 'ongoing' && m.game_type === 'snooker') {
+      meta += '<a class="comp-badge" href="./snooker-score.html?match_id=' + encodeURIComponent(m._id) + '" style="border-color:var(--primary);color:var(--primary);">继续记分 ›</a>'
+    }
+    if (m.status === 'ongoing' && m.game_type === 'nine_ball') {
+      meta += '<a class="comp-badge" href="./pursuit-score.html?match_id=' + encodeURIComponent(m._id) + '" style="border-color:var(--primary);color:var(--primary);">继续记分 ›</a>'
+    }
     return '<article class="match-card" data-id="' + U.escapeHtml(m._id) + '" role="link" tabindex="0" aria-label="查看对战详情">' +
       '<div class="match-date"><span class="eyebrow">' + U.fmtDate(m.created_at) + '</span></div>' +
       '<div class="match-body"><div class="match-players">' + playersHtml + '</div>' +
