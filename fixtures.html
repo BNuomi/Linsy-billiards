@@ -1264,10 +1264,21 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
             <input class="control" id="fx-search" type="text" aria-label="搜索选手或场次号" placeholder="搜索选手 / 场次号">
           </div>
           <span class="filter-count" id="fx-search-count"></span>
+          <button class="fx-multi-btn" id="fx-multi-btn" type="button" style="display:none;">
+            <i data-lucide="monitor-play" style="width:14px;height:14px;"></i>多选观看
+          </button>
         </section>
 
         <!-- 对阵列表（按分区渲染：小组赛按组 / 淘汰赛按轮 / 逐轮抽签按轮） -->
         <div id="fx-rounds"></div>
+      </div>
+
+      <!-- 多选观看操作条：进入多选模式后固定在底部，实时显示已选场数 -->
+      <div class="fx-mw-bar" id="fx-mw-bar" style="display:none;">
+        <span class="fx-mw-hint">选择进行中的对局，同时观看实时比分</span>
+        <span class="fx-mw-count" id="fx-mw-count">已选 0 场</span>
+        <button class="fx-mw-go" id="fx-mw-go" type="button" disabled>同时观看 ›</button>
+        <button class="fx-mw-cancel" id="fx-mw-cancel" type="button">取消</button>
       </div>
 
       <!-- 页面专用样式 -->
@@ -1394,6 +1405,48 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
         .fx-resched:hover { color: var(--primary); border-color: var(--primary); background: rgba(0, 113, 227, 0.08); }
         .fx-teams { display: flex; flex-wrap: wrap; gap: 6px; margin-top: calc(var(--spacing) * 2); }
         .fx-team { font-size: 11px; font-weight: 600; color: var(--primary); background: rgba(0, 113, 227, 0.08); border-radius: 999px; padding: 2px 10px; }
+        /* ===== 多选观看（选择多场进行中对局，同时进入观看模式） ===== */
+        .fx-multi-btn {
+          display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 16px;
+          border: 1px solid var(--primary); cursor: pointer; border-radius: 999px;
+          color: var(--primary); background: var(--card); font-size: 13px; font-weight: 700;
+        }
+        .fx-multi-btn:hover { background: rgba(0, 113, 227, 0.08); }
+        /* 多选模式：进行中卡片可点选，右上角浮现选择圈 */
+        body.fx-mw-mode .fx-card.is-live { cursor: pointer; }
+        body.fx-mw-mode .fx-card.is-live:hover { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.12); }
+        .fx-card { position: relative; }
+        .fx-check {
+          display: none; position: absolute; top: 10px; right: 10px; z-index: 2;
+          width: 22px; height: 22px; border-radius: 999px; border: 2px solid var(--border);
+          background: var(--card); pointer-events: none;
+        }
+        body.fx-mw-mode .fx-card.is-live .fx-check { display: block; }
+        .fx-card.is-selected { border-color: var(--primary) !important; box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.14); }
+        .fx-card.is-selected .fx-check { border-color: var(--primary); background: var(--primary); }
+        .fx-card.is-selected .fx-check::after {
+          content: ''; position: absolute; left: 6px; top: 2px; width: 6px; height: 11px;
+          border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg);
+        }
+        /* 底部操作条：固定悬浮，展示已选场数与入口 */
+        .fx-mw-bar {
+          position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 9997;
+          display: flex; align-items: center; gap: 14px; padding: 12px 18px;
+          border-radius: 999px; background: var(--card); border: 1px solid var(--border);
+          box-shadow: var(--shadow-lg); font-size: 13px; flex-wrap: wrap; justify-content: center;
+        }
+        .fx-mw-hint { color: var(--muted-foreground); font-size: 12px; }
+        .fx-mw-count { font-weight: 700; color: var(--foreground); }
+        .fx-mw-go {
+          height: 34px; padding: 0 18px; border: none; border-radius: 999px; cursor: pointer;
+          background: var(--primary); color: var(--primary-foreground); font-size: 13px; font-weight: 700;
+          box-shadow: 0 4px 12px rgba(0, 122, 255, 0.28);
+        }
+        .fx-mw-go:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
+        .fx-mw-cancel {
+          height: 34px; padding: 0 14px; border-radius: 999px; cursor: pointer;
+          border: 1px solid var(--border); background: var(--card); color: var(--muted-foreground); font-size: 13px; font-weight: 600;
+        }
         /* 小组积分榜 · 晋级名单 */
         .fx-adv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: calc(var(--spacing) * 3); }
         .fx-stand-card {

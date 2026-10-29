@@ -6,6 +6,8 @@
   var FX_BY_ID = {} // 当前对阵按 _id 索引（调整排序入口取数）
   var LAST_DATA = null // 最近一次 getFixtures 返回（搜索重渲染复用，不重复请求）
   var QUERY = '' // 对局搜索关键词（选手姓名 / 场次号）
+  // 多选观看：mode=选择模式（进行中卡片可点选）；sel=已选 fixtureId → true（同时观看跳转 multi-watch 看板）
+  var MW = { mode: false, sel: {} }
 
   function el(id) { return document.getElementById(id) }
 
@@ -387,6 +389,24 @@
     FX_BY_ID = {}
     fixtures.forEach(function (f) { FX_BY_ID[f._id] = f })
 
+    // 多选观看联动：入口仅在进行中对局 >0 时展示；所选对局结束/移除自动出选；
+    // 多选模式下进行中对局清零自动退出（在卡片渲染前处理，重渲染自然去掉选中态）
+    var liveCount = fixtures.filter(function (f) { return f.match_status === 'ongoing' }).length
+    var multiBtn = el('fx-multi-btn')
+    if (multiBtn) multiBtn.style.display = liveCount > 0 ? '' : 'none'
+    var selChanged = false
+    var liveIds = {}
+    fixtures.forEach(function (f) { if (f.match_status === 'ongoing') liveIds[f._id] = true })
+    Object.keys(MW.sel).forEach(function (id) {
+      if (!liveIds[id]) { delete MW.sel[id]; selChanged = true }
+    })
+    if (MW.mode && !liveCount) {
+      exitMwMode(false)
+      U.toast('进行中的对局已全部结束', 'success')
+    } else if (selChanged) {
+      paintMwBar()
+    }
+
     var nonEmpty = [...sections.values()].filter(function (sec) { return sec.items.length || sec.byes.length })
     var html = nonEmpty.sort(function (a, b) { return a.order - b.order }).map(function (sec) {
       var dayMap = new Map()
@@ -446,7 +466,9 @@
           var opsHtml = (st.cls === 'pending' && !compDone)
             ? '<div class="fx-card-ops"><button class="fx-resched" type="button" data-fixture-id="' + f._id + '">调整排序</button></div>'
             : ''
-          return '<div class="fx-card">' +
+          return '<div class="fx-card' + (st.cls === 'live' ? ' is-live' : '') +
+            ((st.cls === 'live' && MW.sel[f._id]) ? ' is-selected' : '') + '" data-fxid="' + U.escapeHtml(f._id) + '">' +
+            (st.cls === 'live' ? '<span class="fx-check"></span>' : '') +
             '<div class="fx-card-head"><div class="fx-card-tags">' + noChip + stageChip + groupChip + '</div>' +
             '<span class="fx-status ' + st.cls + '">' + st.text + '</span></div>' +
             '<div class="fx-card-chips">' + slotChips + (race ? '<span class="fx-race">' + race + '</span>' : '') + '</div>' +
@@ -461,6 +483,70 @@
     el('fx-rounds').innerHTML = html ||
       '<div class="fx-empty-box">未找到与「' + U.escapeHtml(QUERY.trim()) + '」相关的对局</div>'
     refreshIcons()
+  }
+
+  // ---------- 多选观看：多场进行中对局 → 同时观看看板 ----------
+  function enterMwMode() {
+    var hasLive = Object.keys(FX_BY_ID).some(function (id) { return FX_BY_ID[id].match_status === 'ongoing' })
+    if (!hasLive) {
+      U.toast('当前没有进行中的对局', 'error')
+      return
+    }
+    MW.mode = true
+    MW.sel = {}
+    document.body.classList.add('fx-mw-mode')
+    el('fx-mw-bar').style.display = ''
+    paintMwBar()
+  }
+
+  // 退出多选模式：clear=true 同时清空已选（渲染流程内调用 false，选中态随卡片重渲染自然消失）
+  function exitMwMode(clear) {
+    MW.mode = false
+    if (clear) {
+      MW.sel = {}
+      var grid = el('fx-rounds')
+      if (grid) grid.querySelectorAll('.fx-card.is-selected').forEach(function (c) { c.classList.remove('is-selected') })
+    }
+    document.body.classList.remove('fx-mw-mode')
+    el('fx-mw-bar').style.display = 'none'
+    paintMwBar()
+  }
+
+  function paintMwBar() {
+    var n = Object.keys(MW.sel).length
+    el('fx-mw-count').textContent = '已选 ' + n + ' 场'
+    el('fx-mw-go').disabled = n === 0
+  }
+
+  function toggleMwSel(fxid) {
+    if (MW.sel[fxid]) delete MW.sel[fxid]
+    else MW.sel[fxid] = true
+    var card = null
+    el('fx-rounds').querySelectorAll('.fx-card[data-fxid]').forEach(function (c) {
+      if (c.getAttribute('data-fxid') === fxid) card = c
+    })
+    if (card) card.classList.toggle('is-selected', !!MW.sel[fxid])
+    paintMwBar()
+  }
+
+  function goMultiWatch() {
+    var ids = Object.keys(MW.sel)
+    if (!ids.length) return
+    location.href = './multi-watch.html?cid=' + encodeURIComponent(compId()) + '&fix=' + encodeURIComponent(ids.join(','))
+  }
+
+  function onMwCardClick(ev) {
+    if (!MW.mode) return
+    // 「调整排序」按钮（预告卡）不在多选范围，不受影响
+    if (ev.target.closest('.fx-resched')) return
+    var card = ev.target.closest('.fx-card[data-fxid]')
+    if (!card) return
+    var f = FX_BY_ID[card.getAttribute('data-fxid')]
+    if (!f || f.match_status !== 'ongoing') {
+      U.toast('仅进行中的对局可加入观看', 'error')
+      return
+    }
+    toggleMwSel(f._id)
   }
 
   async function load() {
@@ -495,6 +581,11 @@
       QUERY = ev.target.value || ''
       if (LAST_DATA) render(LAST_DATA)
     })
+    // 多选观看：入口按钮 / 底部操作条 / 卡片点选（仅进行中对局）
+    el('fx-multi-btn').addEventListener('click', enterMwMode)
+    el('fx-mw-go').addEventListener('click', goMultiWatch)
+    el('fx-mw-cancel').addEventListener('click', function () { exitMwMode(true) })
+    el('fx-rounds').addEventListener('click', onMwCardClick)
     // 对局卡片「调整排序」（扫码鉴权由 CompAdmin 处理）
     el('fx-rounds').addEventListener('click', function (ev) {
       var btn = ev.target.closest('.fx-resched')

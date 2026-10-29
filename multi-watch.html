@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>同时观看</title>
+    <script>
+    /* 主题初始化：localStorage 优先，其次跟随系统深浅色偏好（在渲染前执行，避免闪白） */
+    (function () {
+      var saved = null
+      try { saved = localStorage.getItem('billiards-theme') } catch (e) {}
+      var theme = saved === 'dark' || saved === 'light'
+        ? saved
+        : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+      var root = document.documentElement
+      root.classList.remove('light', 'dark')
+      root.classList.add(theme)
+    })()
+    </script>
+    <style>
+      /* 精简设计令牌（与各页内联 theme-vars 同源取值） */
+      :root {
+        --background-50: #ffffff; --background-100: #f7f7fa; --background-200: #f2f2f7;
+        --background-300: #e5e5ea; --background-700: #3a3a3c; --background-800: #1c1c1e;
+        --text-400: #8e8e93; --text-800: #1d1d1f; --brand-500: #007aff;
+        --state-error: #ff3b30;
+        --background: var(--background-50);
+        --foreground: var(--text-800);
+        --card: var(--background-50);
+        --primary: var(--brand-500);
+        --primary-foreground: #ffffff;
+        --secondary: var(--background-200);
+        --muted-foreground: var(--text-400);
+        --border: var(--background-300);
+        --font-sans: DM Sans, ui-sans-serif, sans-serif, system-ui;
+        --radius: 1.2rem;
+        --spacing: 4px;
+        --shadow-sm: 0 1px 3px 0 rgba(0,0,0,.06);
+        --shadow-lg: 0 12px 28px -8px rgba(0,0,0,.12);
+      }
+      .dark {
+        --background: #1c1c1e; --foreground: #f5f5f7; --card: #2c2c2e;
+        --primary: #3dd685; --primary-foreground: #0a1f14; --secondary: #2c2c2e;
+        --muted-foreground: #8e8e93; --border: #3a3a3c; --state-error: #ff453a;
+        --shadow-sm: 0 1px 3px 0 rgba(0,0,0,.3);
+        --shadow-lg: 0 12px 28px -8px rgba(0,0,0,.4);
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0; min-height: 100vh;
+        background: var(--background); color: var(--foreground);
+        font-family: var(--font-sans); font-size: 14px; line-height: 1.45;
+        -webkit-font-smoothing: antialiased;
+      }
+      main { padding-bottom: 64px; }
+      .page-container { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+
+      /* 顶部导航（与其他页同构） */
+      .webbar {
+        position: sticky; top: 0; z-index: 100;
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 14px 24px; background: color-mix(in srgb, var(--background) 82%, transparent);
+        backdrop-filter: blur(16px); border-bottom: 1px solid var(--border);
+      }
+      .webbar .brand { display: flex; align-items: center; gap: 10px; font-size: 17px; font-weight: 700; }
+      .webbar .brand-icon { width: 26px; height: 26px; }
+      .webbar .rail { display: flex; align-items: center; gap: 18px; }
+      .webbar .rail a { color: var(--muted-foreground); text-decoration: none; font-size: 13px; font-weight: 600; }
+      .webbar .rail a:hover, .webbar .rail a.active { color: var(--foreground); }
+      .theme-toggle {
+        border: 1px solid var(--border); background: var(--card); color: var(--muted-foreground);
+        width: 30px; height: 30px; border-radius: 999px; cursor: pointer;
+        display: inline-flex; align-items: center; justify-content: center;
+      }
+      html:not(.dark) .theme-toggle .icon-sun { display: none; }
+      html.dark .theme-toggle .icon-moon { display: none; }
+
+      .hero-section { padding: 40px 0 18px; }
+      .eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .14em; color: var(--primary); margin-bottom: 10px; }
+      .hero-title { margin: 0; font-size: 30px; font-weight: 800; letter-spacing: -.02em; }
+      .hero-subtitle { margin: 8px 0 0; color: var(--muted-foreground); font-size: 14px; }
+      .hero-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+      .btn {
+        display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 16px;
+        border-radius: 999px; font-size: 13px; font-weight: 700; cursor: pointer; text-decoration: none;
+        border: 1px solid var(--border); background: var(--card); color: var(--foreground);
+      }
+      .btn:hover { background: var(--secondary); }
+      .btn.btn-primary { border: none; background: var(--primary); color: var(--primary-foreground); }
+
+      .mw-meta { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 14px 0 20px; font-size: 13px; color: var(--muted-foreground); }
+      .mw-meta .live-dot { width: 8px; height: 8px; border-radius: 999px; background: var(--state-error); animation: mw-pulse 1.6s infinite; }
+      @keyframes mw-pulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+      .mw-meta b { color: var(--foreground); }
+
+      #mw-error {
+        display: none; padding: 32px; border: 1px solid var(--border); border-radius: var(--radius);
+        background: var(--card); color: var(--muted-foreground); text-align: center; margin-bottom: 20px;
+      }
+      .mw-empty-box {
+        padding: 40px; border: 1px dashed var(--border); border-radius: var(--radius);
+        text-align: center; color: var(--muted-foreground); background: var(--card);
+      }
+
+      /* 对局看板：响应式网格，宽屏 3 列 → 窄屏单列 */
+      .mw-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+      .mw-card {
+        position: relative; display: block; text-decoration: none;
+        background: linear-gradient(145deg, var(--card), var(--background));
+        border: 1px solid var(--border); border-radius: var(--radius);
+        box-shadow: var(--shadow-sm); padding: 16px 18px; color: var(--foreground);
+        transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+      }
+      .mw-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); border-color: var(--primary); }
+      .mw-card.is-done { opacity: .62; }
+      .mw-card.is-static { cursor: default; }
+      .mw-card.is-static:hover { transform: none; box-shadow: var(--shadow-sm); border-color: var(--border); }
+      .mw-head { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
+      .mw-chip { font-size: 11px; font-weight: 700; border-radius: 6px; padding: 2px 8px; white-space: nowrap; background: var(--secondary); color: var(--muted-foreground); }
+      .mw-chip.table { color: #c2410c; background: rgba(234, 88, 12, 0.12); }
+      .mw-chip.no { color: #6d28d9; background: rgba(124, 58, 237, 0.12); }
+      .mw-chip.stage { color: #be123c; background: rgba(225, 29, 72, 0.1); }
+      .mw-chip.group { color: var(--muted-foreground); }
+      .mw-status { margin-left: auto; flex: none; font-size: 11px; font-weight: 700; border-radius: 999px; padding: 2px 12px; }
+      .mw-status.live { color: var(--primary); background: rgba(0, 113, 227, 0.1); }
+      .dark .mw-status.live { color: #30d158; background: rgba(48, 209, 88, 0.14); }
+      .mw-status.done { color: var(--muted-foreground); background: var(--secondary); }
+      .mw-time { font-size: 12px; color: var(--muted-foreground); margin-bottom: 10px; }
+      .mw-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+      .mw-sides { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; min-width: 0; font-size: 16px; font-weight: 650; }
+      .mw-side.is-lead { color: var(--primary); }
+      .mw-vs { font-size: 12px; font-weight: 700; color: var(--muted-foreground); }
+      .mw-score { flex: none; display: flex; align-items: baseline; gap: 5px; font-size: 28px; font-weight: 800; color: var(--muted-foreground); letter-spacing: .5px; }
+      .mw-score .is-lead { color: var(--primary); }
+      .mw-score-sep { font-size: 15px; font-weight: 600; }
+      .mw-extra { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+      .mw-team { font-size: 11px; font-weight: 600; color: var(--primary); background: rgba(0, 113, 227, 0.08); border-radius: 999px; padding: 2px 10px; }
+      .dark .mw-team { color: #30d158; background: rgba(48, 209, 88, 0.12); }
+      .mw-clear { font-size: 11px; font-weight: 600; color: var(--muted-foreground); background: var(--secondary); border-radius: 999px; padding: 2px 10px; }
+
+      .page-footer { margin-top: 48px; padding: 24px 20px; border-top: 1px solid var(--border); color: var(--muted-foreground); font-size: 12px; text-align: center; }
+      @media (max-width: 640px) {
+        .webbar .rail a:not(.active) { display: none; }
+        .hero-title { font-size: 24px; }
+        .mw-score { font-size: 24px; }
+      }
+    </style>
+</head>
+<body>
+  <main>
+    <!-- Top Navigation Bar -->
+    <nav class="webbar" aria-label="台球协会主导航">
+      <span class="brand"><svg class="brand-icon" viewBox="0 0 36 36" aria-hidden="true"><rect width="36" height="36" rx="9" style="fill:var(--primary)"/><circle cx="18" cy="18" r="10.5" style="fill:#ffffff"/><circle cx="18" cy="18" r="5" style="fill:var(--primary)"/></svg>台球协会</span>
+      <div class="rail">
+        <a class="link" href="#">积分排行</a>
+        <a class="link" href="#">对战记录</a>
+        <a class="link" href="#">比赛</a>
+        <a class="link" href="#">会员详情</a>
+        <button class="theme-toggle" id="theme-toggle" type="button" aria-label="切换深色/浅色主题" title="切换深色/浅色主题">
+          <i data-lucide="moon" class="icon-moon" style="width:16px;height:16px;"></i>
+          <i data-lucide="sun" class="icon-sun" style="width:16px;height:16px;"></i>
+        </button>
+      </div>
+    </nav>
+
+    <div class="page-container">
+      <section class="hero-section">
+        <div class="eyebrow">LIVE WATCH</div>
+        <h1 class="hero-title" id="mw-name">同时观看</h1>
+        <p class="hero-subtitle" id="mw-sub">加载中…</p>
+        <div class="hero-actions">
+          <a class="btn" id="mw-back" href="#">
+            <i data-lucide="arrow-left" style="width:16px;height:16px;"></i>
+            返回对阵列表
+          </a>
+          <button class="btn btn-primary" id="mw-refresh" type="button">
+            <i data-lucide="refresh-cw" style="width:16px;height:16px;"></i>
+            立即刷新
+          </button>
+        </div>
+      </section>
+
+      <div class="mw-meta" id="mw-meta" style="display:none;">
+        <span class="live-dot" id="mw-dot" style="display:none;"></span>
+        <span id="mw-live-text"></span>
+        <span id="mw-sync-text"></span>
+      </div>
+
+      <!-- 错误提示 -->
+      <section id="mw-error" style="display:none;">
+        <div id="mw-error-text">加载失败</div>
+        <button class="btn" id="mw-retry" type="button" style="margin-top:16px;">重试</button>
+      </section>
+
+      <!-- 对局看板：所选对局实时比分卡片 -->
+      <div class="mw-grid" id="mw-grid" style="display:none;"></div>
+      <div class="mw-empty-box" id="mw-empty" style="display:none;">暂无可观看的对局</div>
+    </div>
+
+    <footer class="page-footer">© 2026 台球协会. 保留所有权利.</footer>
+  </main>
+
+  <script src="https://unpkg.com/lucide@1.8.0/dist/umd/lucide.min.js"></script>
+  <script>lucide.createIcons();</script>
+  <script src="./js/cloud.js?v=20260926a"></script>
+  <script src="./js/fallback-data.js?v=20261008b"></script>
+  <script src="./js/common.js?v=20261013d"></script>
+  <script src="./js/multi-watch.js?v=20261030a"></script>
+  <script>
+  /* 主题切换：更新 <html> class + localStorage 记忆，并广播 themechange 事件 */
+  (function () {
+    var btn = document.getElementById('theme-toggle')
+    if (!btn) return
+    btn.addEventListener('click', function () {
+      var root = document.documentElement
+      var next = root.classList.contains('dark') ? 'light' : 'dark'
+      root.classList.remove('light', 'dark')
+      root.classList.add(next)
+      try { localStorage.setItem('billiards-theme', next) } catch (e) {}
+      document.dispatchEvent(new CustomEvent('themechange', { detail: { theme: next } }))
+    })
+  })()
+  </script>
+</body>
+</html>
