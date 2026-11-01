@@ -54,7 +54,7 @@
       }
 
       /* 顶部导航（rk-nav 风格，与积分排行榜页一致：52px 高、1200px 对齐、胶囊链接、active 蓝胶囊） */
-      .webbar {
+      .rk-nav {
         position: sticky; top: 0; z-index: 100;
         display: flex; align-items: center; gap: calc(var(--spacing) * 2);
         width: 100%; height: 52px;
@@ -63,17 +63,17 @@
         border-bottom: 1px solid var(--border);
         box-shadow: var(--shadow-sm);
       }
-      .webbar .brand { display: inline-flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 800; letter-spacing: .02em; }
-      .webbar .brand-icon { width: 30px; height: 30px; flex: none; }
-      .webbar .rail { display: flex; align-items: center; gap: 6px; margin-left: auto; }
-      .webbar .rail a {
+      .rk-nav .brand { display: inline-flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 800; letter-spacing: .02em; }
+      .rk-nav .brand-icon { width: 30px; height: 30px; flex: none; }
+      .rk-nav .rail { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+      .rk-nav .rail a {
         display: inline-flex; align-items: center; justify-content: center;
         height: 32px; padding: 0 calc(var(--spacing) * 2.5); border-radius: 999px;
         color: var(--muted-foreground); text-decoration: none; font-size: 13px; font-weight: 600;
         white-space: nowrap; transition: background-color .18s ease, color .18s ease;
       }
-      .webbar .rail a:hover { background: var(--secondary); color: var(--foreground); }
-      .webbar .rail a.is-active, .webbar .rail a.active { background: var(--primary); color: var(--primary-foreground); }
+      .rk-nav .rail a:hover { background: var(--secondary); color: var(--foreground); }
+      .rk-nav .rail a.is-active, .rk-nav .rail a.active { background: var(--primary); color: var(--primary-foreground); }
       .theme-toggle {
         border: 1px solid var(--border); background: var(--card); color: var(--muted-foreground);
         width: 30px; height: 30px; border-radius: 999px; cursor: pointer; flex: none;
@@ -82,12 +82,12 @@
       html:not(.dark) .theme-toggle .icon-sun { display: none; }
       html.dark .theme-toggle .icon-moon { display: none; }
       /* 深色：导航毛玻璃 + active 绿胶囊辉光（同排行榜页） */
-      html.dark .webbar {
+      html.dark .rk-nav {
         background: rgba(28, 28, 30, 0.85);
         backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
         border-bottom: 1px solid rgba(58, 58, 60, 0.6);
       }
-      html.dark .webbar .rail a.is-active, html.dark .webbar .rail a.active {
+      html.dark .rk-nav .rail a.is-active, html.dark .rk-nav .rail a.active {
         box-shadow: 0 2px 12px rgba(61, 214, 133, 0.25);
       }
 
@@ -164,7 +164,7 @@
 </head>
 <body>
   <!-- Top Navigation Bar -->
-  <nav class="webbar" aria-label="台球协会主导航">
+  <nav class="webbar rk-nav" aria-label="台球协会主导航">
     <span class="brand"><svg class="brand-icon" viewBox="0 0 36 36" aria-hidden="true"><rect width="36" height="36" rx="9" style="fill:var(--primary)"/><circle cx="18" cy="18" r="10.5" style="fill:#ffffff"/><circle cx="18" cy="18" r="5" style="fill:var(--primary)"/></svg>台球协会</span>
     <div class="rail">
       <a class="link" href="#">积分排行</a>

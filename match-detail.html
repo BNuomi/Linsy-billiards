@@ -1475,6 +1475,7 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
         root.classList.add(next)
         try { localStorage.setItem('billiards-theme', next) } catch (e) {}
         document.dispatchEvent(new CustomEvent('themechange', { detail: { theme: next } }))
+        window.AppUI.fixNav('matches')
       })
     })()
     </script>
