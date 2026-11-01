@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>轮播展示</title>
+    <style>
+      /* 轮播展示页：1080×2160（1:2）竖屏设备全幅播放，纯黑底无操作件 */
+      * { box-sizing: border-box; }
+      html, body {
+        margin: 0; padding: 0; width: 100%; height: 100%;
+        background: #000; overflow: hidden;
+        font-family: DM Sans, ui-sans-serif, sans-serif, system-ui;
+      }
+      #bn-stage { position: fixed; inset: 0; }
+      .bn-slide {
+        position: absolute; inset: 0;
+        opacity: 0; transition: opacity 1s ease;
+      }
+      .bn-slide.is-active { opacity: 1; }
+      .bn-slide img {
+        width: 100%; height: 100%; object-fit: cover; display: block;
+      }
+      /* 指示点：低存在感，仅多图时显示 */
+      #bn-dots {
+        position: fixed; left: 50%; bottom: max(18px, env(safe-area-inset-bottom));
+        transform: translateX(-50%); display: none; gap: 10px; z-index: 5;
+      }
+      #bn-dots i {
+        width: 8px; height: 8px; border-radius: 999px;
+        background: rgba(255,255,255,.35); transition: background .3s ease;
+      }
+      #bn-dots i.on { background: rgba(255,255,255,.92); }
+      /* 占位：无图或云端未连接 */
+      #bn-empty {
+        position: fixed; inset: 0; display: none;
+        flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+        color: rgba(255,255,255,.55); text-align: center; padding: 32px;
+      }
+      #bn-empty .bn-logo {
+        width: 84px; height: 84px; border-radius: 22px; background: #007aff;
+        display: flex; align-items: center; justify-content: center;
+      }
+      #bn-empty .bn-logo::after {
+        content: ''; width: 40px; height: 40px; border-radius: 999px; background: #fff;
+        box-shadow: inset 0 0 0 12px #007aff;
+      }
+      #bn-empty .bn-title { font-size: 22px; font-weight: 700; color: rgba(255,255,255,.85); }
+      #bn-empty .bn-sub { font-size: 13px; line-height: 1.7; }
+      /* 管理入口：右下隐蔽小圆点，悬停/触按显现 */
+      #bn-admin {
+        position: fixed; right: 14px; bottom: max(14px, env(safe-area-inset-bottom));
+        width: 34px; height: 34px; border-radius: 999px; z-index: 10;
+        background: rgba(255,255,255,.14); color: rgba(255,255,255,.7);
+        display: flex; align-items: center; justify-content: center;
+        text-decoration: none; font-size: 15px; opacity: .18; transition: opacity .2s ease;
+      }
+      #bn-admin:hover, #bn-admin:active { opacity: .85; }
+    </style>
+</head>
+<body>
+  <div id="bn-stage" aria-label="轮播图"></div>
+  <div id="bn-dots" aria-hidden="true"></div>
+  <div id="bn-empty">
+    <div class="bn-logo"></div>
+    <div class="bn-title">林氏台球协会</div>
+    <div class="bn-sub" id="bn-empty-sub">暂无轮播内容</div>
+  </div>
+  <a id="bn-admin" href="./banner-admin.html" title="轮播图管理" aria-label="轮播图管理">⚙</a>
+  <script src="./js/cloud.js?v=20260926a"></script>
+  <script src="./js/banner.js?v=20261101a"></script>
+</body>
+</html>

@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>轮播图管理</title>
+    <script>
+    /* 主题初始化：localStorage 优先，其次跟随系统深浅色偏好（在渲染前执行，避免闪白） */
+    (function () {
+      var saved = null
+      try { saved = localStorage.getItem('billiards-theme') } catch (e) {}
+      var theme = saved === 'dark' || saved === 'light'
+        ? saved
+        : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+      var root = document.documentElement
+      root.classList.remove('light', 'dark')
+      root.classList.add(theme)
+    })()
+    </script>
+    <style>
+      /* 精简设计令牌（与各页内联 theme-vars 同源取值） */
+      :root {
+        --background-50: #ffffff; --background-100: #f7f7fa; --background-200: #f2f2f7;
+        --background-300: #e5e5ea; --background-700: #3a3a3c; --background-800: #1c1c1e;
+        --text-400: #8e8e93; --text-800: #1d1d1f; --brand-500: #007aff;
+        --state-error: #ff3b30; --success: #34c759;
+        --background: var(--background-50);
+        --foreground: var(--text-800);
+        --card: var(--background-50);
+        --primary: var(--brand-500);
+        --primary-foreground: #ffffff;
+        --secondary: var(--background-200);
+        --muted-foreground: var(--text-400);
+        --border: var(--background-300);
+        --font-sans: DM Sans, ui-sans-serif, sans-serif, system-ui;
+        --radius: 1.2rem;
+        --spacing: 4px;
+        --shadow-sm: 0 1px 3px 0 rgba(0,0,0,.06);
+        --shadow-lg: 0 12px 28px -8px rgba(0,0,0,.12);
+      }
+      .dark {
+        --background: #1c1c1e; --foreground: #f5f5f7; --card: #2c2c2e;
+        --primary: #3dd685; --primary-foreground: #0a1f14; --secondary: #2c2c2e;
+        --muted-foreground: #8e8e93; --border: #3a3a3c; --state-error: #ff453a;
+        --shadow-sm: 0 1px 3px 0 rgba(0,0,0,.3);
+        --shadow-lg: 0 12px 28px -8px rgba(0,0,0,.4);
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0; min-height: 100vh;
+        background: var(--background); color: var(--foreground);
+        font-family: var(--font-sans); font-size: 14px; line-height: 1.45;
+        -webkit-font-smoothing: antialiased;
+      }
+      main { padding-bottom: 64px; }
+      .page-container { max-width: 960px; margin: 0 auto; padding: 0 20px; }
+
+      /* 顶部导航（与其他页同构） */
+      .webbar {
+        position: sticky; top: 0; z-index: 100;
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 14px 24px; background: color-mix(in srgb, var(--background) 82%, transparent);
+        backdrop-filter: blur(16px); border-bottom: 1px solid var(--border);
+      }
+      .webbar .brand { display: flex; align-items: center; gap: 10px; font-size: 17px; font-weight: 700; }
+      .webbar .brand-icon { width: 26px; height: 26px; }
+      .webbar .rail { display: flex; align-items: center; gap: 18px; }
+      .webbar .rail a { color: var(--muted-foreground); text-decoration: none; font-size: 13px; font-weight: 600; }
+      .webbar .rail a:hover, .webbar .rail a.active { color: var(--foreground); }
+      .theme-toggle {
+        border: 1px solid var(--border); background: var(--card); color: var(--muted-foreground);
+        width: 30px; height: 30px; border-radius: 999px; cursor: pointer;
+        display: inline-flex; align-items: center; justify-content: center;
+      }
+      html:not(.dark) .theme-toggle .icon-sun { display: none; }
+      html.dark .theme-toggle .icon-moon { display: none; }
+
+      .hero-section { padding: 40px 0 18px; }
+      .eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .14em; color: var(--primary); margin-bottom: 10px; }
+      .hero-title { margin: 0; font-size: 30px; font-weight: 800; letter-spacing: -.02em; }
+      .hero-subtitle { margin: 8px 0 0; color: var(--muted-foreground); font-size: 14px; }
+      .hero-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+      .btn {
+        display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 16px;
+        border-radius: 999px; font-size: 13px; font-weight: 700; cursor: pointer; text-decoration: none;
+        border: 1px solid var(--border); background: var(--card); color: var(--foreground);
+      }
+      .btn:hover { background: var(--secondary); }
+      .btn.btn-primary { border: none; background: var(--primary); color: var(--primary-foreground); }
+      .btn[disabled] { opacity: .45; cursor: not-allowed; }
+
+      /* 轮播图列表 */
+      .ba-count { font-size: 13px; font-weight: 700; color: var(--muted-foreground); }
+      .ba-count b { color: var(--foreground); }
+      .ba-list { display: flex; flex-direction: column; gap: 12px; margin-top: 14px; }
+      .ba-item {
+        display: flex; align-items: center; gap: 14px;
+        background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+        box-shadow: var(--shadow-sm); padding: 12px 14px;
+      }
+      .ba-thumb {
+        width: 72px; height: 144px; flex: none; border-radius: 10px; overflow: hidden;
+        background: var(--secondary); border: 1px solid var(--border);
+      }
+      .ba-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+      .ba-info { flex: 1; min-width: 0; }
+      .ba-name { font-size: 14px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .ba-meta { margin-top: 4px; font-size: 12px; color: var(--muted-foreground); }
+      .ba-ops { display: flex; flex-direction: column; gap: 6px; flex: none; }
+      .ba-ops .btn { height: 30px; padding: 0 12px; font-size: 12px; justify-content: center; }
+      .ba-ops .btn.danger { color: var(--state-error); border-color: var(--state-error); }
+      .ba-empty {
+        padding: 40px; border: 1px dashed var(--border); border-radius: var(--radius);
+        text-align: center; color: var(--muted-foreground); background: var(--card); margin-top: 14px;
+      }
+      #ba-error {
+        display: none; padding: 24px; border: 1px solid var(--border); border-radius: var(--radius);
+        background: var(--card); color: var(--muted-foreground); text-align: center; margin-top: 14px;
+      }
+
+      /* 扫码上传弹层 */
+      .ba-qr-tip { font-size: 13px; color: var(--muted-foreground); text-align: center; line-height: 1.8; }
+
+      .page-footer { margin-top: 48px; padding: 24px 20px; border-top: 1px solid var(--border); color: var(--muted-foreground); font-size: 12px; text-align: center; }
+      @media (max-width: 640px) {
+        .webbar .rail a:not(.active) { display: none; }
+        .hero-title { font-size: 24px; }
+        .ba-thumb { width: 54px; height: 108px; }
+      }
+    </style>
+</head>
+<body>
+  <main>
+    <!-- Top Navigation Bar -->
+    <nav class="webbar" aria-label="台球协会主导航">
+      <span class="brand"><svg class="brand-icon" viewBox="0 0 36 36" aria-hidden="true"><rect width="36" height="36" rx="9" style="fill:var(--primary)"/><circle cx="18" cy="18" r="10.5" style="fill:#ffffff"/><circle cx="18" cy="18" r="5" style="fill:var(--primary)"/></svg>台球协会</span>
+      <div class="rail">
+        <a class="link" href="#">积分排行</a>
+        <a class="link" href="#">对战记录</a>
+        <a class="link" href="#">比赛</a>
+        <a class="link" href="#">会员详情</a>
+        <button class="theme-toggle" id="theme-toggle" type="button" aria-label="切换深色/浅色主题" title="切换深色/浅色主题">
+          <i data-lucide="moon" class="icon-moon" style="width:16px;height:16px;"></i>
+          <i data-lucide="sun" style="width:16px;height:16px;"></i>
+        </button>
+      </div>
+    </nav>
+
+    <div class="page-container">
+      <section class="hero-section">
+        <div class="eyebrow">BANNER ADMIN</div>
+        <h1 class="hero-title">轮播图管理</h1>
+        <p class="hero-subtitle">展示页在 1080×2160 竖屏设备全幅轮播；建议上传竖版图片（宽高比约 1:2），最多 <span id="ba-max">10</span> 张。</p>
+        <div class="hero-actions">
+          <button class="btn btn-primary" id="ba-upload" type="button">
+            <i data-lucide="upload" style="width:16px;height:16px;"></i>
+            本地上传图片
+          </button>
+          <button class="btn" id="ba-qr" type="button">
+            <i data-lucide="qr-code" style="width:16px;height:16px;"></i>
+            微信扫码上传
+          </button>
+          <a class="btn" href="./banner.html" target="_blank" rel="noopener">
+            <i data-lucide="play" style="width:16px;height:16px;"></i>
+            打开展示页
+          </a>
+        </div>
+        <input type="file" id="ba-file" accept="image/jpeg,image/png,image/webp" style="display:none;">
+      </section>
+
+      <div class="ba-count">已上传 <b id="ba-n">0</b> / <span id="ba-max2">10</span> 张<span id="ba-hint" style="margin-left:10px;"></span></div>
+
+      <section id="ba-error">
+        <div id="ba-error-text">加载失败</div>
+        <button class="btn" id="ba-retry" type="button" style="margin-top:14px;">重试</button>
+      </section>
+
+      <div class="ba-list" id="ba-list"></div>
+      <div class="ba-empty" id="ba-empty" style="display:none;">暂无轮播图，点击上方按钮上传第一张</div>
+    </div>
+
+    <footer class="page-footer">© 2026 台球协会. 保留所有权利.</footer>
+  </main>
+
+  <script src="https://unpkg.com/lucide@1.8.0/dist/umd/lucide.min.js"></script>
+  <script>lucide.createIcons();</script>
+  <script src="./js/cloud.js?v=20260926a"></script>
+  <script src="./js/fallback-data.js?v=20261008b"></script>
+  <script src="./js/common.js?v=20261013d"></script>
+  <script src="./js/auth.js?v=20261101a"></script>
+  <script src="./js/banner-admin.js?v=20261101a"></script>
+  <script>
+  /* 主题切换：更新 <html> class + localStorage 记忆，并广播 themechange 事件 */
+  (function () {
+    var btn = document.getElementById('theme-toggle')
+    if (!btn) return
+    btn.addEventListener('click', function () {
+      var root = document.documentElement
+      var next = root.classList.contains('dark') ? 'light' : 'dark'
+      root.classList.remove('light', 'dark')
+      root.classList.add(next)
+      try { localStorage.setItem('billiards-theme', next) } catch (e) {}
+      document.dispatchEvent(new CustomEvent('themechange', { detail: { theme: next } }))
+    })
+  })()
+  </script>
+</body>
+</html>
