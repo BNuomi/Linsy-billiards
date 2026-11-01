@@ -143,7 +143,7 @@ window.AppUI = (function () {
       '.webbar .brand{font-size:15px !important;gap:8px !important;}' +
       '.webbar .rail{gap:12px !important;overflow-x:auto;-webkit-overflow-scrolling:touch;flex-wrap:nowrap !important;max-width:70vw;}' +
       '.webbar .rail a{white-space:nowrap;font-size:12px !important;flex:none;}' +
-      '.webbar .rail a:not(.active){display:inline-block !important;}' +
+      '.webbar .rail a:not(.active){display:inline-flex !important;align-items:center;}' +
       '.page-container{padding-left:14px !important;padding-right:14px !important;}' +
       '}'
     document.head.appendChild(style)
