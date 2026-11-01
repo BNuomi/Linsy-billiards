@@ -140,6 +140,23 @@
         text-decoration: none; font-size: 15px; opacity: .18; transition: opacity .2s ease;
       }
       #bn-admin:hover, #bn-admin:active { opacity: .85; }
+      /* 显示比例切换：舞台左上角，与管理入口同款低透明 */
+      #bn-mode {
+        position: absolute; top: max(14px, env(safe-area-inset-top)); left: 14px; z-index: 10;
+        height: 34px; padding: 0 12px; border: none; border-radius: 999px; cursor: pointer;
+        background: rgba(255,255,255,.14); color: rgba(255,255,255,.7);
+        font-family: var(--font-sans); font-size: 12px; font-weight: 700; letter-spacing: .04em;
+        opacity: .18; transition: opacity .2s ease;
+      }
+      #bn-mode:hover, #bn-mode:active { opacity: .85; }
+
+      /* 横屏 16:9 模式：舞台收缩为 16:9 黑场居中，四周黑边填充（默认竖屏 1:2 全幅不变） */
+      body.bn-landscape main { justify-content: center; background: #000; }
+      body.bn-landscape #bn-stage {
+        flex: none; margin: 0 auto;
+        width: min(100%, calc((100vh - 110px) * 16 / 9));
+        aspect-ratio: 16 / 9;
+      }
 
       .page-footer { padding: 16px 20px; border-top: 1px solid var(--border); color: var(--muted-foreground); font-size: 12px; text-align: center; }
       /* 窄屏导航兼容由 common.js 全站统一注入（横向可滑，保留全部入口） */
@@ -170,6 +187,7 @@
         <div class="bn-sub" id="bn-empty-sub">暂无轮播内容</div>
       </div>
       <div id="bn-dots" aria-hidden="true"></div>
+      <button id="bn-mode" type="button" title="切换显示比例">16:9</button>
       <a id="bn-admin" href="./banner-admin.html" title="轮播图管理" aria-label="轮播图管理">⚙</a>
     </div>
   </main>
@@ -180,7 +198,7 @@
   <script>lucide.createIcons();</script>
   <script src="./js/cloud.js?v=20260926a"></script>
   <script src="./js/common.js?v=20261101c"></script>
-  <script src="./js/banner.js?v=20261101b"></script>
+  <script src="./js/banner.js?v=20261101d"></script>
   <script>
   /* 主题切换：更新 <html> class + localStorage 记忆，并广播 themechange 事件 */
   (function () {
