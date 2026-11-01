@@ -122,8 +122,8 @@
       .ba-qr-tip { font-size: 13px; color: var(--muted-foreground); text-align: center; line-height: 1.8; }
 
       .page-footer { margin-top: 48px; padding: 24px 20px; border-top: 1px solid var(--border); color: var(--muted-foreground); font-size: 12px; text-align: center; }
+      /* 窄屏导航兼容由 common.js 全站统一注入（横向可滑，保留全部入口） */
       @media (max-width: 640px) {
-        .webbar .rail a:not(.active) { display: none; }
         .hero-title { font-size: 24px; }
         .ba-thumb { width: 54px; height: 108px; }
       }
@@ -138,6 +138,7 @@
         <a class="link" href="#">积分排行</a>
         <a class="link" href="#">对战记录</a>
         <a class="link" href="#">比赛</a>
+        <a class="link" href="#">轮播图</a>
         <a class="link" href="#">会员详情</a>
         <button class="theme-toggle" id="theme-toggle" type="button" aria-label="切换深色/浅色主题" title="切换深色/浅色主题">
           <i data-lucide="moon" class="icon-moon" style="width:16px;height:16px;"></i>
@@ -165,7 +166,7 @@
             打开展示页
           </a>
         </div>
-        <input type="file" id="ba-file" accept="image/jpeg,image/png,image/webp" style="display:none;">
+        <input type="file" id="ba-file" accept="image/jpeg,image/png,image/webp" multiple style="display:none;">
       </section>
 
       <div class="ba-count">已上传 <b id="ba-n">0</b> / <span id="ba-max2">10</span> 张<span id="ba-hint" style="margin-left:10px;"></span></div>
@@ -186,9 +187,9 @@
   <script>lucide.createIcons();</script>
   <script src="./js/cloud.js?v=20260926a"></script>
   <script src="./js/fallback-data.js?v=20261008b"></script>
-  <script src="./js/common.js?v=20261013d"></script>
-  <script src="./js/auth.js?v=20261101a"></script>
-  <script src="./js/banner-admin.js?v=20261101a"></script>
+  <script src="./js/common.js?v=20261101b"></script>
+  <script src="./js/auth.js?v=20261101b"></script>
+  <script src="./js/banner-admin.js?v=20261101b"></script>
   <script>
   /* 主题切换：更新 <html> class + localStorage 记忆，并广播 themechange 事件 */
   (function () {

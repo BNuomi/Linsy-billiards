@@ -22,8 +22,13 @@
   var refreshTimer = null
   var sig = ''          // 列表签名，避免无变化时重建 DOM
 
+  // 幻灯片与常驻元素（占位/指示点/管理入口）同居 #bn-stage：只清幻灯片，且新片插到常驻元素之前保持层叠序
+  function clearSlides() {
+    Array.prototype.slice.call(stage.querySelectorAll('.bn-slide')).forEach(function (s) { s.remove() })
+  }
+
   function showEmpty(text) {
-    stage.style.display = 'none'
+    clearSlides()
     dotsBox.style.display = 'none'
     emptyBox.style.display = 'flex'
     emptySub.textContent = text || '暂无轮播内容'
@@ -31,11 +36,10 @@
 
   function showStage() {
     emptyBox.style.display = 'none'
-    stage.style.display = 'block'
   }
 
   function render() {
-    stage.innerHTML = ''
+    clearSlides()
     dotsBox.innerHTML = ''
     items.forEach(function (it, i) {
       var slide = document.createElement('div')
@@ -44,7 +48,7 @@
       img.src = it.url
       img.alt = it.title || ('轮播图 ' + (i + 1))
       slide.appendChild(img)
-      stage.appendChild(slide)
+      stage.insertBefore(slide, emptyBox)
       var dot = document.createElement('i')
       dotsBox.appendChild(dot)
     })
@@ -56,7 +60,7 @@
 
   function next() {
     if (!items.length) return
-    var slides = stage.children
+    var slides = stage.querySelectorAll('.bn-slide')
     var dots = dotsBox.children
     if (current >= 0 && slides[current]) {
       slides[current].classList.remove('is-active')
@@ -114,8 +118,9 @@
     }
   })
 
-  // 触摸/点击手动切换下一张（展示设备点按即可换图）
-  stage.addEventListener('click', function () {
+  // 触摸/点击手动切换下一张（展示设备点按即可换图；管理入口不触发）
+  stage.addEventListener('click', function (e) {
+    if (e.target.closest && e.target.closest('#bn-admin')) return
     if (items.length > 1) next()
   })
 

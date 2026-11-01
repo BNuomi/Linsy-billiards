@@ -6,6 +6,7 @@ window.AppUI = (function () {
     { key: 'rankings', label: '积分排行', href: './rankings.html' },
     { key: 'matches', label: '对战记录', href: './match-records.html' },
     { key: 'competitions', label: '比赛', href: './competitions.html' },
+    { key: 'banner', label: '轮播图', href: './banner.html' },
     { key: 'member', label: '会员详情', href: './member-detail.html' },
     { key: 'home', label: '首页', href: './index.html' }
   ]
@@ -129,6 +130,25 @@ window.AppUI = (function () {
       document.addEventListener('keydown', onKey)
     })
   }
+
+  // ---------- 1:2 竖屏（1080×2160）等窄屏设备兼容：全站统一注入 ----------
+  // 导航项增至 5 个后 360-540px 宽竖屏必溢出：收窄内边距/字号/间距，rail 横向可滑（保留全部入口可达）
+  function mountResponsiveCompat() {
+    if (document.getElementById('app-responsive-style')) return
+    var style = document.createElement('style')
+    style.id = 'app-responsive-style'
+    style.textContent =
+      '@media (max-width: 640px){' +
+      '.webbar{padding-left:14px !important;padding-right:14px !important;}' +
+      '.webbar .brand{font-size:15px !important;gap:8px !important;}' +
+      '.webbar .rail{gap:12px !important;overflow-x:auto;-webkit-overflow-scrolling:touch;flex-wrap:nowrap !important;max-width:70vw;}' +
+      '.webbar .rail a{white-space:nowrap;font-size:12px !important;flex:none;}' +
+      '.webbar .rail a:not(.active){display:inline-block !important;}' +
+      '.page-container{padding-left:14px !important;padding-right:14px !important;}' +
+      '}'
+    document.head.appendChild(style)
+  }
+  mountResponsiveCompat()
 
   // ---------- 联系我们：协会钉钉群二维码浮层（类右键菜单，无遮罩，锚定触发链接） ----------
   // 用法：页脚「联系我们」链接加 data-contact-qr 属性即可，脚本自动初始化（common.js 于 body 末尾加载，DOM 已就绪）

@@ -1,10 +1,10 @@
 /*
  * 轮播图管理页：列表（上移/下移/删除）+ 本地上传（canvas 压缩后经云函数落存储）+ 微信扫码上传（小程序码弹层）
- * 写操作统一 AppAuth.callAuthed('data_admin', 'manageBanners', ...)：首次自动弹扫码授权，
+ * 写操作统一 AppAuth.callAuthed('banner_admin', 'manageBanners', ...)：首次自动弹扫码授权，
  * 云端二次校验管理员/裁判角色；401/403 时 AppAuth 自动清缓存，下次操作重新扫码
  */
 (function () {
-  var PURPOSE = 'data_admin'
+  var PURPOSE = 'banner_admin'
   var MAX_EDGE = 1920          // 压缩最长边
   var MAX_B64 = 700 * 1024     // 云函数请求体 1MB 上限内留余量
   var QR_POLL_MS = 5000        // 扫码上传弹层打开期间列表轮询间隔
@@ -144,23 +144,46 @@
   })
 
   fileInput.addEventListener('change', async function () {
-    var file = fileInput.files && fileInput.files[0]
-    if (!file) return
-    if (!/^image\/(jpeg|png|webp)$/.test(file.type)) {
+    var files = Array.prototype.slice.call(fileInput.files || [])
+    if (!files.length) return
+    files = files.filter(function (f) { return /^image\/(jpeg|png|webp)$/.test(f.type) })
+    if (!files.length) {
       toast('仅支持 JPG/PNG/WebP 图片', 'error')
       return
     }
+    // 超过剩余名额直接截断并提示
+    var remain = max - banners.length
+    if (files.length > remain) {
+      toast('最多还能上传 ' + remain + ' 张，已自动截取前 ' + remain + ' 张')
+      files = files.slice(0, remain)
+    }
     uploadBtn.disabled = true
+    qrBtn.disabled = true
+    var done = 0
+    var failMsg = ''
     try {
-      toast('正在压缩图片…')
-      var c = await compress(file)
-      toast('正在上传…')
-      await callWrite({ action: 'upload_file', image_base64: c.base64, mime: c.mime, title: file.name.replace(/\.[^.]+$/, '') })
-      toast('上传成功', 'success')
-      load()
+      await window.AppAuth.ensure(PURPOSE) // 多选只弹一次授权
+      for (var i = 0; i < files.length; i++) {
+        hintEl.textContent = '正在上传 ' + (i + 1) + ' / ' + files.length + '…'
+        try {
+          var c = await compress(files[i])
+          await window.AppAuth.callAuthed(PURPOSE, 'manageBanners', {
+            action: 'upload_file', image_base64: c.base64, mime: c.mime,
+            title: files[i].name.replace(/\.[^.]+$/, '')
+          })
+          done++
+        } catch (e) {
+          failMsg = e.message || String(e)
+          break // 达上限或失败即中止，保留已传部分
+        }
+      }
+      if (done) toast('已上传 ' + done + ' 张' + (failMsg ? '，其余失败：' + failMsg : ''), failMsg ? 'error' : 'success')
+      else toast('上传失败：' + failMsg, 'error')
     } catch (e) {
       toast('上传失败：' + (e.message || e), 'error')
-      render() // 恢复按钮态（达上限保持禁用）
+    } finally {
+      hintEl.textContent = ''
+      load() // 刷新列表并恢复按钮态
     }
   })
 
