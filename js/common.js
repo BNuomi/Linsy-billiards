@@ -7,6 +7,7 @@ window.AppUI = (function () {
     { key: 'matches', label: '对战记录', href: './match-records.html' },
     { key: 'competitions', label: '比赛', href: './competitions.html' },
     { key: 'banner', label: '轮播图', href: './banner.html' },
+    { key: 'practice', label: '练球图', href: './practice-board.html' },
     { key: 'member', label: '会员详情', href: './member-detail.html' },
     { key: 'home', label: '首页', href: './index.html' }
   ]

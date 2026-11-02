@@ -1249,6 +1249,7 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
           <a class="link" href="#">对战记录</a>
           <a class="link" href="#">比赛</a>
           <a class="link" href="#">轮播图</a>
+          <a class="link" href="#">练球图</a>
           <a class="link" href="#">会员详情</a>
           <button class="theme-toggle" id="theme-toggle" type="button" aria-label="切换深色/浅色主题" title="切换深色/浅色主题">
             <i data-lucide="moon" class="icon-moon" style="width:16px;height:16px;"></i>
@@ -1346,8 +1347,8 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
     </div>
 
     <script src="./js/cloud.js?v=20260919c"></script>
-    <script src="./js/common.js?v=20261101c"></script>
-    <script src="./js/practice-board.js?v=20261102a"></script>
+    <script src="./js/common.js?v=20261102a"></script>
+    <script src="./js/practice-board.js?v=20261102b"></script>
     <script>lucide.createIcons();</script>
     <script>
     /* 主题切换：更新 <html> class + localStorage 记忆，并广播 themechange 事件 */
@@ -1361,7 +1362,7 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
         root.classList.add(next)
         try { localStorage.setItem('billiards-theme', next) } catch (e) {}
         document.dispatchEvent(new CustomEvent('themechange', { detail: { theme: next } }))
-        window.AppUI.fixNav('')
+        window.AppUI.fixNav('practice')
       })
     })()
     </script>

@@ -589,7 +589,7 @@ window.PracticeBoard = (function () {
     renderShots()
     render()
 
-    if (window.AppUI && window.AppUI.fixNav) window.AppUI.fixNav('')
+    if (window.AppUI && window.AppUI.fixNav) window.AppUI.fixNav('practice')
   }
 
   if (document.readyState === 'loading') {
