@@ -10,7 +10,12 @@ window.PracticeBoard = (function () {
   var LOGICAL_H = 1290 // 与裁剪后球桌区域（旋转）同比例
   /* 背景图球桌裁剪区域（原图 2848×1600 中量取），去掉四周大片绿边 */
   var SRC = { x: 360, y: 265, w: 2130, h: 1190 }
-  var BALL_R = 13
+  /* 球子大小档位：默认标准（原 13 增大 1/3 ≈ 17） */
+  var BALL_SIZES = [
+    { key: 's', label: '小', r: 13 },
+    { key: 'm', label: '标准', r: 17 },
+    { key: 'l', label: '大', r: 21 }
+  ]
   var LINE_W = 4
   var SHOT_KEY = 'practice-board-shots-v1'
   var STATE_KEY = 'practice-board-state-v1'
@@ -32,7 +37,7 @@ window.PracticeBoard = (function () {
   var TOOL_LINE_TYPES = { line: 1, dash: 1, arrow: 1 }
 
   var canvas, ctx, bgImg = null
-  var state = { balls: [], lines: [], tool: 'move', lineColor: LINE_COLORS[0], selected: null }
+  var state = { balls: [], lines: [], tool: 'move', lineColor: LINE_COLORS[0], ballSize: 'm', selected: null }
   var undoStack = []
   var drag = null // {kind:'ball',id,dx,dy,moved} | {kind:'line',x1,y1,x2,y2}
   var placing = null // {num, ghost, moved}
@@ -42,10 +47,17 @@ window.PracticeBoard = (function () {
     if (window.AppUI && window.AppUI.toast) window.AppUI.toast(msg, type)
   }
 
+  function ballR() {
+    for (var i = 0; i < BALL_SIZES.length; i++) {
+      if (BALL_SIZES[i].key === state.ballSize) return BALL_SIZES[i].r
+    }
+    return BALL_SIZES[1].r
+  }
+
   /* ── 持久化 ── */
   function saveState() {
     try {
-      localStorage.setItem(STATE_KEY, JSON.stringify({ balls: state.balls, lines: state.lines }))
+      localStorage.setItem(STATE_KEY, JSON.stringify({ balls: state.balls, lines: state.lines, ballSize: state.ballSize }))
     } catch (e) {}
   }
   function loadState() {
@@ -54,6 +66,7 @@ window.PracticeBoard = (function () {
       if (s && Array.isArray(s.balls) && Array.isArray(s.lines)) {
         state.balls = s.balls
         state.lines = s.lines
+        if (s.ballSize === 's' || s.ballSize === 'm' || s.ballSize === 'l') state.ballSize = s.ballSize
         s.balls.forEach(function (b) { if (b.id >= idSeq) idSeq = b.id + 1 })
         s.lines.forEach(function (l) { if (l.id >= idSeq) idSeq = l.id + 1 })
       }
@@ -117,61 +130,75 @@ window.PracticeBoard = (function () {
       c.fillStyle = l.color
       c.fill()
     }
+    if (highlight) {
+      /* 选中态端点手柄：可拖拽改变长度/方向 */
+      c.shadowBlur = 0
+      ;[[l.x1, l.y1], [l.x2, l.y2]].forEach(function (pt) {
+        c.beginPath()
+        c.arc(pt[0], pt[1], 6, 0, Math.PI * 2)
+        c.fillStyle = '#ffffff'
+        c.fill()
+        c.strokeStyle = 'rgba(0,0,0,0.45)'
+        c.lineWidth = 1.5
+        c.stroke()
+      })
+    }
     c.restore()
   }
 
   function drawBall(c, num, x, y, highlight) {
     var def = BALL_DEFS[num]
     var stripe = num >= 9
+    var R = ballR()
     c.save()
     c.beginPath()
-    c.arc(x, y, BALL_R, 0, Math.PI * 2)
+    c.arc(x, y, R, 0, Math.PI * 2)
     c.clip()
     if (num === 0 || stripe) {
       c.fillStyle = '#f6f6f0'
-      c.fillRect(x - BALL_R, y - BALL_R, BALL_R * 2, BALL_R * 2)
+      c.fillRect(x - R, y - R, R * 2, R * 2)
     }
     if (num === 0) {
       c.fillStyle = '#c23b3b'
       c.beginPath()
-      c.arc(x, y - BALL_R * 0.35, 1.8, 0, Math.PI * 2)
+      c.arc(x, y - R * 0.35, R * 0.14, 0, Math.PI * 2)
       c.fill()
     } else if (stripe) {
       c.fillStyle = def.color
-      c.fillRect(x - BALL_R, y - BALL_R * 0.55, BALL_R * 2, BALL_R * 1.1)
+      c.fillRect(x - R, y - R * 0.55, R * 2, R * 1.1)
     } else {
       c.fillStyle = def.color
-      c.fillRect(x - BALL_R, y - BALL_R, BALL_R * 2, BALL_R * 2)
+      c.fillRect(x - R, y - R, R * 2, R * 2)
     }
     /* 球面阴影 */
-    var g = c.createRadialGradient(x - BALL_R * 0.35, y - BALL_R * 0.4, BALL_R * 0.15, x, y, BALL_R * 1.05)
+    var g = c.createRadialGradient(x - R * 0.35, y - R * 0.4, R * 0.15, x, y, R * 1.05)
     g.addColorStop(0, 'rgba(255,255,255,0.34)')
     g.addColorStop(0.45, 'rgba(255,255,255,0)')
     g.addColorStop(1, 'rgba(0,0,0,0.4)')
     c.fillStyle = g
-    c.fillRect(x - BALL_R, y - BALL_R, BALL_R * 2, BALL_R * 2)
+    c.fillRect(x - R, y - R, R * 2, R * 2)
     c.restore()
 
     if (num > 0) {
       c.beginPath()
-      c.arc(x, y, BALL_R * 0.5, 0, Math.PI * 2)
+      c.arc(x, y, R * 0.5, 0, Math.PI * 2)
       c.fillStyle = '#ffffff'
       c.fill()
       c.fillStyle = '#1d1d1f'
-      c.font = '700 ' + (num >= 10 ? 8.5 : 10) + 'px JetBrains Mono, monospace'
+      c.font = '700 ' + (num >= 10 ? R * 0.62 : R * 0.72) + 'px JetBrains Mono, monospace'
       c.textAlign = 'center'
       c.textBaseline = 'middle'
       c.fillText(String(num), x, y + 0.5)
     }
 
     c.beginPath()
-    c.arc(x, y, BALL_R, 0, Math.PI * 2)
+    c.arc(x, y, R, 0, Math.PI * 2)
     c.strokeStyle = 'rgba(0,0,0,0.28)'
     c.lineWidth = 1
     c.stroke()
     if (highlight) {
       c.beginPath()
-      c.arc(x, y, BALL_R + 3.5, 0, Math.PI * 2)
+      c.arc(x, y, R + 3.5, 0, Math.PI * 2)
       c.strokeStyle = '#ffffff'
       c.lineWidth = 2.5
       c.stroke()
@@ -202,9 +229,10 @@ window.PracticeBoard = (function () {
 
   /* ── 命中检测 ── */
   function hitBall(x, y) {
+    var R = ballR()
     for (var i = state.balls.length - 1; i >= 0; i--) {
       var b = state.balls[i]
-      if ((x - b.x) * (x - b.x) + (y - b.y) * (y - b.y) <= (BALL_R + 5) * (BALL_R + 5)) return b
+      if ((x - b.x) * (x - b.x) + (y - b.y) * (y - b.y) <= (R + 5) * (R + 5)) return b
     }
     return null
   }
@@ -223,6 +251,23 @@ window.PracticeBoard = (function () {
     }
     return null
   }
+  /* 命中线条端点手柄（优先选中线，其次全部线） */
+  function hitLineEndpoint(x, y) {
+    function scan(list) {
+      for (var i = list.length - 1; i >= 0; i--) {
+        var l = list[i]
+        if ((x - l.x1) * (x - l.x1) + (y - l.y1) * (y - l.y1) <= 100) return { line: l, end: 1 }
+        if ((x - l.x2) * (x - l.x2) + (y - l.y2) * (y - l.y2) <= 100) return { line: l, end: 2 }
+      }
+      return null
+    }
+    if (state.selected && state.selected.kind === 'line') {
+      var sel = state.lines.filter(function (l) { return l.id === state.selected.id })
+      var hit = scan(sel)
+      if (hit) return hit
+    }
+    return scan(state.lines)
+  }
 
   function toLogical(e) {
     var r = canvas.getBoundingClientRect()
@@ -232,8 +277,13 @@ window.PracticeBoard = (function () {
     }
   }
   function clampBall(b) {
-    b.x = Math.max(BALL_R + 1, Math.min(LOGICAL_W - BALL_R - 1, b.x))
-    b.y = Math.max(BALL_R + 1, Math.min(LOGICAL_H - BALL_R - 1, b.y))
+    var R = ballR()
+    b.x = Math.max(R + 1, Math.min(LOGICAL_W - R - 1, b.x))
+    b.y = Math.max(R + 1, Math.min(LOGICAL_H - R - 1, b.y))
+  }
+  function clampPoint(p) {
+    p.x = Math.max(0, Math.min(LOGICAL_W, p.x))
+    p.y = Math.max(0, Math.min(LOGICAL_H, p.y))
   }
 
   /* ── 画布指针交互 ── */
@@ -251,8 +301,21 @@ window.PracticeBoard = (function () {
         state.selected = { kind: 'ball', id: b.id }
         drag = { kind: 'ball', id: b.id, dx: b.x - p.x, dy: b.y - p.y, moved: false }
       } else {
-        var l = hitLine(p.x, p.y)
-        state.selected = l ? { kind: 'line', id: l.id } : null
+        var ep = hitLineEndpoint(p.x, p.y)
+        if (ep) {
+          snapshot()
+          state.selected = { kind: 'line', id: ep.line.id }
+          drag = { kind: 'line-end', id: ep.line.id, end: ep.end, moved: false }
+        } else {
+          var l = hitLine(p.x, p.y)
+          if (l) {
+            snapshot()
+            state.selected = { kind: 'line', id: l.id }
+            drag = { kind: 'line-move', id: l.id, sx: p.x, sy: p.y, ox1: l.x1, oy1: l.y1, ox2: l.x2, oy2: l.y2, moved: false }
+          } else {
+            state.selected = null
+          }
+        }
       }
     }
     render()
@@ -267,6 +330,25 @@ window.PracticeBoard = (function () {
       b.x = p.x + drag.dx
       b.y = p.y + drag.dy
       clampBall(b)
+      drag.moved = true
+    } else if (drag.kind === 'line-end') {
+      var el = state.lines.filter(function (x) { return x.id === drag.id })[0]
+      if (!el) { drag = null; return }
+      var pt = { x: p.x, y: p.y }
+      clampPoint(pt)
+      if (drag.end === 1) { el.x1 = pt.x; el.y1 = pt.y } else { el.x2 = pt.x; el.y2 = pt.y }
+      drag.moved = true
+    } else if (drag.kind === 'line-move') {
+      var ml = state.lines.filter(function (x) { return x.id === drag.id })[0]
+      if (!ml) { drag = null; return }
+      var dx = p.x - drag.sx, dy = p.y - drag.sy
+      /* 平移后 clamp 到画布内（整线一起限制） */
+      var minX = Math.min(drag.ox1, drag.ox2), maxX = Math.max(drag.ox1, drag.ox2)
+      var minY = Math.min(drag.oy1, drag.oy2), maxY = Math.max(drag.oy1, drag.oy2)
+      dx = Math.max(-minX, Math.min(LOGICAL_W - maxX, dx))
+      dy = Math.max(-minY, Math.min(LOGICAL_H - maxY, dy))
+      ml.x1 = drag.ox1 + dx; ml.y1 = drag.oy1 + dy
+      ml.x2 = drag.ox2 + dx; ml.y2 = drag.oy2 + dy
       drag.moved = true
     } else {
       drag.x2 = p.x
@@ -284,7 +366,7 @@ window.PracticeBoard = (function () {
         state.lines.push({ id: idSeq++, type: state.tool, color: state.lineColor, x1: drag.x1, y1: drag.y1, x2: drag.x2, y2: drag.y2 })
       }
     }
-    if (drag.kind === 'ball' && !drag.moved) {
+    if ((drag.kind === 'ball' || drag.kind === 'line-end' || drag.kind === 'line-move') && !drag.moved) {
       undoStack.pop() // 未移动：撤销本次 snapshot，避免空操作堆栈
     }
     drag = null
@@ -436,6 +518,27 @@ window.PracticeBoard = (function () {
       })
       colors.appendChild(b)
     })
+
+    /* 球子大小档位 */
+    var sizes = document.getElementById('pb-sizes')
+    if (sizes) {
+      BALL_SIZES.forEach(function (s) {
+        var b = document.createElement('button')
+        b.type = 'button'
+        b.className = 'pb-size' + (s.key === state.ballSize ? ' is-active' : '')
+        b.textContent = s.label
+        b.dataset.size = s.key
+        b.addEventListener('click', function () {
+          state.ballSize = s.key
+          sizes.querySelectorAll('.pb-size').forEach(function (x) { x.classList.toggle('is-active', x === b) })
+          /* 换档后球子可能越界，统一 clamp */
+          state.balls.forEach(clampBall)
+          saveState()
+          render()
+        })
+        sizes.appendChild(b)
+      })
+    }
   }
 
   /* ── 截图记录 ── */
@@ -524,6 +627,43 @@ window.PracticeBoard = (function () {
     paint(c, true)
     return off.toDataURL('image/jpeg', 0.85)
   }
+
+  /* ── 云端同步（practice_admin 授权后自动上传） ── */
+  function cloudAuth() {
+    return window.AppAuth && window.AppAuth.read ? window.AppAuth.read('practice_admin') : null
+  }
+  function renderCloudBtn() {
+    var btn = document.getElementById('pb-cloud')
+    if (!btn || !window.AppAuth) { if (btn) btn.style.display = 'none'; return }
+    var a = cloudAuth()
+    if (a) {
+      btn.textContent = '云同步 · ' + (a.name || '已授权')
+      btn.classList.add('is-on')
+      btn.title = '保存截图时将自动同步到云端截图库（小程序端可浏览）'
+    } else {
+      btn.textContent = '开启云同步'
+      btn.classList.remove('is-on')
+      btn.title = '扫码授权后，保存截图自动同步到云端截图库'
+    }
+  }
+  function syncShotToCloud(dataUrl) {
+    var auth = cloudAuth()
+    if (!auth) return
+    var base64 = dataUrl.split(',')[1]
+    if (!base64) return
+    window.AppAuth.callAuthed('practice_admin', 'practiceShots', {
+      action: 'upload',
+      image_base64: base64,
+      width: LOGICAL_W * 2,
+      height: LOGICAL_H * 2
+    }).then(function () {
+      toast('已同步到云端截图库', 'success')
+    }).catch(function (e) {
+      toast(e && e.message ? e.message : '云端同步失败，截图已存本地', 'error')
+      renderCloudBtn()
+    })
+  }
+
   function saveShot() {
     var dataUrl = exportImage()
     var shots = loadShots()
@@ -538,6 +678,7 @@ window.PracticeBoard = (function () {
     }
     renderShots()
     toast('截图已保存', 'success')
+    syncShotToCloud(dataUrl)
   }
   function openViewer(dataUrl) {
     var viewer = document.getElementById('pb-viewer')
@@ -585,6 +726,17 @@ window.PracticeBoard = (function () {
     document.getElementById('pb-viewer').addEventListener('click', function () {
       this.hidden = true
     })
+
+    /* 云同步按钮：未授权点击发起扫码授权，已授权点击可重新授权 */
+    var cloudBtn = document.getElementById('pb-cloud')
+    if (cloudBtn && window.AppAuth) {
+      cloudBtn.addEventListener('click', function () {
+        window.AppAuth.ensure('practice_admin').then(function () {
+          renderCloudBtn()
+        }).catch(function () { /* 用户取消 */ })
+      })
+    }
+    renderCloudBtn()
 
     renderShots()
     render()

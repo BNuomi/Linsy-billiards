@@ -714,7 +714,10 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
       .pb-panel { display: flex; flex-direction: column; gap: 16px; }
       .pb-section { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-sm); padding: 16px; }
       .pb-section-title { display: flex; align-items: center; justify-content: space-between; font-size: 12px; font-weight: 700; letter-spacing: .08em; color: var(--muted-foreground); text-transform: uppercase; margin-bottom: 12px; }
-      .pb-section-title .count { font-weight: 600; text-transform: none; letter-spacing: 0; }
+      .pb-section-title .count { font-weight: 600; text-transform: none; letter-spacing: 0; margin-right: 8px; }
+      .pb-cloud-btn { height: 22px; padding: 0 10px; border: 1px solid var(--border); border-radius: 999px; background: var(--background); color: var(--muted-foreground); font-size: 11px; font-weight: 600; cursor: pointer; text-transform: none; letter-spacing: 0; transition: all .15s ease; }
+      .pb-cloud-btn:hover { border-color: var(--primary); color: var(--primary); }
+      .pb-cloud-btn.is-on { border-color: var(--primary); background: var(--primary); color: var(--primary-foreground); }
 
       /* 球子面板 */
       .pb-palette { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; justify-items: center; }
@@ -725,6 +728,11 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
       .pb-ball.cue .no { background: transparent; box-shadow: none; }
       .pb-ball.cue .no::after { content: ''; width: 5px; height: 5px; border-radius: 50%; background: #c23b3b; }
       .pb-palette-tip { margin-top: 10px; font-size: 11px; color: var(--muted-foreground); line-height: 1.6; }
+      .pb-sizes { display: flex; gap: 8px; margin-top: 12px; align-items: center; }
+      .pb-sizes .lbl { font-size: 12px; color: var(--muted-foreground); margin-right: 2px; }
+      .pb-size { height: 26px; padding: 0 12px; border: 1px solid var(--border); border-radius: 999px; background: var(--background); color: var(--foreground); font-size: 12px; font-weight: 600; cursor: pointer; transition: all .15s ease; }
+      .pb-size:hover { background: var(--secondary); }
+      .pb-size.is-active { border-color: var(--primary); background: var(--primary); color: var(--primary-foreground); }
 
       /* 线条工具 */
       .pb-tools { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
@@ -1280,6 +1288,9 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
             <section class="pb-section">
               <div class="pb-section-title">球子</div>
               <div class="pb-palette" id="pb-palette"></div>
+              <div class="pb-sizes" id="pb-sizes">
+                <span class="lbl">大小</span>
+              </div>
               <div class="pb-palette-tip">拖到画布任意位置放置，或直接点击放到画布中心</div>
             </section>
 
@@ -1318,7 +1329,7 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
             </section>
 
             <section class="pb-section">
-              <div class="pb-section-title">截图记录<span class="count" id="pb-shot-count"></span></div>
+              <div class="pb-section-title">截图记录<span style="flex:1"></span><span class="count" id="pb-shot-count"></span><button class="pb-cloud-btn" id="pb-cloud" type="button"></button></div>
               <div class="pb-shots" id="pb-shots">
                 <div class="pb-empty">暂无截图<br>摆好球形后点击「保存截图」</div>
               </div>
@@ -1348,7 +1359,8 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
 
     <script src="./js/cloud.js?v=20260919c"></script>
     <script src="./js/common.js?v=20261102a"></script>
-    <script src="./js/practice-board.js?v=20261102b"></script>
+    <script src="./js/auth.js?v=20261102a"></script>
+    <script src="./js/practice-board.js?v=20261102c"></script>
     <script>lucide.createIcons();</script>
     <script>
     /* 主题切换：更新 <html> class + localStorage 记忆，并广播 themechange 事件 */
