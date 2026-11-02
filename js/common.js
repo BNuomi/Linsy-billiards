@@ -132,7 +132,7 @@ window.AppUI = (function () {
     })
   }
 
-  // ---------- 1:2 竖屏（1080×2160）等窄屏设备兼容：全站统一注入 ----------
+  // ---------- 窄竖屏（1080×1920 等 1:2~9:16 长条设备）兼容：全站统一注入 ----------
   // 导航项增至 5 个后 360-540px 宽竖屏必溢出：收窄内边距/字号/间距，rail 横向可滑（保留全部入口可达）
   function mountResponsiveCompat() {
     if (document.getElementById('app-responsive-style')) return

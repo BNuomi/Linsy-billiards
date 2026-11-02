@@ -1,5 +1,5 @@
 /*
- * 轮播展示页（默认 1080×2160 竖屏全幅播放，可切横屏 16:9 黑场居中）
+ * 轮播展示页（默认 1080×1920 竖屏 9:16 全幅播放，可切横屏 16:9 完整显示；?mode=9:16 / ?mode=16:9 强制锁定）
  * - manageBanners list 拉取图片（含 2 小时临时链接），60s 轮询热更新
  * - 淡入淡出自动轮播，默认 6s 一切（?interval=秒 可调）
  * - 页面隐藏时暂停切换与轮询，恢复可见立即刷新（临时链接过期兜底）
@@ -14,18 +14,25 @@
   var emptySub = document.getElementById('bn-empty-sub')
   var modeBtn = document.getElementById('bn-mode')
 
-  // 显示比例：portrait 竖屏 1:2 全幅（默认）/ landscape 横屏 16:9；按钮文案显示「目标」比例
+  // 显示比例：portrait 竖屏 9:16（1080×1920）cover 全幅占满（默认）/ landscape 横屏 16:9 contain 完整显示
+  // 按钮文案显示「目标」比例；URL 参数 ?mode=9:16 / ?mode=16:9 可强制锁定（覆盖本机记忆），适合广告机固定书签
+  var params = new URLSearchParams(location.search)
   function applyMode(mode) {
     var landscape = mode === 'landscape'
     document.body.classList.toggle('bn-landscape', landscape)
     if (modeBtn) {
-      modeBtn.textContent = landscape ? '1:2' : '16:9'
-      modeBtn.title = landscape ? '当前横屏 16:9，点击切回竖屏 1:2' : '当前竖屏 1:2，点击切换到横屏 16:9'
+      modeBtn.textContent = landscape ? '9:16' : '16:9'
+      modeBtn.title = landscape ? '当前横屏 16:9，点击切回竖屏 9:16' : '当前竖屏 9:16，点击切换到横屏 16:9'
     }
   }
+  var urlMode = params.get('mode')
   var savedMode = null
   try { savedMode = localStorage.getItem('bn-display-mode') } catch (e) {}
-  applyMode(savedMode === 'landscape' ? 'landscape' : 'portrait')
+  var initialMode
+  if (urlMode === '16:9' || urlMode === 'landscape') initialMode = 'landscape'
+  else if (urlMode === '9:16' || urlMode === 'portrait') initialMode = 'portrait'
+  else initialMode = savedMode === 'landscape' ? 'landscape' : 'portrait'
+  applyMode(initialMode)
   if (modeBtn) {
     modeBtn.addEventListener('click', function (e) {
       e.stopPropagation() // 不触发舞台点按换图
@@ -35,7 +42,6 @@
     })
   }
 
-  var params = new URLSearchParams(location.search)
   var intervalSec = parseInt(params.get('interval'), 10)
   var ROTATE_MS = (intervalSec >= 3 && intervalSec <= 120 ? intervalSec : 6) * 1000
 
