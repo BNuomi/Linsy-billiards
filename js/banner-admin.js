@@ -1,7 +1,8 @@
 /*
  * 轮播图管理页：列表（上移/下移/删除）+ 本地上传（canvas 压缩后经云函数落存储）+ 微信扫码上传（小程序码弹层）
- * 写操作统一 AppAuth.callAuthed('banner_admin', 'manageBanners', ...)：首次自动弹扫码授权，
- * 云端二次校验管理员/裁判角色；401/403 时 AppAuth 自动清缓存，下次操作重新扫码
+ * 本地上传/删除/排序走 AppAuth.callAuthed('banner_admin', ...)：首次自动弹扫码授权，
+ * 云端二次校验管理员/裁判角色；401/403 时 AppAuth 自动清缓存，下次操作重新扫码。
+ * 微信扫码上传出码免授权：码无敏感性，上传权限由小程序端 + 云端 OPENID 角色校验把控
  */
 (function () {
   var PURPOSE = 'banner_admin'
@@ -203,7 +204,7 @@
       'cursor:pointer;background:var(--secondary,#f2f2f7);color:var(--muted-foreground,#6e6e73);font-size:15px;">×</button></div>' +
       '<div class="qm-body" style="display:flex;flex-direction:column;align-items:center;gap:12px;min-height:220px;justify-content:center;">' +
       '<div style="font-size:13px;color:var(--muted-foreground,#6e6e73);">正在生成小程序码…</div></div>' +
-      '<div class="ba-qr-tip" style="margin-top:14px;">微信扫码进入小程序上传页<br>仅管理员/裁判可上传，上传后本页自动刷新</div>'
+      '<div class="ba-qr-tip" style="margin-top:14px;">微信扫码进入小程序上传页<br>扫码即校验身份，仅管理员/裁判可上传，上传后本页自动刷新</div>'
     mask.appendChild(card)
     document.body.appendChild(mask)
 
@@ -213,7 +214,8 @@
     card.querySelector('.qm-close').addEventListener('click', close)
     mask.addEventListener('click', function (e) { if (e.target === mask) close() })
 
-    callWrite({ action: 'upload_qrcode' }).then(function (d) {
+    // 出码免授权：小程序码无敏感性，上传动作由云端 OPENID 角色校验兜底（manageBanners register/upload_file）
+    window.AppCloud.call('manageBanners', { action: 'upload_qrcode' }).then(function (d) {
       var body = card.querySelector('.qm-body')
       if (!body || !document.body.contains(mask)) return
       body.innerHTML = '<img alt="小程序上传码" style="width:220px;height:220px;border-radius:12px;' +
