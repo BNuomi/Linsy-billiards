@@ -480,6 +480,7 @@ window.AppUI = (function () {
     seasonLabel: seasonLabel,
     monthStartTs: monthStartTs,
     toast: toast,
+    confirmBox: confirmBox,
     mountContactQr: mountContactQr,
     mountCloudBar: mountCloudBar
   }
