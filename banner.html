@@ -155,13 +155,9 @@
       }
       #bn-mode:hover, #bn-mode:active { opacity: .85; }
 
-      /* 横屏 16:9 模式：舞台收缩为 16:9 黑场居中，四周黑边填充（默认竖屏 1:2 全幅不变） */
-      body.bn-landscape main { justify-content: center; background: #000; }
-      body.bn-landscape #bn-stage {
-        flex: none; margin: 0 auto;
-        width: min(100%, calc((100vh - 110px) * 16 / 9));
-        aspect-ratio: 16 / 9;
-      }
+      /* 横屏 16:9 模式：舞台占满导航以下全屏高度，图片保持原长宽比完整显示（contain），两侧黑边填充 */
+      body.bn-landscape main { background: #000; }
+      body.bn-landscape .bn-slide img { object-fit: contain; }
 
       .page-footer { padding: 16px 20px; border-top: 1px solid var(--border); color: var(--muted-foreground); font-size: 12px; text-align: center; }
       /* 窄屏导航兼容由 common.js 全站统一注入（横向可滑，保留全部入口） */
