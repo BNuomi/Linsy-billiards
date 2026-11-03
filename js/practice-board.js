@@ -3,6 +3,7 @@
  * - 竖向球桌画布（背景图旋转 90° 绘制），顶部 170px 控件区（球台之外）
  * - 侧栏球子拖放摆放 / 画布内拖动 / 双击删除
  * - 线条工具：实线 / 虚线 / 箭头，颜色可选；已画线条可平移、拖端点改长度
+ * - 画笔工具：自由手绘笔迹（圆头折线），可选色、整体平移、双击删除、撤销
  * - 击球点控件：放大母球 + 虚线分上中下，固定位置不可拖动，点按/滑动设打点
  * - 力量条控件：轨道点击/拖动调力度，左侧「力量」区拖动换位；两控件截图时一并包含
  * - 撤销 / 清空 / 保存截图；截图列举在侧栏（localStorage 持久化）
@@ -81,7 +82,10 @@ window.PracticeBoard = (function () {
       if (s.v !== STATE_VER) {
         /* v1 → v2：顶部新增控件区，球台整体下移 TOP_PAD，旧坐标同步偏移 */
         s.balls.forEach(function (b) { b.y += TOP_PAD })
-        s.lines.forEach(function (l) { l.y1 += TOP_PAD; l.y2 += TOP_PAD })
+        s.lines.forEach(function (l) {
+          if (l.type === 'pen') return // 画笔仅存于 v2+，防御性跳过
+          l.y1 += TOP_PAD; l.y2 += TOP_PAD
+        })
       }
       state.balls = s.balls
       state.lines = s.lines
@@ -126,6 +130,7 @@ window.PracticeBoard = (function () {
   }
 
   function drawLine(c, l, highlight) {
+    if (l.type === 'pen') { drawPenStroke(c, l, highlight); return }
     c.save()
     c.strokeStyle = l.color
     c.lineWidth = LINE_W
@@ -164,6 +169,34 @@ window.PracticeBoard = (function () {
         c.lineWidth = 1.5
         c.stroke()
       })
+    }
+    c.restore()
+  }
+
+  /* 画笔自由笔迹：圆头折线连接采样点；单点退化为圆点；选中态同色光晕（无端点手柄） */
+  function drawPenStroke(c, l, highlight) {
+    var pts = l.points || []
+    if (!pts.length) return
+    c.save()
+    c.strokeStyle = l.color
+    c.fillStyle = l.color
+    c.lineWidth = LINE_W
+    c.lineCap = 'round'
+    c.lineJoin = 'round'
+    if (highlight) {
+      c.shadowColor = l.color
+      c.shadowBlur = 8
+      c.lineWidth = LINE_W + 1.5
+    }
+    if (pts.length === 1) {
+      c.beginPath()
+      c.arc(pts[0].x, pts[0].y, LINE_W / 2, 0, Math.PI * 2)
+      c.fill()
+    } else {
+      c.beginPath()
+      c.moveTo(pts[0].x, pts[0].y)
+      for (var i = 1; i < pts.length; i++) c.lineTo(pts[i].x, pts[i].y)
+      c.stroke()
     }
     c.restore()
   }
@@ -356,6 +389,9 @@ window.PracticeBoard = (function () {
     if (drag && drag.kind === 'line') {
       drawLine(c, { type: state.tool, color: state.lineColor, x1: drag.x1, y1: drag.y1, x2: drag.x2, y2: drag.y2 }, false)
     }
+    if (drag && drag.kind === 'pen') {
+      drawPenStroke(c, { type: 'pen', color: state.lineColor, points: drag.points }, false)
+    }
     /* 击球点 / 力量条控件常驻绘制，截图（forExport）时一并包含 */
     drawHitpoint(c)
     drawPower(c)
@@ -386,18 +422,35 @@ window.PracticeBoard = (function () {
     var cx = x1 + t * dx, cy = y1 + t * dy
     return Math.sqrt((px - cx) * (px - cx) + (py - cy) * (py - cy))
   }
+  /* 点到画笔笔迹的最短距离（逐段取 min） */
+  function distToPen(x, y, l) {
+    var pts = l.points || []
+    if (!pts.length) return Infinity
+    if (pts.length === 1) {
+      var dx = x - pts[0].x, dy = y - pts[0].y
+      return Math.sqrt(dx * dx + dy * dy)
+    }
+    var min = Infinity
+    for (var i = 0; i < pts.length - 1; i++) {
+      var d = distToSeg(x, y, pts[i].x, pts[i].y, pts[i + 1].x, pts[i + 1].y)
+      if (d < min) min = d
+    }
+    return min
+  }
   function hitLine(x, y) {
     for (var i = state.lines.length - 1; i >= 0; i--) {
       var l = state.lines[i]
-      if (distToSeg(x, y, l.x1, l.y1, l.x2, l.y2) <= 7) return l
+      var d = l.type === 'pen' ? distToPen(x, y, l) : distToSeg(x, y, l.x1, l.y1, l.x2, l.y2)
+      if (d <= 7) return l
     }
     return null
   }
-  /* 命中线条端点手柄（优先选中线，其次全部线） */
+  /* 命中线条端点手柄（优先选中线，其次全部线；画笔无端点手柄，跳过） */
   function hitLineEndpoint(x, y) {
     function scan(list) {
       for (var i = list.length - 1; i >= 0; i--) {
         var l = list[i]
+        if (l.type === 'pen') continue
         if ((x - l.x1) * (x - l.x1) + (y - l.y1) * (y - l.y1) <= 100) return { line: l, end: 1 }
         if ((x - l.x2) * (x - l.x2) + (y - l.y2) * (y - l.y2) <= 100) return { line: l, end: 2 }
       }
@@ -482,6 +535,8 @@ window.PracticeBoard = (function () {
     }
     if (TOOL_LINE_TYPES[state.tool]) {
       drag = { kind: 'line', x1: p.x, y1: p.y, x2: p.x, y2: p.y }
+    } else if (state.tool === 'pen') {
+      drag = { kind: 'pen', points: [{ x: p.x, y: p.y }] }
     } else {
       var b = hitBall(p.x, p.y)
       if (b) {
@@ -500,6 +555,8 @@ window.PracticeBoard = (function () {
             snapshot()
             state.selected = { kind: 'line', id: l.id }
             drag = { kind: 'line-move', id: l.id, sx: p.x, sy: p.y, ox1: l.x1, oy1: l.y1, ox2: l.x2, oy2: l.y2, moved: false }
+            /* 画笔平移：快照原始点集，move 时按总位移重设 */
+            if (l.type === 'pen') drag.oPts = l.points.map(function (pt) { return { x: pt.x, y: pt.y } })
           } else {
             state.selected = null
           }
@@ -540,14 +597,38 @@ window.PracticeBoard = (function () {
       var ml = state.lines.filter(function (x) { return x.id === drag.id })[0]
       if (!ml) { drag = null; return }
       var dx = p.x - drag.sx, dy = p.y - drag.sy
-      /* 平移后 clamp 到画布内（整线一起限制） */
-      var minX = Math.min(drag.ox1, drag.ox2), maxX = Math.max(drag.ox1, drag.ox2)
-      var minY = Math.min(drag.oy1, drag.oy2), maxY = Math.max(drag.oy1, drag.oy2)
-      dx = Math.max(-minX, Math.min(LOGICAL_W - maxX, dx))
-      dy = Math.max(-minY, Math.min(LOGICAL_H - maxY, dy))
-      ml.x1 = drag.ox1 + dx; ml.y1 = drag.oy1 + dy
-      ml.x2 = drag.ox2 + dx; ml.y2 = drag.oy2 + dy
+      if (ml.type === 'pen') {
+        /* 画笔整体平移：按点集 bounds clamp 位移后从快照重设 */
+        var bMinX = Infinity, bMinY = Infinity, bMaxX = -Infinity, bMaxY = -Infinity
+        drag.oPts.forEach(function (pt) {
+          if (pt.x < bMinX) bMinX = pt.x
+          if (pt.x > bMaxX) bMaxX = pt.x
+          if (pt.y < bMinY) bMinY = pt.y
+          if (pt.y > bMaxY) bMaxY = pt.y
+        })
+        dx = Math.max(-bMinX, Math.min(LOGICAL_W - bMaxX, dx))
+        dy = Math.max(-bMinY, Math.min(LOGICAL_H - bMaxY, dy))
+        ml.points = drag.oPts.map(function (pt) { return { x: pt.x + dx, y: pt.y + dy } })
+      } else {
+        /* 平移后 clamp 到画布内（整线一起限制） */
+        var minX = Math.min(drag.ox1, drag.ox2), maxX = Math.max(drag.ox1, drag.ox2)
+        var minY = Math.min(drag.oy1, drag.oy2), maxY = Math.max(drag.oy1, drag.oy2)
+        dx = Math.max(-minX, Math.min(LOGICAL_W - maxX, dx))
+        dy = Math.max(-minY, Math.min(LOGICAL_H - maxY, dy))
+        ml.x1 = drag.ox1 + dx; ml.y1 = drag.oy1 + dy
+        ml.x2 = drag.ox2 + dx; ml.y2 = drag.oy2 + dy
+      }
       drag.moved = true
+    } else if (drag.kind === 'pen') {
+      /* 画笔采样：距上一点 >3px 才记录，避免点过密 */
+      var pts = drag.points
+      var lp = pts[pts.length - 1]
+      var pdx = p.x - lp.x, pdy = p.y - lp.y
+      if (pdx * pdx + pdy * pdy > 9) {
+        var np = { x: p.x, y: p.y }
+        clampPoint(np)
+        pts.push(np)
+      }
     } else {
       drag.x2 = p.x
       drag.y2 = p.y
@@ -563,6 +644,10 @@ window.PracticeBoard = (function () {
         snapshot()
         state.lines.push({ id: idSeq++, type: state.tool, color: state.lineColor, x1: drag.x1, y1: drag.y1, x2: drag.x2, y2: drag.y2 })
       }
+    }
+    if (drag.kind === 'pen' && drag.points.length >= 2) {
+      snapshot()
+      state.lines.push({ id: idSeq++, type: 'pen', color: state.lineColor, points: drag.points })
     }
     if ((drag.kind === 'ball' || drag.kind === 'line-end' || drag.kind === 'line-move') && !drag.moved) {
       undoStack.pop() // 未移动：撤销本次 snapshot，避免空操作堆栈
@@ -700,7 +785,7 @@ window.PracticeBoard = (function () {
       document.querySelectorAll('.pb-tool').forEach(function (b) {
         b.classList.toggle('is-active', b === btn)
       })
-      canvas.style.cursor = TOOL_LINE_TYPES[state.tool] ? 'crosshair' : 'default'
+      canvas.style.cursor = (TOOL_LINE_TYPES[state.tool] || state.tool === 'pen') ? 'crosshair' : 'default'
       render()
     })
     var colors = document.getElementById('pb-colors')

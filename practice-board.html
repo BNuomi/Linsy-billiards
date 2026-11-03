@@ -735,7 +735,7 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
       .pb-size.is-active { border-color: var(--primary); background: var(--primary); color: var(--primary-foreground); }
 
       /* 线条工具 */
-      .pb-tools { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+      .pb-tools { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
       .pb-tool { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; height: 58px; border: 1px solid var(--border); border-radius: 10px; background: var(--background); color: var(--foreground); font-size: 12px; font-weight: 600; cursor: pointer; transition: all .15s ease; }
       .pb-tool:hover { background: var(--secondary); }
       .pb-tool.is-active { border-color: var(--primary); background: var(--primary); color: var(--primary-foreground); }
@@ -1280,7 +1280,7 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
             <div class="pb-canvas-wrap">
               <canvas id="pb-canvas" width="720" height="1460" aria-label="练球球形画布"></canvas>
             </div>
-            <div class="pb-canvas-hint">移动模式下拖动摆放球子 · 双击球子 / 线条可删除<br>线条模式下在画布上按下拖动绘制线路 · 力量条左侧「力量」区可拖动换位<br>点按或滑动母球设置击打点，拖动力量条轨道调节力度</div>
+            <div class="pb-canvas-hint">移动模式下拖动摆放球子 · 双击球子 / 线条可删除<br>线条 / 画笔模式下在画布上按下拖动绘制 · 力量条左侧「力量」区可拖动换位<br>点按或滑动母球设置击打点，拖动力量条轨道调节力度</div>
           </div>
 
           <!-- 侧栏 -->
@@ -1312,6 +1312,10 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
                 <button class="pb-tool" type="button" data-tool="arrow">
                   <svg viewBox="0 0 24 14" fill="none"><line x1="2" y1="12" x2="18" y2="3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M15 1l5 1-3 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
                   箭头
+                </button>
+                <button class="pb-tool" type="button" data-tool="pen">
+                  <svg viewBox="0 0 24 14" fill="none"><path d="M2 12c3-1 4-9 7-9s3 7 6 7 4-8 7-8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                  画笔
                 </button>
               </div>
               <div class="pb-colors" id="pb-colors">
@@ -1360,7 +1364,7 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
     <script src="./js/cloud.js?v=20260919c"></script>
     <script src="./js/common.js?v=20261102b"></script>
     <script src="./js/auth.js?v=20261102a"></script>
-    <script src="./js/practice-board.js?v=20261103b"></script>
+    <script src="./js/practice-board.js?v=20261103c"></script>
     <script>lucide.createIcons();</script>
     <script>
     /* 主题切换：更新 <html> class + localStorage 记忆，并广播 themechange 事件 */
