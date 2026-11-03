@@ -10,6 +10,7 @@
  * - 老内核兼容：全文无 ES6+ 语法（qs 替代 URLSearchParams、Promise 链替代 async/await、
  *   removeChild 替代 Element.remove）；舞台高度由 getBoundingClientRect 实测兜底，
  *   body height:100% + overflow:hidden 硬性防底部溢出
+ * - 全屏模式：角落 ⛶ 按钮或 ?fs=1 进入，隐藏顶部导航与底部页脚，舞台占满全屏
  */
 (function () {
   var REFRESH_MS = 60 * 1000
@@ -91,6 +92,27 @@
   setTimeout(fitStage, 300)
   setTimeout(fitStage, 1000)
   setTimeout(fitStage, 2000)
+
+  // 全屏模式：隐藏顶部导航与底部页脚，舞台占满全屏，仅留角落按钮（本钮/比例切换/管理入口）
+  // ?fs=1 可让广告机书签直接以全屏打开；切换后须重算舞台高度（fitStage 实测顶距自适应）
+  var fullBtn = document.getElementById('bn-full')
+  function applyFull(on) {
+    document.body.classList.toggle('bn-fullscreen', on)
+    if (fullBtn) {
+      fullBtn.textContent = on ? '✕' : '⛶'
+      fullBtn.title = on ? '退出全屏，恢复顶部导航与底部信息' : '全屏展示，隐藏顶部导航与底部信息'
+    }
+    fitStage()
+    setTimeout(fitStage, 50) // display:none 触发回流，老内核延后补一次
+  }
+  var urlFs = qs('fs') || qs('fullscreen')
+  applyFull(urlFs === '1' || urlFs === 'true' || urlFs === 'yes')
+  if (fullBtn) {
+    fullBtn.addEventListener('click', function (e) {
+      e.stopPropagation() // 不触发舞台点按换图
+      applyFull(!document.body.classList.contains('bn-fullscreen'))
+    })
+  }
 
   var items = []        // [{ id, url, duration }]
   var current = -1
@@ -253,7 +275,7 @@
 
   // 触摸/点击手动切换下一张（展示设备点按即可换图；管理入口与比例切换钮不触发）
   stage.addEventListener('click', function (e) {
-    if (e.target.closest && (e.target.closest('#bn-admin') || e.target.closest('#bn-mode'))) return
+    if (e.target.closest && (e.target.closest('#bn-admin') || e.target.closest('#bn-mode') || e.target.closest('#bn-full'))) return
     if (items.length > 1) next()
   })
 
