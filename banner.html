@@ -46,8 +46,10 @@
         --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.3), 0 1px 2px -1px rgba(0, 0, 0, 0.2);
       }
       * { box-sizing: border-box; }
+      html, body { height: 100%; } /* 精确高度链（不依赖 vh 单位，IE6 起全兼容），供 flex:1 精确分配 */
       body {
-        margin: 0; min-height: 100vh; display: flex; flex-direction: column;
+        margin: 0; display: flex; flex-direction: column;
+        overflow: hidden; /* 展示页无滚动需求：宁可裁切也不溢出，广告机视口异常时的硬性兜底 */
         background: var(--background); color: var(--foreground);
         font-family: var(--font-sans); font-size: 14px; line-height: 1.45;
         -webkit-font-smoothing: antialiased;
@@ -225,7 +227,7 @@
   <script>lucide.createIcons();</script>
   <script src="./js/cloud.js?v=20260926a"></script>
   <script src="./js/common.js?v=20261102b"></script>
-  <script src="./js/banner.js?v=20261103c"></script>
+  <script src="./js/banner.js?v=20261103d"></script>
   <script>
   /* 主题切换：更新 <html> class + localStorage 记忆，并广播 themechange 事件 */
   (function () {
