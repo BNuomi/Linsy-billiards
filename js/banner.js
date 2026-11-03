@@ -53,11 +53,30 @@
   var EFFECTS = { fade: 1, slide: 1, none: 1 }
   var urlFx = params.get('effect')
   var fxLock = EFFECTS[urlFx] ? urlFx : ''
+  // slide 依赖 transform：完全不支持 transform 的老内核强制降级 fade，避免所有图片堆叠
+  var probe = document.createElement('div').style
+  var canTransform = typeof probe.transform === 'string' || typeof probe.webkitTransform === 'string'
   function applyFx(name) {
+    if (name === 'slide' && !canTransform) name = 'fade'
     document.body.classList.toggle('bn-fx-slide', name === 'slide')
     document.body.classList.toggle('bn-fx-none', name === 'none')
   }
   applyFx(fxLock || 'fade')
+
+  // 舞台高度显式兜底：CSS flex 链（body→main→stage flex:1）在广告机等老内核上可能失效，
+  // 导致舞台高度塌陷、img height:100% 退化为原图自然高度而底部溢出。
+  // 本页本就依赖 JS 加载图片，故直接用 JS 计算：舞台高 = 视口高 - 导航高 - 页脚高
+  var navEl = document.querySelector('.rk-nav')
+  var footerEl = document.querySelector('.page-footer')
+  function fitStage() {
+    var navH = navEl ? navEl.offsetHeight : 0
+    var footH = footerEl ? footerEl.offsetHeight : 0
+    var h = window.innerHeight - navH - footH
+    stage.style.height = Math.max(h, 100) + 'px'
+  }
+  fitStage()
+  window.addEventListener('resize', fitStage)
+  window.addEventListener('orientationchange', fitStage)
 
   var items = []        // [{ id, url, duration }]
   var current = -1
