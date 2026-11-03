@@ -1,6 +1,6 @@
 /*
- * 轮播图管理页：列表（上移/下移/删除）+ 本地上传（canvas 压缩后经云函数落存储）+ 微信扫码上传（小程序码弹层）
- * 本地上传/删除/排序走 AppAuth.callAuthed('banner_admin', ...)：首次自动弹扫码授权，
+ * 轮播图管理页：列表（上移/下移/删除/改时长）+ 全局切换效果设置 + 本地上传 + 微信扫码上传
+ * 本地上传/删除/排序/改时长/改效果走 AppAuth.callAuthed('banner_admin', ...)：首次自动弹扫码授权，
  * 云端二次校验管理员/裁判角色；401/403 时 AppAuth 自动清缓存，下次操作重新扫码。
  * 微信扫码上传出码免授权：码无敏感性，上传权限由小程序端 + 云端 OPENID 角色校验把控
  */
@@ -19,9 +19,14 @@
   var uploadBtn = document.getElementById('ba-upload')
   var fileInput = document.getElementById('ba-file')
   var qrBtn = document.getElementById('ba-qr')
+  var settingsEl = document.getElementById('ba-settings')
+  var settingsMeta = document.getElementById('ba-settings-meta')
+  var saveSettingsBtn = document.getElementById('ba-save-settings')
 
   var banners = []
   var max = 10
+  var settings = { effect: 'fade' }
+  var defaults = { duration: 5000 }
 
   function toast(msg, type) { window.AppUI.toast(msg, type) }
   function esc(s) { return window.AppUI.escapeHtml(s) }
@@ -37,7 +42,10 @@
       var data = await window.AppCloud.call('manageBanners', { action: 'list' })
       banners = data.banners || []
       max = data.max || 10
+      settings = data.settings || { effect: 'fade' }
+      if (data.defaults && data.defaults.duration) defaults.duration = data.defaults.duration
       render()
+      renderSettings()
     } catch (e) {
       errText.textContent = '轮播图加载失败：' + (e.message || e)
       errEl.style.display = 'block'
@@ -54,11 +62,16 @@
     hintEl.textContent = full ? '已达上限，请先删除' : ''
     emptyEl.style.display = banners.length ? 'none' : 'block'
     listEl.innerHTML = banners.map(function (b, i) {
+      var dur = (b.duration || defaults.duration) / 1000
       return '<div class="ba-item" data-id="' + esc(b.id) + '">' +
         '<div class="ba-thumb">' + (b.url ? '<img src="' + esc(b.url) + '" alt="">' : '') + '</div>' +
         '<div class="ba-info">' +
         '<div class="ba-name">' + esc(b.title || ('轮播图 ' + (i + 1))) + '</div>' +
         '<div class="ba-meta">第 ' + (i + 1) + ' 位 · ' + esc(b.created_by_name || '-') + ' · ' + window.AppUI.fmtDate(b.created_at) + '</div>' +
+        '<div class="ba-duration">显示时长 ' +
+        '<input type="number" min="1" max="120" step="0.5" value="' + dur + '" data-role="duration" aria-label="显示时长（秒）">' +
+        ' 秒 <button class="btn ba-save-duration" type="button" data-act="save-duration">保存</button>' +
+        '</div>' +
         '</div>' +
         '<div class="ba-ops">' +
         '<button class="btn" data-act="up" type="button"' + (i === 0 ? ' disabled' : '') + '>上移</button>' +
@@ -67,6 +80,36 @@
         '</div></div>'
     }).join('')
   }
+
+  function renderSettings() {
+    settingsEl.style.display = 'flex'
+    var radios = settingsEl.querySelectorAll('input[name=ba-effect]')
+    radios.forEach(function (r) { r.checked = r.value === settings.effect })
+    var meta = ''
+    if (settings.updated_by_name) {
+      meta = '最近修改：' + esc(settings.updated_by_name) + ' · ' + window.AppUI.fmtDate(settings.updated_at)
+    } else {
+      meta = '当前为默认效果（未保存过设置）'
+    }
+    settingsMeta.innerHTML = meta
+  }
+
+  saveSettingsBtn.addEventListener('click', async function () {
+    var picked = settingsEl.querySelector('input[name=ba-effect]:checked')
+    if (!picked) { toast('请选择切换效果', 'error'); return }
+    var effect = picked.value
+    saveSettingsBtn.disabled = true
+    try {
+      await callWrite({ action: 'update_settings', effect: effect })
+      toast('切换效果已保存，展示页 1 分钟内自动生效', 'success')
+      settings.effect = effect
+      load()
+    } catch (err) {
+      toast('保存失败：' + (err.message || err), 'error')
+    } finally {
+      saveSettingsBtn.disabled = false
+    }
+  })
 
   listEl.addEventListener('click', async function (e) {
     var btn = e.target.closest('button[data-act]')
@@ -85,6 +128,26 @@
         toast('已删除', 'success')
         load()
       } catch (err) { toast('删除失败：' + (err.message || err), 'error') }
+      return
+    }
+
+    if (act === 'save-duration') {
+      var input = item.querySelector('input[data-role=duration]')
+      var sec = Number(input && input.value)
+      if (!Number.isFinite(sec) || sec < 1 || sec > 120) {
+        toast('显示时长需在 1 ~ 120 秒之间', 'error')
+        return
+      }
+      btn.disabled = true
+      try {
+        await callWrite({ action: 'update', banner_id: id, duration: Math.round(sec * 1000) })
+        banners[idx].duration = Math.round(sec * 1000)
+        toast('时长已保存', 'success')
+      } catch (err) {
+        toast('保存失败：' + (err.message || err), 'error')
+      } finally {
+        btn.disabled = false
+      }
       return
     }
 

@@ -134,6 +134,30 @@
       .ba-ops { display: flex; flex-direction: column; gap: 6px; flex: none; }
       .ba-ops .btn { height: 28px; padding: 0 10px; font-size: 11px; justify-content: center; }
       .ba-ops .btn.danger { color: var(--state-error); border-color: var(--state-error); }
+      /* 每图时长行：数字输入 + 秒 + 保存小按钮 */
+      .ba-duration { margin-top: 8px; display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted-foreground); }
+      .ba-duration input[type=number] {
+        width: 64px; height: 26px; padding: 0 6px; font-size: 12px; border-radius: 8px;
+        border: 1px solid var(--border); background: var(--background); color: var(--foreground);
+        font-family: var(--font-sans);
+      }
+      .ba-duration .ba-save-duration { height: 24px; padding: 0 10px; font-size: 11px; }
+      /* 全局播放设置卡 */
+      .ba-settings {
+        margin-top: 14px; padding: 14px 16px; border-radius: var(--radius);
+        background: var(--card); border: 1px solid var(--border); box-shadow: var(--shadow-sm);
+        display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+      }
+      .ba-settings .ba-settings-label { font-size: 13px; font-weight: 700; }
+      .ba-settings .ba-effects { display: flex; gap: 8px; flex-wrap: wrap; }
+      .ba-effects label {
+        display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; border-radius: 999px;
+        border: 1px solid var(--border); cursor: pointer; font-size: 13px;
+        transition: background-color .15s ease;
+      }
+      .ba-effects input[type=radio] { margin: 0; accent-color: var(--primary); }
+      .ba-effects label:has(input:checked) { background: var(--secondary); border-color: var(--primary); color: var(--foreground); }
+      .ba-settings .ba-settings-meta { font-size: 12px; color: var(--muted-foreground); margin-left: auto; }
       .ba-empty {
         padding: 40px; border: 1px dashed var(--border); border-radius: var(--radius);
         text-align: center; color: var(--muted-foreground); background: var(--card); margin-top: 14px;
@@ -197,6 +221,18 @@
 
       <div class="ba-count">已上传 <b id="ba-n">0</b> / <span id="ba-max2">10</span> 张<span id="ba-hint" style="margin-left:10px;"></span></div>
 
+      <!-- 全局播放设置：切换效果（fade/slide/none），展示页每次拉列表时读取 -->
+      <section class="ba-settings" id="ba-settings" style="display:none;">
+        <span class="ba-settings-label">切换效果</span>
+        <div class="ba-effects" id="ba-effects">
+          <label><input type="radio" name="ba-effect" value="fade"> 淡入淡出</label>
+          <label><input type="radio" name="ba-effect" value="slide"> 左右滑动</label>
+          <label><input type="radio" name="ba-effect" value="none"> 直接切换</label>
+        </div>
+        <button class="btn" id="ba-save-settings" type="button">保存设置</button>
+        <span class="ba-settings-meta" id="ba-settings-meta"></span>
+      </section>
+
       <section id="ba-error">
         <div id="ba-error-text">加载失败</div>
         <button class="btn" id="ba-retry" type="button" style="margin-top:14px;">重试</button>
@@ -215,7 +251,7 @@
   <script src="./js/fallback-data.js?v=20261008b"></script>
   <script src="./js/common.js?v=20261102b"></script>
   <script src="./js/auth.js?v=20261101b"></script>
-  <script src="./js/banner-admin.js?v=20261102a"></script>
+  <script src="./js/banner-admin.js?v=20261103a"></script>
   <script>
   /* 主题切换：更新 <html> class + localStorage 记忆，并广播 themechange 事件 */
   (function () {

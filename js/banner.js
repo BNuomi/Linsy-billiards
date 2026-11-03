@@ -1,7 +1,9 @@
 /*
  * 轮播展示页（默认 1080×1920 竖屏 9:16 全幅播放，可切横屏 16:9 完整显示；?mode=9:16 / ?mode=16:9 强制锁定）
- * - manageBanners list 拉取图片（含 2 小时临时链接），60s 轮询热更新
- * - 淡入淡出自动轮播，默认 6s 一切（?interval=秒 可调）
+ * - manageBanners list 拉取图片（含 2 小时临时链接 + 每图 duration + 全局 settings.effect），60s 轮询热更新
+ * - 竖屏图片高度优先充满，宽度按原比例自适应居中；横屏 contain 完整显示
+ * - 每图按各自 duration 轮播（默认 5s），?interval=秒 可强制统一时长覆盖各图配置
+ * - 切换效果 fade / slide / none 由管理页全局设置，?effect=xxx 可对本机覆盖（不写存储）
  * - 页面隐藏时暂停切换与轮询，恢复可见立即刷新（临时链接过期兜底）
  * - 显示比例记忆在 localStorage（bn-display-mode），展示设备固定模式免每次重设
  */
@@ -43,9 +45,20 @@
   }
 
   var intervalSec = parseInt(params.get('interval'), 10)
-  var ROTATE_MS = (intervalSec >= 3 && intervalSec <= 120 ? intervalSec : 6) * 1000
+  var FORCE_MS = (intervalSec >= 1 && intervalSec <= 120) ? intervalSec * 1000 : 0 // ?interval=秒 强制统一时长，覆盖各图配置
+  var DEFAULT_MS = 5000
 
-  var items = []        // [{ id, url }]
+  // 切换效果：URL ?effect=fade|slide|none 优先（本机覆盖，不写存储），否则跟随管理页全局设置
+  var EFFECTS = { fade: 1, slide: 1, none: 1 }
+  var urlFx = params.get('effect')
+  var fxLock = EFFECTS[urlFx] ? urlFx : ''
+  function applyFx(name) {
+    document.body.classList.toggle('bn-fx-slide', name === 'slide')
+    document.body.classList.toggle('bn-fx-none', name === 'none')
+  }
+  applyFx(fxLock || 'fade')
+
+  var items = []        // [{ id, url, duration }]
   var current = -1
   var rotateTimer = null
   var refreshTimer = null
@@ -93,26 +106,46 @@
     var dots = dotsBox.children
     if (current >= 0 && slides[current]) {
       slides[current].classList.remove('is-active')
+      slides[current].classList.add('is-prev') // slide 模式下旧片向左滑出
       if (dots[current]) dots[current].classList.remove('on')
     }
     current = (current + 1) % items.length
     if (slides[current]) {
+      slides[current].classList.remove('is-prev')
       slides[current].classList.add('is-active')
       if (dots[current]) dots[current].classList.add('on')
     }
+    // 滑出动画结束后旧片无过渡归位到右侧待播（fade/none 模式下 is-prev 无样式，归位无副作用）
+    setTimeout(function () {
+      var olds = stage.querySelectorAll('.bn-slide.is-prev')
+      Array.prototype.forEach.call(olds, function (s) {
+        s.classList.add('bn-no-tx')
+        s.classList.remove('is-prev')
+        void s.offsetWidth // 强制回流，确保归位不触发过渡
+        s.classList.remove('bn-no-tx')
+      })
+    }, 850)
     restartRotate()
+  }
+
+  function currentDuration() {
+    if (FORCE_MS) return FORCE_MS
+    var d = items[current] && Number(items[current].duration)
+    return (d >= 1000 && d <= 120000) ? d : DEFAULT_MS
   }
 
   function restartRotate() {
     if (rotateTimer) { clearTimeout(rotateTimer); rotateTimer = null }
     if (items.length > 1 && !document.hidden) {
-      rotateTimer = setTimeout(next, ROTATE_MS)
+      rotateTimer = setTimeout(next, currentDuration())
     }
   }
 
   async function refresh() {
     try {
       var data = await window.AppCloud.call('manageBanners', { action: 'list' })
+      // 全局切换效果热更新（URL ?effect= 锁定时不跟随云端）
+      if (!fxLock && data.settings && EFFECTS[data.settings.effect]) applyFx(data.settings.effect)
       var list = (data.banners || []).filter(function (b) { return !!b.url })
       if (!list.length) {
         items = []
@@ -121,7 +154,11 @@
         return
       }
       var nextSig = list.map(function (b) { return b.id }).join(',')
-      if (nextSig === sig && items.length) return // 内容未变，继续当前播放
+      if (nextSig === sig && items.length) {
+        // 图序未变：仅就地合并各图时长（管理页改时长不打断当前播放）
+        items.forEach(function (it, i) { if (list[i]) it.duration = list[i].duration })
+        return
+      }
       sig = nextSig
       items = list
       render()

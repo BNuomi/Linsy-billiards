@@ -5,13 +5,13 @@
  * - 线条工具：实线 / 虚线 / 箭头，颜色可选；已画线条可平移、拖端点改长度
  * - 画笔工具：自由手绘笔迹（圆头折线），可选色、整体平移、双击删除、撤销
  * - 击球点控件：放大母球 + 虚线分上中下，固定位置不可拖动，点按/滑动设打点
- * - 力量条控件：轨道点击/拖动调力度，左侧「力量」区拖动换位；两控件截图时一并包含
+ * - 力量条 / 杆速条控件：轨道点击/拖动调值，左侧标签区拖动换位；控件截图时一并包含
  * - 撤销 / 清空 / 保存截图；截图列举在侧栏（localStorage 持久化）
  */
 window.PracticeBoard = (function () {
   var LOGICAL_W = 720
   var TABLE_H = 1290 // 与裁剪后球桌区域（旋转）同比例
-  var TOP_PAD = 170 // 画布顶部控件区（击球点 / 力量条），球台之外
+  var TOP_PAD = 254 // 画布顶部控件区（击球点 / 力量条 / 杆速条），球台之外
   var LOGICAL_H = TOP_PAD + TABLE_H
   /* 背景图球桌裁剪区域（原图 2848×1600 中量取），去掉四周大片绿边 */
   var SRC = { x: 360, y: 265, w: 2130, h: 1190 }
@@ -25,7 +25,7 @@ window.PracticeBoard = (function () {
   var HP_R = 48 // 击球点控件母球半径
   var SHOT_KEY = 'practice-board-shots-v1'
   var STATE_KEY = 'practice-board-state-v1'
-  var STATE_VER = 2 // v2：新增顶部控件区，球/线 y 坐标较 v1 整体下移 TOP_PAD
+  var STATE_VER = 3 // v2：顶部控件区 170；v3：控件区加高至 254（新增杆速条），球/线 y 坐标随控件区高度迁移
   var MAX_SHOTS = 30
 
   /* 中八球配色：0=母球，1-7 全色，8 黑，9-15 花色（同 1-7 色） */
@@ -46,8 +46,9 @@ window.PracticeBoard = (function () {
   var canvas, ctx, bgImg = null
   var state = {
     balls: [], lines: [], tool: 'move', lineColor: LINE_COLORS[0], ballSize: 'm', selected: null,
-    hitpoint: { x: 100, y: 85, px: 0, py: 0 }, // 击球点控件（位置固定，px,py 归一化 -1..1，0=正中心）
-    power: { x: 215, y: 47, w: 490, h: 76, value: 50 } // 力量条控件（0-100）
+    hitpoint: { x: 100, y: 127, px: 0, py: 0 }, // 击球点控件（位置固定，px,py 归一化 -1..1，0=正中心）
+    power: { x: 215, y: 47, w: 490, h: 76, value: 50 }, // 力量条控件（0-100）
+    speed: { x: 215, y: 131, w: 490, h: 76, value: 50 } // 杆速条控件（0-100）
   }
   var undoStack = []
   var drag = null // {kind:'ball',id,dx,dy,moved} | {kind:'line',x1,y1,x2,y2}
@@ -71,7 +72,7 @@ window.PracticeBoard = (function () {
       localStorage.setItem(STATE_KEY, JSON.stringify({
         v: STATE_VER,
         balls: state.balls, lines: state.lines, ballSize: state.ballSize,
-        hitpoint: state.hitpoint, power: state.power
+        hitpoint: state.hitpoint, power: state.power, speed: state.speed
       }))
     } catch (e) {}
   }
@@ -80,11 +81,15 @@ window.PracticeBoard = (function () {
       var s = JSON.parse(localStorage.getItem(STATE_KEY) || 'null')
       if (!s || !Array.isArray(s.balls) || !Array.isArray(s.lines)) return
       if (s.v !== STATE_VER) {
-        /* v1 → v2：顶部新增控件区，球台整体下移 TOP_PAD，旧坐标同步偏移 */
-        s.balls.forEach(function (b) { b.y += TOP_PAD })
+        /* 旧版坐标迁移：v1（无控件区）→ 当前 +TOP_PAD；v2（控件区 170）→ 当前 +TOP_PAD-170 */
+        var dy = TOP_PAD - (s.v === 2 ? 170 : 0)
+        s.balls.forEach(function (b) { b.y += dy })
         s.lines.forEach(function (l) {
-          if (l.type === 'pen') return // 画笔仅存于 v2+，防御性跳过
-          l.y1 += TOP_PAD; l.y2 += TOP_PAD
+          if (l.type === 'pen') {
+            ;(l.points || []).forEach(function (pt) { pt.y += dy })
+            return
+          }
+          l.y1 += dy; l.y2 += dy
         })
       }
       state.balls = s.balls
@@ -96,6 +101,7 @@ window.PracticeBoard = (function () {
         state.hitpoint.py = typeof s.hitpoint.py === 'number' ? s.hitpoint.py : 0
       }
       if (s.power && typeof s.power.x === 'number') state.power = s.power
+      if (s.speed && typeof s.speed.x === 'number') state.speed = s.speed
       s.balls.forEach(function (b) { if (b.id >= idSeq) idSeq = b.id + 1 })
       s.lines.forEach(function (l) { if (l.id >= idSeq) idSeq = l.id + 1 })
     } catch (e) {}
@@ -325,18 +331,16 @@ window.PracticeBoard = (function () {
     c.fillText('击球点', hp.x, hp.y + R + 22)
   }
 
-  /* 力量条轨道几何（绘制与命中共用） */
-  function powerTrack() {
-    var pw = state.power
-    return { x0: pw.x + 64, x1: pw.x + pw.w - 72, cy: pw.y + pw.h / 2, h: 16 }
+  /* 仪表条轨道几何（绘制与命中共用；力量/杆速条复用） */
+  function meterTrack(m) {
+    return { x0: m.x + 64, x1: m.x + m.w - 72, cy: m.y + m.h / 2, h: 16 }
   }
 
-  /* 力量条控件：左侧「力量」区为移动手柄，轨道区点击/拖动调力度 */
-  function drawPower(c) {
-    var pw = state.power
-    var t = powerTrack()
+  /* 仪表条控件（力量条 / 杆速条）：左侧标签区为移动手柄，轨道区点击/拖动调值 */
+  function drawMeterBar(c, m, label) {
+    var t = meterTrack(m)
     c.save()
-    rr(c, pw.x, pw.y, pw.w, pw.h, 14)
+    rr(c, m.x, m.y, m.w, m.h, 14)
     c.fillStyle = 'rgba(0,0,0,0.38)'
     c.fill()
     c.strokeStyle = 'rgba(255,255,255,0.16)'
@@ -347,12 +351,12 @@ window.PracticeBoard = (function () {
     c.font = '700 22px "PingFang SC", "Microsoft YaHei", sans-serif'
     c.textAlign = 'center'
     c.textBaseline = 'middle'
-    c.fillText('力量', pw.x + 32, pw.y + pw.h / 2)
+    c.fillText(label, m.x + 32, m.y + m.h / 2)
 
     rr(c, t.x0, t.cy - t.h / 2, t.x1 - t.x0, t.h, t.h / 2)
     c.fillStyle = 'rgba(255,255,255,0.18)'
     c.fill()
-    var fw = (t.x1 - t.x0) * pw.value / 100
+    var fw = (t.x1 - t.x0) * m.value / 100
     if (fw > 1) {
       var g = c.createLinearGradient(t.x0, 0, t.x1, 0)
       g.addColorStop(0, '#22c55e')
@@ -373,7 +377,7 @@ window.PracticeBoard = (function () {
     c.fillStyle = '#ffffff'
     c.font = '700 22px "JetBrains Mono", monospace'
     c.textAlign = 'left'
-    c.fillText(pw.value + '%', pw.x + pw.w - 62, pw.y + pw.h / 2)
+    c.fillText(m.value + '%', m.x + m.w - 62, m.y + m.h / 2)
     c.restore()
   }
 
@@ -392,9 +396,10 @@ window.PracticeBoard = (function () {
     if (drag && drag.kind === 'pen') {
       drawPenStroke(c, { type: 'pen', color: state.lineColor, points: drag.points }, false)
     }
-    /* 击球点 / 力量条控件常驻绘制，截图（forExport）时一并包含 */
+    /* 击球点 / 力量条 / 杆速条控件常驻绘制，截图（forExport）时一并包含 */
     drawHitpoint(c)
-    drawPower(c)
+    drawMeterBar(c, state.power, '力量')
+    drawMeterBar(c, state.speed, '杆速')
   }
 
   function render() {
@@ -479,16 +484,15 @@ window.PracticeBoard = (function () {
     hp.px = Math.round(dx * 100) / 100
     hp.py = Math.round(dy * 100) / 100
   }
-  /* 力量条命中：'move'=左侧「力量」手柄区拖动换位，'adjust'=轨道区调力度 */
-  function hitPowerZone(x, y) {
-    var pw = state.power
-    if (x < pw.x || x > pw.x + pw.w || y < pw.y || y > pw.y + pw.h) return null
-    return x < pw.x + 56 ? 'move' : 'adjust'
+  /* 仪表条命中：'move'=左侧标签手柄区拖动换位，'adjust'=轨道区调值（力量/杆速条复用） */
+  function hitMeterZone(m, x, y) {
+    if (x < m.x || x > m.x + m.w || y < m.y || y > m.y + m.h) return null
+    return x < m.x + 56 ? 'move' : 'adjust'
   }
-  function setPowerFromX(x) {
-    var t = powerTrack()
+  function setMeterFromX(m, x) {
+    var t = meterTrack(m)
     var v = Math.round((x - t.x0) / (t.x1 - t.x0) * 100)
-    state.power.value = Math.max(0, Math.min(100, v))
+    m.value = Math.max(0, Math.min(100, v))
   }
 
   function toLogical(e) {
@@ -514,22 +518,29 @@ window.PracticeBoard = (function () {
     e.preventDefault()
     canvas.setPointerCapture(e.pointerId)
     var p = toLogical(e)
-    /* 控件优先：击球点 / 力量条在任何工具下都可交互 */
+    /* 控件优先：击球点 / 力量条 / 杆速条在任何工具下都可交互 */
     if (hitHitpoint(p.x, p.y)) {
       drag = { kind: 'widget-hp-set' }
       setHitpointFromPos(p.x, p.y)
       render()
       return
     }
-    var pz = hitPowerZone(p.x, p.y)
-    if (pz === 'move') {
-      drag = { kind: 'widget-pw', dx: state.power.x - p.x, dy: state.power.y - p.y, moved: false }
+    /* 仪表条（力量 / 杆速）：drag.m 直接持有目标条对象引用 */
+    var mz = null
+    var pz = hitMeterZone(state.power, p.x, p.y)
+    if (pz) mz = { m: state.power, z: pz }
+    else {
+      var sz = hitMeterZone(state.speed, p.x, p.y)
+      if (sz) mz = { m: state.speed, z: sz }
+    }
+    if (mz && mz.z === 'move') {
+      drag = { kind: 'widget-meter-move', m: mz.m, dx: mz.m.x - p.x, dy: mz.m.y - p.y, moved: false }
       render()
       return
     }
-    if (pz === 'adjust') {
-      drag = { kind: 'widget-pw-set' }
-      setPowerFromX(p.x)
+    if (mz && mz.z === 'adjust') {
+      drag = { kind: 'widget-meter-set', m: mz.m }
+      setMeterFromX(mz.m, p.x)
       render()
       return
     }
@@ -572,13 +583,13 @@ window.PracticeBoard = (function () {
     if (drag.kind === 'widget-hp-set') {
       /* 按住滑动连续微调打点 */
       setHitpointFromPos(p.x, p.y)
-    } else if (drag.kind === 'widget-pw') {
-      var pw = state.power
-      pw.x = Math.max(0, Math.min(LOGICAL_W - pw.w, p.x + drag.dx))
-      pw.y = Math.max(0, Math.min(LOGICAL_H - pw.h, p.y + drag.dy))
+    } else if (drag.kind === 'widget-meter-move') {
+      var m = drag.m
+      m.x = Math.max(0, Math.min(LOGICAL_W - m.w, p.x + drag.dx))
+      m.y = Math.max(0, Math.min(LOGICAL_H - m.h, p.y + drag.dy))
       drag.moved = true
-    } else if (drag.kind === 'widget-pw-set') {
-      setPowerFromX(p.x)
+    } else if (drag.kind === 'widget-meter-set') {
+      setMeterFromX(drag.m, p.x)
     } else if (drag.kind === 'ball') {
       var b = state.balls.filter(function (x) { return x.id === drag.id })[0]
       if (!b) { drag = null; return }

@@ -107,9 +107,20 @@
         opacity: 0; transition: opacity 1s ease;
       }
       .bn-slide.is-active { opacity: 1; }
+      /* 竖屏 9:16：高度优先充满，宽度按原图比例自适应并水平居中（过宽裁两侧、过窄留黑边） */
       .bn-slide img {
-        width: 100%; height: 100%; object-fit: cover; display: block;
+        position: absolute; left: 50%; top: 0; transform: translateX(-50%);
+        height: 100%; width: auto; max-width: none; display: block;
       }
+      /* 切换效果：slide 平移（新图右入、旧图左出，no-tx 供旧片无过渡归位）/ none 直切 */
+      body.bn-fx-slide .bn-slide {
+        opacity: 1; transform: translateX(100%);
+        transition: transform .8s cubic-bezier(.32,.72,.35,1);
+      }
+      body.bn-fx-slide .bn-slide.is-active { transform: translateX(0); }
+      body.bn-fx-slide .bn-slide.is-prev { transform: translateX(-100%); }
+      body.bn-fx-slide .bn-slide.bn-no-tx { transition: none; }
+      body.bn-fx-none .bn-slide { transition: none; }
       /* 指示点：低存在感，仅多图时显示 */
       #bn-dots {
         position: absolute; left: 50%; bottom: max(18px, env(safe-area-inset-bottom));
@@ -157,7 +168,10 @@
 
       /* 横屏 16:9 模式：舞台占满导航以下全屏高度，图片保持原长宽比完整显示（contain），两侧黑边填充 */
       body.bn-landscape main { background: #000; }
-      body.bn-landscape .bn-slide img { object-fit: contain; }
+      body.bn-landscape .bn-slide img {
+        position: static; transform: none;
+        width: 100%; height: 100%; object-fit: contain;
+      }
 
       .page-footer { padding: 16px 20px; border-top: 1px solid var(--border); color: var(--muted-foreground); font-size: 12px; text-align: center; }
       /* 窄屏导航兼容由 common.js 全站统一注入（横向可滑，保留全部入口） */
@@ -200,7 +214,7 @@
   <script>lucide.createIcons();</script>
   <script src="./js/cloud.js?v=20260926a"></script>
   <script src="./js/common.js?v=20261102b"></script>
-  <script src="./js/banner.js?v=20261101d"></script>
+  <script src="./js/banner.js?v=20261103a"></script>
   <script>
   /* 主题切换：更新 <html> class + localStorage 记忆，并广播 themechange 事件 */
   (function () {
