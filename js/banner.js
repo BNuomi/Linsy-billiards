@@ -4,6 +4,7 @@
  * - 竖屏图片高度优先充满，宽度按原比例自适应居中；横屏 contain 完整显示
  * - 每图按各自 duration 轮播（默认 5s），?interval=秒 可强制统一时长覆盖各图配置
  * - 切换效果 fade / slide / none 由管理页全局设置，?effect=xxx 可对本机覆盖（不写存储）
+ * - 坏图兜底：单图加载失败自动跳过不卡屏，全部失败显示占位；链接续期后自动恢复重载
  * - 页面隐藏时暂停切换与轮询，恢复可见立即刷新（临时链接过期兜底）
  * - 显示比例记忆在 localStorage（bn-display-mode），展示设备固定模式免每次重设
  */
@@ -89,6 +90,11 @@
       var img = document.createElement('img')
       img.src = it.url
       img.alt = it.title || ('轮播图 ' + (i + 1))
+      img.onerror = function () {
+        it.bad = 1
+        if (slide.parentNode) slide.style.display = 'none'
+        if (items[current] === it) showEmpty('图片加载失败，请检查图片')
+      }
       slide.appendChild(img)
       stage.insertBefore(slide, emptyBox)
       var dot = document.createElement('i')
@@ -109,7 +115,13 @@
       slides[current].classList.add('is-prev') // slide 模式下旧片向左滑出
       if (dots[current]) dots[current].classList.remove('on')
     }
-    current = (current + 1) % items.length
+    // 跳过加载失败的坏图
+    var n = items.length, tries = 0
+    do { current = (current + 1) % n; tries++ } while (items[current] && items[current].bad && tries < n)
+    if (items[current] && items[current].bad) {
+      showEmpty('图片加载失败，请检查图片')
+      return
+    }
     if (slides[current]) {
       slides[current].classList.remove('is-prev')
       slides[current].classList.add('is-active')
@@ -155,8 +167,18 @@
       }
       var nextSig = list.map(function (b) { return b.id }).join(',')
       if (nextSig === sig && items.length) {
-        // 图序未变：仅就地合并各图时长（管理页改时长不打断当前播放）
-        items.forEach(function (it, i) { if (list[i]) it.duration = list[i].duration })
+        // 图序未变：就地合并各图时长；临时链接续期或坏图恢复时原地重载 src（不打断当前播放）
+        var domImgs = stage.querySelectorAll('.bn-slide img')
+        items.forEach(function (it, i) {
+          if (!list[i]) return
+          it.duration = list[i].duration
+          var im = domImgs[i]
+          if (im && im.getAttribute('src') !== list[i].url) {
+            it.bad = 0
+            im.src = list[i].url
+            if (im.parentNode) im.parentNode.style.display = ''
+          }
+        })
         return
       }
       sig = nextSig

@@ -105,12 +105,14 @@
       .bn-slide {
         position: absolute; inset: 0;
         opacity: 0; transition: opacity 1s ease;
+        display: flex; justify-content: center; /* 渐进增强：新内核 flex 居中，过宽图两边均裁 */
       }
       .bn-slide.is-active { opacity: 1; }
-      /* 竖屏 9:16：高度优先充满，宽度按原图比例自适应并水平居中（过宽裁两侧、过窄留黑边） */
+      /* 竖屏 9:16：高度优先充满，宽度按原图比例自适应。流式 margin 居中（不依赖 absolute/transform，
+         广告机等弱内核/弱 GPU 设备全兼容；不识别 flex 的老内核自动回退 block + margin auto） */
       .bn-slide img {
-        position: absolute; left: 50%; top: 0; transform: translateX(-50%);
-        height: 100%; width: auto; max-width: none; display: block;
+        display: block; height: 100%; width: auto; max-width: none;
+        margin: 0 auto;
       }
       /* 切换效果：slide 平移（新图右入、旧图左出，no-tx 供旧片无过渡归位）/ none 直切 */
       body.bn-fx-slide .bn-slide {
@@ -169,7 +171,6 @@
       /* 横屏 16:9 模式：舞台占满导航以下全屏高度，图片保持原长宽比完整显示（contain），两侧黑边填充 */
       body.bn-landscape main { background: #000; }
       body.bn-landscape .bn-slide img {
-        position: static; transform: none;
         width: 100%; height: 100%; object-fit: contain;
       }
 
@@ -214,7 +215,7 @@
   <script>lucide.createIcons();</script>
   <script src="./js/cloud.js?v=20260926a"></script>
   <script src="./js/common.js?v=20261102b"></script>
-  <script src="./js/banner.js?v=20261103a"></script>
+  <script src="./js/banner.js?v=20261103b"></script>
   <script>
   /* 主题切换：更新 <html> class + localStorage 记忆，并广播 themechange 事件 */
   (function () {
