@@ -1,24 +1,30 @@
 /*
- * 练球球形图画板（纯前端，无云端依赖）
- * - 竖向球桌画布（背景图旋转 90° 绘制）
+ * 练球球形图画板（云端同步需 practice_admin 授权）
+ * - 竖向球桌画布（背景图旋转 90° 绘制），顶部 170px 控件区（球台之外）
  * - 侧栏球子拖放摆放 / 画布内拖动 / 双击删除
- * - 线条工具：实线 / 虚线 / 箭头，颜色可选
+ * - 线条工具：实线 / 虚线 / 箭头，颜色可选；已画线条可平移、拖端点改长度
+ * - 击球点控件：放大母球 + 虚线分上中下，点击设打点、拖动换位
+ * - 力量条控件：轨道点击/拖动调力度，左侧「力量」区拖动换位；两控件截图时一并包含
  * - 撤销 / 清空 / 保存截图；截图列举在侧栏（localStorage 持久化）
  */
 window.PracticeBoard = (function () {
   var LOGICAL_W = 720
-  var LOGICAL_H = 1290 // 与裁剪后球桌区域（旋转）同比例
+  var TABLE_H = 1290 // 与裁剪后球桌区域（旋转）同比例
+  var TOP_PAD = 170 // 画布顶部控件区（击球点 / 力量条），球台之外
+  var LOGICAL_H = TOP_PAD + TABLE_H
   /* 背景图球桌裁剪区域（原图 2848×1600 中量取），去掉四周大片绿边 */
   var SRC = { x: 360, y: 265, w: 2130, h: 1190 }
-  /* 球子大小档位：默认标准（原 13 增大 1/3 ≈ 17） */
+  /* 球子大小档位：整体上移一档（原「大」21 作为「小」，新增 中25 / 大29） */
   var BALL_SIZES = [
-    { key: 's', label: '小', r: 13 },
-    { key: 'm', label: '标准', r: 17 },
-    { key: 'l', label: '大', r: 21 }
+    { key: 's', label: '小', r: 21 },
+    { key: 'm', label: '中', r: 25 },
+    { key: 'l', label: '大', r: 29 }
   ]
   var LINE_W = 4
+  var HP_R = 48 // 击球点控件母球半径
   var SHOT_KEY = 'practice-board-shots-v1'
   var STATE_KEY = 'practice-board-state-v1'
+  var STATE_VER = 2 // v2：新增顶部控件区，球/线 y 坐标较 v1 整体下移 TOP_PAD
   var MAX_SHOTS = 30
 
   /* 中八球配色：0=母球，1-7 全色，8 黑，9-15 花色（同 1-7 色） */
@@ -37,7 +43,11 @@ window.PracticeBoard = (function () {
   var TOOL_LINE_TYPES = { line: 1, dash: 1, arrow: 1 }
 
   var canvas, ctx, bgImg = null
-  var state = { balls: [], lines: [], tool: 'move', lineColor: LINE_COLORS[0], ballSize: 'm', selected: null }
+  var state = {
+    balls: [], lines: [], tool: 'move', lineColor: LINE_COLORS[0], ballSize: 'm', selected: null,
+    hitpoint: { x: 100, y: 85, px: 0, py: 0 }, // 击球点控件（px,py 归一化 -1..1，0=正中心）
+    power: { x: 215, y: 47, w: 490, h: 76, value: 50 } // 力量条控件（0-100）
+  }
   var undoStack = []
   var drag = null // {kind:'ball',id,dx,dy,moved} | {kind:'line',x1,y1,x2,y2}
   var placing = null // {num, ghost, moved}
@@ -57,19 +67,29 @@ window.PracticeBoard = (function () {
   /* ── 持久化 ── */
   function saveState() {
     try {
-      localStorage.setItem(STATE_KEY, JSON.stringify({ balls: state.balls, lines: state.lines, ballSize: state.ballSize }))
+      localStorage.setItem(STATE_KEY, JSON.stringify({
+        v: STATE_VER,
+        balls: state.balls, lines: state.lines, ballSize: state.ballSize,
+        hitpoint: state.hitpoint, power: state.power
+      }))
     } catch (e) {}
   }
   function loadState() {
     try {
       var s = JSON.parse(localStorage.getItem(STATE_KEY) || 'null')
-      if (s && Array.isArray(s.balls) && Array.isArray(s.lines)) {
-        state.balls = s.balls
-        state.lines = s.lines
-        if (s.ballSize === 's' || s.ballSize === 'm' || s.ballSize === 'l') state.ballSize = s.ballSize
-        s.balls.forEach(function (b) { if (b.id >= idSeq) idSeq = b.id + 1 })
-        s.lines.forEach(function (l) { if (l.id >= idSeq) idSeq = l.id + 1 })
+      if (!s || !Array.isArray(s.balls) || !Array.isArray(s.lines)) return
+      if (s.v !== STATE_VER) {
+        /* v1 → v2：顶部新增控件区，球台整体下移 TOP_PAD，旧坐标同步偏移 */
+        s.balls.forEach(function (b) { b.y += TOP_PAD })
+        s.lines.forEach(function (l) { l.y1 += TOP_PAD; l.y2 += TOP_PAD })
       }
+      state.balls = s.balls
+      state.lines = s.lines
+      if (s.ballSize === 's' || s.ballSize === 'm' || s.ballSize === 'l') state.ballSize = s.ballSize
+      if (s.hitpoint && typeof s.hitpoint.x === 'number') state.hitpoint = s.hitpoint
+      if (s.power && typeof s.power.x === 'number') state.power = s.power
+      s.balls.forEach(function (b) { if (b.id >= idSeq) idSeq = b.id + 1 })
+      s.lines.forEach(function (l) { if (l.id >= idSeq) idSeq = l.id + 1 })
     } catch (e) {}
   }
 
@@ -91,15 +111,13 @@ window.PracticeBoard = (function () {
 
   /* ── 绘制 ── */
   function drawBackground(c) {
-    if (!bgImg) {
-      c.fillStyle = '#0d3a1e'
-      c.fillRect(0, 0, LOGICAL_W, LOGICAL_H)
-      return
-    }
+    c.fillStyle = '#0d3a1e'
+    c.fillRect(0, 0, LOGICAL_W, LOGICAL_H)
+    if (!bgImg) return
     c.save()
-    c.translate(LOGICAL_W / 2, LOGICAL_H / 2)
+    c.translate(LOGICAL_W / 2, TOP_PAD + TABLE_H / 2)
     c.rotate(Math.PI / 2)
-    c.drawImage(bgImg, SRC.x, SRC.y, SRC.w, SRC.h, -LOGICAL_H / 2, -LOGICAL_W / 2, LOGICAL_H, LOGICAL_W)
+    c.drawImage(bgImg, SRC.x, SRC.y, SRC.w, SRC.h, -TABLE_H / 2, -LOGICAL_W / 2, TABLE_H, LOGICAL_W)
     c.restore()
   }
 
@@ -205,6 +223,123 @@ window.PracticeBoard = (function () {
     }
   }
 
+  function rr(c, x, y, w, h, r) {
+    c.beginPath()
+    c.moveTo(x + r, y)
+    c.arcTo(x + w, y, x + w, y + h, r)
+    c.arcTo(x + w, y + h, x, y + h, r)
+    c.arcTo(x, y + h, x, y, r)
+    c.arcTo(x, y, x + w, y, r)
+    c.closePath()
+  }
+
+  /* 击球点控件：放大的母球，虚线分割上/中/下，红点标记当前打点 */
+  function drawHitpoint(c) {
+    var hp = state.hitpoint
+    var R = HP_R
+    c.save()
+    c.beginPath()
+    c.arc(hp.x, hp.y, R, 0, Math.PI * 2)
+    c.clip()
+    c.fillStyle = '#f6f6f0'
+    c.fillRect(hp.x - R, hp.y - R, R * 2, R * 2)
+    var g = c.createRadialGradient(hp.x - R * 0.35, hp.y - R * 0.4, R * 0.15, hp.x, hp.y, R * 1.05)
+    g.addColorStop(0, 'rgba(255,255,255,0.34)')
+    g.addColorStop(0.45, 'rgba(255,255,255,0)')
+    g.addColorStop(1, 'rgba(0,0,0,0.4)')
+    c.fillStyle = g
+    c.fillRect(hp.x - R, hp.y - R, R * 2, R * 2)
+    /* 上中下分割虚线（按弦长截断，不出球面） */
+    c.strokeStyle = 'rgba(40,40,40,0.5)'
+    c.lineWidth = 2
+    c.setLineDash([9, 8])
+    ;[-1 / 3, 1 / 3].forEach(function (k) {
+      var dy = R * k
+      var half = Math.sqrt(R * R - dy * dy)
+      c.beginPath()
+      c.moveTo(hp.x - half, hp.y + dy)
+      c.lineTo(hp.x + half, hp.y + dy)
+      c.stroke()
+    })
+    c.setLineDash([])
+    c.restore()
+
+    c.beginPath()
+    c.arc(hp.x, hp.y, R, 0, Math.PI * 2)
+    c.strokeStyle = 'rgba(255,255,255,0.45)'
+    c.lineWidth = 2
+    c.stroke()
+
+    /* 当前打点亮标（限制在 0.78R 内，保证亮点不超出球面） */
+    var mx = hp.x + hp.px * R * 0.78
+    var my = hp.y + hp.py * R * 0.78
+    c.beginPath()
+    c.arc(mx, my, 8, 0, Math.PI * 2)
+    c.fillStyle = '#dc2626'
+    c.fill()
+    c.strokeStyle = '#ffffff'
+    c.lineWidth = 2.5
+    c.stroke()
+
+    c.fillStyle = 'rgba(255,255,255,0.8)'
+    c.font = '600 20px "PingFang SC", "Microsoft YaHei", sans-serif'
+    c.textAlign = 'center'
+    c.textBaseline = 'middle'
+    c.fillText('击球点', hp.x, hp.y + R + 22)
+  }
+
+  /* 力量条轨道几何（绘制与命中共用） */
+  function powerTrack() {
+    var pw = state.power
+    return { x0: pw.x + 64, x1: pw.x + pw.w - 72, cy: pw.y + pw.h / 2, h: 16 }
+  }
+
+  /* 力量条控件：左侧「力量」区为移动手柄，轨道区点击/拖动调力度 */
+  function drawPower(c) {
+    var pw = state.power
+    var t = powerTrack()
+    c.save()
+    rr(c, pw.x, pw.y, pw.w, pw.h, 14)
+    c.fillStyle = 'rgba(0,0,0,0.38)'
+    c.fill()
+    c.strokeStyle = 'rgba(255,255,255,0.16)'
+    c.lineWidth = 1.5
+    c.stroke()
+
+    c.fillStyle = 'rgba(255,255,255,0.85)'
+    c.font = '700 22px "PingFang SC", "Microsoft YaHei", sans-serif'
+    c.textAlign = 'center'
+    c.textBaseline = 'middle'
+    c.fillText('力量', pw.x + 32, pw.y + pw.h / 2)
+
+    rr(c, t.x0, t.cy - t.h / 2, t.x1 - t.x0, t.h, t.h / 2)
+    c.fillStyle = 'rgba(255,255,255,0.18)'
+    c.fill()
+    var fw = (t.x1 - t.x0) * pw.value / 100
+    if (fw > 1) {
+      var g = c.createLinearGradient(t.x0, 0, t.x1, 0)
+      g.addColorStop(0, '#22c55e')
+      g.addColorStop(0.55, '#eab308')
+      g.addColorStop(1, '#ef4444')
+      rr(c, t.x0, t.cy - t.h / 2, fw, t.h, Math.min(t.h / 2, fw / 2))
+      c.fillStyle = g
+      c.fill()
+    }
+    c.beginPath()
+    c.arc(t.x0 + fw, t.cy, 12, 0, Math.PI * 2)
+    c.fillStyle = '#ffffff'
+    c.fill()
+    c.strokeStyle = 'rgba(0,0,0,0.3)'
+    c.lineWidth = 1.5
+    c.stroke()
+
+    c.fillStyle = '#ffffff'
+    c.font = '700 22px "JetBrains Mono", monospace'
+    c.textAlign = 'left'
+    c.fillText(pw.value + '%', pw.x + pw.w - 62, pw.y + pw.h / 2)
+    c.restore()
+  }
+
   function paint(c, forExport) {
     c.clearRect(0, 0, LOGICAL_W, LOGICAL_H)
     drawBackground(c)
@@ -217,6 +352,9 @@ window.PracticeBoard = (function () {
     if (drag && drag.kind === 'line') {
       drawLine(c, { type: state.tool, color: state.lineColor, x1: drag.x1, y1: drag.y1, x2: drag.x2, y2: drag.y2 }, false)
     }
+    /* 击球点 / 力量条控件常驻绘制，截图（forExport）时一并包含 */
+    drawHitpoint(c)
+    drawPower(c)
   }
 
   function render() {
@@ -269,6 +407,23 @@ window.PracticeBoard = (function () {
     return scan(state.lines)
   }
 
+  /* 控件命中：击球点整个球面可拖动换位，轻点（未拖动）设打点 */
+  function hitHitpoint(x, y) {
+    var dx = x - state.hitpoint.x, dy = y - state.hitpoint.y
+    return dx * dx + dy * dy <= (HP_R + 8) * (HP_R + 8)
+  }
+  /* 力量条命中：'move'=左侧「力量」手柄区拖动换位，'adjust'=轨道区调力度 */
+  function hitPowerZone(x, y) {
+    var pw = state.power
+    if (x < pw.x || x > pw.x + pw.w || y < pw.y || y > pw.y + pw.h) return null
+    return x < pw.x + 56 ? 'move' : 'adjust'
+  }
+  function setPowerFromX(x) {
+    var t = powerTrack()
+    var v = Math.round((x - t.x0) / (t.x1 - t.x0) * 100)
+    state.power.value = Math.max(0, Math.min(100, v))
+  }
+
   function toLogical(e) {
     var r = canvas.getBoundingClientRect()
     return {
@@ -279,7 +434,7 @@ window.PracticeBoard = (function () {
   function clampBall(b) {
     var R = ballR()
     b.x = Math.max(R + 1, Math.min(LOGICAL_W - R - 1, b.x))
-    b.y = Math.max(R + 1, Math.min(LOGICAL_H - R - 1, b.y))
+    b.y = Math.max(TOP_PAD + R + 1, Math.min(LOGICAL_H - R - 1, b.y)) // 球子限制在球台区域（顶部控件区不可放球）
   }
   function clampPoint(p) {
     p.x = Math.max(0, Math.min(LOGICAL_W, p.x))
@@ -292,6 +447,24 @@ window.PracticeBoard = (function () {
     e.preventDefault()
     canvas.setPointerCapture(e.pointerId)
     var p = toLogical(e)
+    /* 控件优先：击球点 / 力量条在任何工具下都可交互 */
+    if (hitHitpoint(p.x, p.y)) {
+      drag = { kind: 'widget-hp', dx: state.hitpoint.x - p.x, dy: state.hitpoint.y - p.y, sx: p.x, sy: p.y, moved: false }
+      render()
+      return
+    }
+    var pz = hitPowerZone(p.x, p.y)
+    if (pz === 'move') {
+      drag = { kind: 'widget-pw', dx: state.power.x - p.x, dy: state.power.y - p.y, moved: false }
+      render()
+      return
+    }
+    if (pz === 'adjust') {
+      drag = { kind: 'widget-pw-set' }
+      setPowerFromX(p.x)
+      render()
+      return
+    }
     if (TOOL_LINE_TYPES[state.tool]) {
       drag = { kind: 'line', x1: p.x, y1: p.y, x2: p.x, y2: p.y }
     } else {
@@ -324,7 +497,22 @@ window.PracticeBoard = (function () {
     if (!drag) return
     e.preventDefault()
     var p = toLogical(e)
-    if (drag.kind === 'ball') {
+    if (drag.kind === 'widget-hp') {
+      /* 超过阈值才算拖动换位，否则视为轻点（up 时设打点） */
+      if (!drag.moved && Math.abs(p.x - drag.sx) + Math.abs(p.y - drag.sy) > 8) drag.moved = true
+      if (drag.moved) {
+        var hp = state.hitpoint
+        hp.x = Math.max(HP_R, Math.min(LOGICAL_W - HP_R, p.x + drag.dx))
+        hp.y = Math.max(HP_R, Math.min(LOGICAL_H - HP_R, p.y + drag.dy))
+      }
+    } else if (drag.kind === 'widget-pw') {
+      var pw = state.power
+      pw.x = Math.max(0, Math.min(LOGICAL_W - pw.w, p.x + drag.dx))
+      pw.y = Math.max(0, Math.min(LOGICAL_H - pw.h, p.y + drag.dy))
+      drag.moved = true
+    } else if (drag.kind === 'widget-pw-set') {
+      setPowerFromX(p.x)
+    } else if (drag.kind === 'ball') {
       var b = state.balls.filter(function (x) { return x.id === drag.id })[0]
       if (!b) { drag = null; return }
       b.x = p.x + drag.dx
@@ -365,6 +553,17 @@ window.PracticeBoard = (function () {
         snapshot()
         state.lines.push({ id: idSeq++, type: state.tool, color: state.lineColor, x1: drag.x1, y1: drag.y1, x2: drag.x2, y2: drag.y2 })
       }
+    }
+    if (drag.kind === 'widget-hp' && !drag.moved) {
+      /* 轻点母球：设置击打点（归一化并限制在球面内） */
+      var p = toLogical(e)
+      var hp = state.hitpoint
+      var dx = (p.x - hp.x) / (HP_R * 0.78)
+      var dy = (p.y - hp.y) / (HP_R * 0.78)
+      var dl = Math.sqrt(dx * dx + dy * dy)
+      if (dl > 1) { dx /= dl; dy /= dl }
+      hp.px = Math.round(dx * 100) / 100
+      hp.py = Math.round(dy * 100) / 100
     }
     if ((drag.kind === 'ball' || drag.kind === 'line-end' || drag.kind === 'line-move') && !drag.moved) {
       undoStack.pop() // 未移动：撤销本次 snapshot，避免空操作堆栈
