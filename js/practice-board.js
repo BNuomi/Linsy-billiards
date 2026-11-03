@@ -3,7 +3,7 @@
  * - 竖向球桌画布（背景图旋转 90° 绘制），顶部 170px 控件区（球台之外）
  * - 侧栏球子拖放摆放 / 画布内拖动 / 双击删除
  * - 线条工具：实线 / 虚线 / 箭头，颜色可选；已画线条可平移、拖端点改长度
- * - 击球点控件：放大母球 + 虚线分上中下，点击设打点、拖动换位
+ * - 击球点控件：放大母球 + 虚线分上中下，固定位置不可拖动，点按/滑动设打点
  * - 力量条控件：轨道点击/拖动调力度，左侧「力量」区拖动换位；两控件截图时一并包含
  * - 撤销 / 清空 / 保存截图；截图列举在侧栏（localStorage 持久化）
  */
@@ -45,7 +45,7 @@ window.PracticeBoard = (function () {
   var canvas, ctx, bgImg = null
   var state = {
     balls: [], lines: [], tool: 'move', lineColor: LINE_COLORS[0], ballSize: 'm', selected: null,
-    hitpoint: { x: 100, y: 85, px: 0, py: 0 }, // 击球点控件（px,py 归一化 -1..1，0=正中心）
+    hitpoint: { x: 100, y: 85, px: 0, py: 0 }, // 击球点控件（位置固定，px,py 归一化 -1..1，0=正中心）
     power: { x: 215, y: 47, w: 490, h: 76, value: 50 } // 力量条控件（0-100）
   }
   var undoStack = []
@@ -86,7 +86,11 @@ window.PracticeBoard = (function () {
       state.balls = s.balls
       state.lines = s.lines
       if (s.ballSize === 's' || s.ballSize === 'm' || s.ballSize === 'l') state.ballSize = s.ballSize
-      if (s.hitpoint && typeof s.hitpoint.x === 'number') state.hitpoint = s.hitpoint
+      if (s.hitpoint && typeof s.hitpoint.px === 'number') {
+        /* 仅恢复打点值：母球位置固定不可拖动（v20261103b 起） */
+        state.hitpoint.px = s.hitpoint.px
+        state.hitpoint.py = typeof s.hitpoint.py === 'number' ? s.hitpoint.py : 0
+      }
       if (s.power && typeof s.power.x === 'number') state.power = s.power
       s.balls.forEach(function (b) { if (b.id >= idSeq) idSeq = b.id + 1 })
       s.lines.forEach(function (l) { if (l.id >= idSeq) idSeq = l.id + 1 })
@@ -407,10 +411,20 @@ window.PracticeBoard = (function () {
     return scan(state.lines)
   }
 
-  /* 控件命中：击球点整个球面可拖动换位，轻点（未拖动）设打点 */
+  /* 控件命中：击球点母球位置固定，点按/滑动设打点 */
   function hitHitpoint(x, y) {
     var dx = x - state.hitpoint.x, dy = y - state.hitpoint.y
     return dx * dx + dy * dy <= (HP_R + 8) * (HP_R + 8)
+  }
+  /* 按指针位置设置击打点（归一化并限制在球面 0.78R 内） */
+  function setHitpointFromPos(x, y) {
+    var hp = state.hitpoint
+    var dx = (x - hp.x) / (HP_R * 0.78)
+    var dy = (y - hp.y) / (HP_R * 0.78)
+    var dl = Math.sqrt(dx * dx + dy * dy)
+    if (dl > 1) { dx /= dl; dy /= dl }
+    hp.px = Math.round(dx * 100) / 100
+    hp.py = Math.round(dy * 100) / 100
   }
   /* 力量条命中：'move'=左侧「力量」手柄区拖动换位，'adjust'=轨道区调力度 */
   function hitPowerZone(x, y) {
@@ -449,7 +463,8 @@ window.PracticeBoard = (function () {
     var p = toLogical(e)
     /* 控件优先：击球点 / 力量条在任何工具下都可交互 */
     if (hitHitpoint(p.x, p.y)) {
-      drag = { kind: 'widget-hp', dx: state.hitpoint.x - p.x, dy: state.hitpoint.y - p.y, sx: p.x, sy: p.y, moved: false }
+      drag = { kind: 'widget-hp-set' }
+      setHitpointFromPos(p.x, p.y)
       render()
       return
     }
@@ -497,14 +512,9 @@ window.PracticeBoard = (function () {
     if (!drag) return
     e.preventDefault()
     var p = toLogical(e)
-    if (drag.kind === 'widget-hp') {
-      /* 超过阈值才算拖动换位，否则视为轻点（up 时设打点） */
-      if (!drag.moved && Math.abs(p.x - drag.sx) + Math.abs(p.y - drag.sy) > 8) drag.moved = true
-      if (drag.moved) {
-        var hp = state.hitpoint
-        hp.x = Math.max(HP_R, Math.min(LOGICAL_W - HP_R, p.x + drag.dx))
-        hp.y = Math.max(HP_R, Math.min(LOGICAL_H - HP_R, p.y + drag.dy))
-      }
+    if (drag.kind === 'widget-hp-set') {
+      /* 按住滑动连续微调打点 */
+      setHitpointFromPos(p.x, p.y)
     } else if (drag.kind === 'widget-pw') {
       var pw = state.power
       pw.x = Math.max(0, Math.min(LOGICAL_W - pw.w, p.x + drag.dx))
@@ -553,17 +563,6 @@ window.PracticeBoard = (function () {
         snapshot()
         state.lines.push({ id: idSeq++, type: state.tool, color: state.lineColor, x1: drag.x1, y1: drag.y1, x2: drag.x2, y2: drag.y2 })
       }
-    }
-    if (drag.kind === 'widget-hp' && !drag.moved) {
-      /* 轻点母球：设置击打点（归一化并限制在球面内） */
-      var p = toLogical(e)
-      var hp = state.hitpoint
-      var dx = (p.x - hp.x) / (HP_R * 0.78)
-      var dy = (p.y - hp.y) / (HP_R * 0.78)
-      var dl = Math.sqrt(dx * dx + dy * dy)
-      if (dl > 1) { dx /= dl; dy /= dl }
-      hp.px = Math.round(dx * 100) / 100
-      hp.py = Math.round(dy * 100) / 100
     }
     if ((drag.kind === 'ball' || drag.kind === 'line-end' || drag.kind === 'line-move') && !drag.moved) {
       undoStack.pop() // 未移动：撤销本次 snapshot，避免空操作堆栈
