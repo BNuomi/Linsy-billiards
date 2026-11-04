@@ -11,6 +11,9 @@
  *   removeChild 替代 Element.remove）；舞台高度由 getBoundingClientRect 实测兜底，
  *   body height:100% + overflow:hidden 硬性防底部溢出
  * - 全屏模式：角落 ⛶ 按钮或 ?fs=1 进入，隐藏顶部导航与底部页脚，舞台占满全屏
+ * - 图片本地缓存：按 file_id（换图才变）缓存 blob，内存 objectURL 常驻本会话 + IndexedDB 持久化跨刷新；
+ *   60s 轮询换发的签名链接只用于首次展示与暖缓存，命中缓存零下载零闪烁，下架图自动清理
+ * - 手动滑动切图：触屏/鼠标左右滑（左滑下一张、右滑上一张），slide 效果反向动画，轻点仍为下一张
  */
 (function () {
   var REFRESH_MS = 60 * 1000
@@ -114,11 +117,96 @@
     })
   }
 
-  var items = []        // [{ id, url, duration }]
+  var items = []        // [{ id, file_id, url, duration }]
   var current = -1
   var rotateTimer = null
   var refreshTimer = null
   var sig = ''          // 列表签名，避免无变化时重建 DOM
+
+  // ── 图片本地缓存 ──────────────────────────────────────────────
+  // list 每次刷新都换发新签名 URL，直接用 URL 会随续期反复重下载。
+  // 按 file_id（换图才会变）缓存 blob：内存 objectURL 常驻本会话，IndexedDB 持久化跨页面刷新
+  // （广告机重启后零下载）。签名 URL 仅作首次展示与暖缓存下载用：blob 拉到后下轮就地换
+  // objectURL，同图无闪烁。老内核不支持 IndexedDB/XHR blob 时自动降级为仅直链续期（原行为）。
+  var canBlobURL = false
+  try { canBlobURL = !!(window.URL && window.URL.createObjectURL) } catch (e) {}
+  var blobMem = {}    // file_id -> objectURL（本会话）
+  var warmFail = {}   // file_id -> 最近拉取失败时刻（10 分钟冷却，避免每轮轮询空耗）
+  var imgDB = null
+  if (canBlobURL && window.indexedDB) {
+    try {
+      var dbReq = window.indexedDB.open('linsy-banner-cache', 1)
+      dbReq.onupgradeneeded = function () {
+        try { dbReq.result.createObjectStore('imgs') } catch (e) {}
+      }
+      dbReq.onsuccess = function () { imgDB = dbReq.result }
+      dbReq.onerror = function () {}
+    } catch (e) {}
+  }
+  function cacheLoad(key, cb) {
+    if (blobMem[key]) { cb(blobMem[key]); return }
+    if (!imgDB) { cb(''); return }
+    try {
+      var rq = imgDB.transaction('imgs', 'readonly').objectStore('imgs').get(key)
+      rq.onsuccess = function () {
+        var u = ''
+        if (rq.result) {
+          try { u = window.URL.createObjectURL(rq.result) } catch (e) {}
+          if (u) blobMem[key] = u
+        }
+        cb(u)
+      }
+      rq.onerror = function () { cb('') }
+    } catch (e) { cb('') }
+  }
+  function cacheWarm(key, url) {
+    if (!canBlobURL || !url) return
+    if (warmFail[key] && Date.now() - warmFail[key] < 10 * 60 * 1000) return
+    var xhr = new XMLHttpRequest()
+    if (!('responseType' in xhr)) return // 老内核不支持 blob 响应：放弃缓存，回退直链续期
+    xhr.open('GET', url, true)
+    xhr.responseType = 'blob'
+    xhr.onload = function () {
+      if (xhr.status >= 200 && xhr.status < 300 && xhr.response) {
+        warmFail[key] = 0
+        try {
+          var u = window.URL.createObjectURL(xhr.response)
+          if (u) blobMem[key] = u
+        } catch (e) {}
+        if (imgDB) {
+          try { imgDB.transaction('imgs', 'readwrite').objectStore('imgs').put(xhr.response, key) } catch (e) {}
+        }
+      } else {
+        warmFail[key] = Date.now()
+      }
+    }
+    xhr.onerror = function () { warmFail[key] = Date.now() } // CORS 拦截/网络失败：冷却 10 分钟再试
+    try { xhr.send() } catch (e) {}
+  }
+  // 幻灯片取显示 src：缓存命中用 objectURL（零网络），否则签名直链 + 后台暖缓存
+  function slideSrc(b, cb) {
+    var key = b.file_id || b.id
+    cacheLoad(key, function (u) {
+      if (u) { cb(u); return }
+      cb(b.url)
+      cacheWarm(key, b.url)
+    })
+  }
+  // 清理：删除已下架图片的持久化 blob，缓存库只留当前轮播集（上限 10 张，天然有界）
+  function cachePrune(keys) {
+    if (!imgDB) return
+    try {
+      var os = imgDB.transaction('imgs', 'readwrite').objectStore('imgs')
+      if (!os.getAllKeys) return
+      var rq = os.getAllKeys()
+      rq.onsuccess = function () {
+        var all = rq.result || []
+        for (var i = 0; i < all.length; i++) {
+          if (keys.indexOf(all[i]) < 0) { try { os.delete(all[i]) } catch (e) {} }
+        }
+      }
+    } catch (e) {}
+  }
 
   // 幻灯片与常驻元素（占位/指示点/管理入口）同居 #bn-stage：只清幻灯片，且新片插到常驻元素之前保持层叠序
   function clearSlides() {
@@ -147,7 +235,9 @@
       var slide = document.createElement('div')
       slide.className = 'bn-slide'
       var img = document.createElement('img')
-      img.src = it.url
+      img.setAttribute('draggable', 'false') // 鼠标拖拽切图不拖出系统图片（配合 CSS -webkit-user-drag）
+      // 缓存优先取 src：objectURL 零网络零闪烁；未缓存用签名直链并后台暖缓存
+      slideSrc(it, function (u) { img.src = u || it.url })
       img.alt = it.title || ('轮播图 ' + (i + 1))
       img.onerror = function () {
         it.bad = 1
@@ -199,6 +289,44 @@
     restartRotate()
   }
 
+  // 上一张（右滑反向）：旧片右出、新片左入。fade/none 模式下 is-prev-r/is-enter-l 无样式，自然回退
+  function prev() {
+    if (!items.length) return
+    var slides = stage.querySelectorAll('.bn-slide')
+    var dots = dotsBox.children
+    if (current >= 0 && slides[current]) {
+      slides[current].classList.remove('is-active')
+      slides[current].classList.add('is-prev-r') // slide 模式下旧片向右滑出
+      if (dots[current]) dots[current].classList.remove('on')
+    }
+    // 跳过加载失败的坏图（向回找）
+    var n = items.length, tries = 0
+    do { current = (current - 1 + n) % n; tries++ } while (items[current] && items[current].bad && tries < n)
+    if (items[current] && items[current].bad) {
+      showEmpty('图片加载失败，请检查图片')
+      return
+    }
+    var s = slides[current]
+    if (s) {
+      // 新片须从左侧进入：bn-no-tx 先无过渡摆到 -100%（is-enter-l），回流后再激活动画到 0
+      s.classList.add('bn-no-tx')
+      s.classList.add('is-enter-l')
+      void s.offsetWidth // 强制回流
+      s.classList.remove('bn-no-tx')
+      s.classList.remove('is-prev')
+      s.classList.remove('is-prev-r')
+      s.classList.remove('is-enter-l')
+      s.classList.add('is-active') // -100% → 0，从左滑入
+      if (dots[current]) dots[current].classList.add('on')
+    }
+    // is-prev-r 右出后与右侧待播位（translateX(100%)）重合，850ms 后清标记即可，无需归位动画
+    setTimeout(function () {
+      var olds = stage.querySelectorAll('.bn-slide.is-prev-r')
+      Array.prototype.forEach.call(olds, function (el) { el.classList.remove('is-prev-r') })
+    }, 850)
+    restartRotate()
+  }
+
   function currentDuration() {
     if (FORCE_MS) return FORCE_MS
     var d = items[current] && Number(items[current].duration)
@@ -226,6 +354,7 @@
       // 全局切换效果热更新（URL ?effect= 锁定时不跟随云端）
       if (!fxLock && data.settings && EFFECTS[data.settings.effect]) applyFx(data.settings.effect)
       var list = (data.banners || []).filter(function (b) { return !!b.url })
+      cachePrune(list.map(function (b) { return b.file_id || b.id })) // 下架/清空图的持久化 blob 一并清理
       if (!list.length) {
         items = []
         sig = ''
@@ -234,17 +363,32 @@
       }
       var nextSig = list.map(function (b) { return b.id }).join(',')
       if (nextSig === sig && items.length) {
-        // 图序未变：就地合并各图时长；临时链接续期或坏图恢复时原地重载 src（不打断当前播放）
+        // 图序未变：就地合并。file_id 未变且展示正常 → 缓存命中返回稳定 objectURL，src 相同零操作
+        // （60s 签名续期不再重下载）；暖缓存完成后直链就地换 objectURL（同图无闪烁）；
+        // 换图（file_id 变）或坏图恢复 → 按缓存优先重载 src 并清除 bad 标记
         var domImgs = stage.querySelectorAll('.bn-slide img')
         items.forEach(function (it, i) {
           if (!list[i]) return
+          var sameImg = (it.file_id || it.id) === (list[i].file_id || list[i].id)
+          it.file_id = list[i].file_id || it.id
+          it.url = list[i].url
           it.duration = list[i].duration
           var im = domImgs[i]
-          if (im && im.getAttribute('src') !== list[i].url) {
-            it.bad = 0
-            im.src = list[i].url
-            if (im.parentNode) im.parentNode.style.display = ''
+          if (!im) return
+          if (sameImg && !it.bad) {
+            slideSrc(list[i], function (u) {
+              if (!u || im.getAttribute('src') === u) return
+              im.src = u // 暖缓存完成后的一次性 objectURL 就地切换，此后每轮稳定零操作
+            })
+            return
           }
+          // 换图或坏图恢复：重置坏标记，缓存优先重载
+          it.bad = 0
+          slideSrc(list[i], function (u) {
+            im.src = u || list[i].url
+            if (im.parentNode) im.parentNode.style.display = ''
+            if (current === i) { showStage(); restartRotate() } // 全坏转占位后救回：复播
+          })
         })
         return
       }
@@ -273,9 +417,42 @@
     }
   })
 
-  // 触摸/点击手动切换下一张（展示设备点按即可换图；管理入口与比例切换钮不触发）
+  // ── 手动滑动切图：触屏横滑（左滑下一张/右滑上一张），桌面鼠标拖拽同口径 ──
+  // 轻点舞台仍为下一张；角落按钮不触发；滑动后 400ms 内忽略紧随的 click，避免一次手势切两张
+  var swipeX = 0, swipeY = 0, swiping = false, clickBlock = 0
+  function swipeStart(x, y) { swiping = true; swipeX = x; swipeY = y }
+  function swipeEnd(x, y) {
+    if (!swiping) return
+    swiping = false
+    var dx = x - swipeX, dy = y - swipeY
+    // 横向位移超 40px 且水平占优才判定为滑动（轻点/纵向手势不误切）
+    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) && items.length > 1) {
+      clickBlock = Date.now()
+      if (dx < 0) next(); else prev()
+    }
+  }
+  if ('ontouchstart' in window) {
+    stage.addEventListener('touchstart', function (e) {
+      var t = e.changedTouches[0]
+      swipeStart(t.clientX, t.clientY)
+    }, false)
+    stage.addEventListener('touchend', function (e) {
+      var t = e.changedTouches[0]
+      swipeEnd(t.clientX, t.clientY)
+    }, false)
+  }
+  var mouseSwiping = false
+  stage.addEventListener('mousedown', function (e) { mouseSwiping = true; swipeStart(e.clientX, e.clientY) })
+  document.addEventListener('mouseup', function (e) {
+    if (!mouseSwiping) return
+    mouseSwiping = false
+    swipeEnd(e.clientX, e.clientY)
+  })
+
+  // 触摸/点击手动切换下一张（展示设备点按即可换图；角落按钮与刚完成的滑动不触发）
   stage.addEventListener('click', function (e) {
     if (e.target.closest && (e.target.closest('#bn-admin') || e.target.closest('#bn-mode') || e.target.closest('#bn-full'))) return
+    if (Date.now() - clickBlock < 400) return // 滑动手势已切图，吞掉紧随的合成 click
     if (items.length > 1) next()
   })
 

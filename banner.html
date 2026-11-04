@@ -104,6 +104,8 @@
       #bn-stage {
         position: relative; flex: 1; min-height: 0;
         background: #000; overflow: hidden;
+        -webkit-user-select: none; user-select: none; /* 拖拽切图不选中页面内容 */
+        -webkit-touch-callout: none; touch-action: pan-y; /* iOS 长按不弹菜单；纵向手势不劫持，横向滑动留给页面切图 */
       }
       .bn-slide {
         position: absolute; top: 0; right: 0; bottom: 0; left: 0; /* 不用 inset 简写（2021+ 新语法，老内核不识别） */
@@ -116,6 +118,7 @@
       .bn-slide img {
         display: block; height: 100%; width: auto; max-width: none;
         margin: 0 auto;
+        -webkit-user-drag: none; /* 鼠标拖拽切图时不拖出系统图片 */
       }
       /* 切换效果：slide 平移（新图右入、旧图左出，no-tx 供旧片无过渡归位）/ none 直切 */
       body.bn-fx-slide .bn-slide {
@@ -124,6 +127,9 @@
         -webkit-transition: -webkit-transform .8s cubic-bezier(.32,.72,.35,1);
         transition: transform .8s cubic-bezier(.32,.72,.35,1);
       }
+      /* 反向（上一张/右滑）：旧片右出、新片左入。声明在 is-active 之前——类并存时以 is-active 为准 */
+      body.bn-fx-slide .bn-slide.is-prev-r { -webkit-transform: translateX(100%); transform: translateX(100%); }
+      body.bn-fx-slide .bn-slide.is-enter-l { -webkit-transform: translateX(-100%); transform: translateX(-100%); }
       body.bn-fx-slide .bn-slide.is-active { -webkit-transform: translateX(0); transform: translateX(0); }
       body.bn-fx-slide .bn-slide.is-prev { -webkit-transform: translateX(-100%); transform: translateX(-100%); }
       body.bn-fx-slide .bn-slide.bn-no-tx { -webkit-transition: none; transition: none; }
@@ -242,7 +248,7 @@
   <script>lucide.createIcons();</script>
   <script src="./js/cloud.js?v=20260926a"></script>
   <script src="./js/common.js?v=20261102b"></script>
-  <script src="./js/banner.js?v=20261103e"></script>
+  <script src="./js/banner.js?v=20261104a"></script>
   <script>
   /* 主题切换：更新 <html> class + localStorage 记忆，并广播 themechange 事件 */
   (function () {
