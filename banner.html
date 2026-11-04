@@ -196,6 +196,18 @@
         opacity: .18; transition: opacity .2s ease;
       }
       #bn-full:hover, #bn-full:active { opacity: .85; }
+      /* 主动刷新：舞台右上角、全屏钮左侧，同款低透明；点击清本地缓存强制重拉最新图片 */
+      #bn-refresh {
+        position: absolute;
+        top: 14px; /* 老内核回退，下行 max() 生效时覆盖 */
+        top: max(14px, env(safe-area-inset-top)); right: 98px; z-index: 10;
+        width: 34px; height: 34px; border: none; border-radius: 999px; cursor: pointer;
+        background: rgba(255,255,255,.14); color: rgba(255,255,255,.7);
+        font-family: var(--font-sans); font-size: 17px; line-height: 1;
+        opacity: .18; transition: opacity .2s ease;
+      }
+      #bn-refresh:hover, #bn-refresh:active { opacity: .85; }
+      #bn-refresh.bn-busy { opacity: .85; }
       /* 全屏模式：隐藏顶部导航与底部信息，舞台占满全屏，仅保留角落按钮 */
       body.bn-fullscreen .rk-nav,
       body.bn-fullscreen .page-footer { display: none; }
@@ -237,6 +249,7 @@
       </div>
       <div id="bn-dots" aria-hidden="true"></div>
       <button id="bn-mode" type="button" title="切换显示比例">16:9</button>
+      <button id="bn-refresh" type="button" title="刷新：清除本地图片缓存，重新获取最新图片" aria-label="刷新图片">↻</button>
       <button id="bn-full" type="button" title="全屏展示，隐藏顶部导航与底部信息" aria-label="全屏切换">⛶</button>
       <a id="bn-admin" href="./banner-admin.html" title="轮播图管理" aria-label="轮播图管理">⚙</a>
     </div>
@@ -248,7 +261,7 @@
   <script>lucide.createIcons();</script>
   <script src="./js/cloud.js?v=20260926a"></script>
   <script src="./js/common.js?v=20261102b"></script>
-  <script src="./js/banner.js?v=20261104a"></script>
+  <script src="./js/banner.js?v=20261104b"></script>
   <script>
   /* 主题切换：更新 <html> class + localStorage 记忆，并广播 themechange 事件 */
   (function () {

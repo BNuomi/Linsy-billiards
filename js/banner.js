@@ -10,9 +10,11 @@
  * - 老内核兼容：全文无 ES6+ 语法（qs 替代 URLSearchParams、Promise 链替代 async/await、
  *   removeChild 替代 Element.remove）；舞台高度由 getBoundingClientRect 实测兜底，
  *   body height:100% + overflow:hidden 硬性防底部溢出
- * - 全屏模式：角落 ⛶ 按钮或 ?fs=1 进入，隐藏顶部导航与底部页脚，舞台占满全屏
- * - 图片本地缓存：按 file_id（换图才变）缓存 blob，内存 objectURL 常驻本会话 + IndexedDB 持久化跨刷新；
- *   60s 轮询换发的签名链接只用于首次展示与暖缓存，命中缓存零下载零闪烁，下架图自动清理
+ * - 全屏模式：角落 ⛶ 按钮或 ?fs=1 进入，隐藏顶部导航与底部页脚，舞台占满全屏；
+ *   支持时联动浏览器 Fullscreen API 隐藏浏览器 UI（ESC/系统手势退出自动同步页面状态）
+ * - 图片本地缓存（刷新零下载）：云函数 image_data 内网取图转 data URI，localStorage 持久化
+ *   （同步读取全兼容，刷新后首帧即命中）；file_id 换图自动更新、下架自动清理；
+ *   localStorage 写满自动降级为仅当次会话内存缓存；角落 ↻ 按钮清缓存强制重拉最新图
  * - 手动滑动切图：触屏/鼠标左右滑（左滑下一张、右滑上一张），slide 效果反向动画，轻点仍为下一张
  */
 (function () {
@@ -98,16 +100,42 @@
 
   // 全屏模式：隐藏顶部导航与底部页脚，舞台占满全屏，仅留角落按钮（本钮/比例切换/管理入口）
   // ?fs=1 可让广告机书签直接以全屏打开；切换后须重算舞台高度（fitStage 实测顶距自适应）
+  // 同时联动浏览器 Fullscreen API 隐藏浏览器 UI（地址栏/状态栏）：多前缀能力探测，
+  // 不支持或调用被拒（如 ?fs=1 无用户手势）自动降级为仅 CSS 全屏
   var fullBtn = document.getElementById('bn-full')
+  var docEl = document.documentElement
+  var reqFs = docEl.requestFullscreen || docEl.webkitRequestFullscreen || docEl.mozRequestFullScreen || docEl.msRequestFullscreen
+  var exitFs = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen
+  function inBrowserFs() {
+    return !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement)
+  }
   function applyFull(on) {
     document.body.classList.toggle('bn-fullscreen', on)
     if (fullBtn) {
       fullBtn.textContent = on ? '✕' : '⛶'
       fullBtn.title = on ? '退出全屏，恢复顶部导航与底部信息' : '全屏展示，隐藏顶部导航与底部信息'
     }
+    if (on && reqFs && !inBrowserFs()) {
+      try {
+        var rp = reqFs.call(docEl)
+        if (rp && typeof rp['catch'] === 'function') rp['catch'](function () {}) // 无手势/被拒：静默降级 CSS 全屏
+      } catch (e) {}
+    } else if (!on && exitFs && inBrowserFs()) {
+      try { exitFs.call(document) } catch (e) {}
+    }
     fitStage()
     setTimeout(fitStage, 50) // display:none 触发回流，老内核延后补一次
+    setTimeout(fitStage, 400) // 浏览器全屏 UI 动画结束后视口才稳定，再补一次
   }
+  // ESC / 系统手势退出浏览器全屏时，页面状态同步退出
+  function onFsChange() {
+    if (!inBrowserFs() && document.body.classList.contains('bn-fullscreen')) applyFull(false)
+    setTimeout(fitStage, 100) // 视口变化后重算
+  }
+  document.addEventListener('fullscreenchange', onFsChange)
+  document.addEventListener('webkitfullscreenchange', onFsChange)
+  document.addEventListener('mozfullscreenchange', onFsChange)
+  document.addEventListener('MSFullscreenChange', onFsChange)
   var urlFs = qs('fs') || qs('fullscreen')
   applyFull(urlFs === '1' || urlFs === 'true' || urlFs === 'yes')
   if (fullBtn) {
@@ -123,89 +151,67 @@
   var refreshTimer = null
   var sig = ''          // 列表签名，避免无变化时重建 DOM
 
-  // ── 图片本地缓存 ──────────────────────────────────────────────
-  // list 每次刷新都换发新签名 URL，直接用 URL 会随续期反复重下载。
-  // 按 file_id（换图才会变）缓存 blob：内存 objectURL 常驻本会话，IndexedDB 持久化跨页面刷新
-  // （广告机重启后零下载）。签名 URL 仅作首次展示与暖缓存下载用：blob 拉到后下轮就地换
-  // objectURL，同图无闪烁。老内核不支持 IndexedDB/XHR blob 时自动降级为仅直链续期（原行为）。
-  var canBlobURL = false
-  try { canBlobURL = !!(window.URL && window.URL.createObjectURL) } catch (e) {}
-  var blobMem = {}    // file_id -> objectURL（本会话）
-  var warmFail = {}   // file_id -> 最近拉取失败时刻（10 分钟冷却，避免每轮轮询空耗）
-  var imgDB = null
-  if (canBlobURL && window.indexedDB) {
+  // ── 图片本地缓存（刷新页面零下载）────────────────────────────
+  // list 每次刷新都换发新签名 URL，直接用 URL 必随续期反复重下载。
+  // 方案：云函数 image_data 内网取图转 base64（云函数→存储内网、前端→云函数走 SDK，均无 CORS，
+  // 老内核广告机也可靠），拼 data URI 存 localStorage——同步读取、IE8+ 全兼容，
+  // 页面刷新后首帧 render 即命中，零网络展示。localStorage 写满（quota）自动降级为
+  // 仅当次会话内存缓存，不影响播放。
+  var LS_PREFIX = 'bn_img_'
+  var memCache = {} // file_id -> dataURI（当次会话常驻，避免 localStorage 大字符串反复读）
+  function imgCacheGet(key) {
+    if (memCache[key]) return memCache[key]
     try {
-      var dbReq = window.indexedDB.open('linsy-banner-cache', 1)
-      dbReq.onupgradeneeded = function () {
-        try { dbReq.result.createObjectStore('imgs') } catch (e) {}
+      var v = localStorage.getItem(LS_PREFIX + key)
+      if (v) { memCache[key] = v; return v }
+    } catch (e) {}
+    return ''
+  }
+  function imgCacheSet(key, uri) {
+    memCache[key] = uri
+    try { localStorage.setItem(LS_PREFIX + key, uri) } catch (e) { /* quota 满：仅内存 */ }
+  }
+  function imgCachePrune(validKeys) {
+    var k
+    for (k in memCache) { if (validKeys.indexOf(k) < 0) delete memCache[k] }
+    try {
+      var dels = []
+      for (var i = 0; i < localStorage.length; i++) {
+        var kk = localStorage.key(i)
+        if (kk && kk.indexOf(LS_PREFIX) === 0 && validKeys.indexOf(kk.slice(LS_PREFIX.length)) < 0) dels.push(kk)
       }
-      dbReq.onsuccess = function () { imgDB = dbReq.result }
-      dbReq.onerror = function () {}
+      for (var j = 0; j < dels.length; j++) localStorage.removeItem(dels[j])
     } catch (e) {}
   }
-  function cacheLoad(key, cb) {
-    if (blobMem[key]) { cb(blobMem[key]); return }
-    if (!imgDB) { cb(''); return }
+  function imgCacheClear() {
+    memCache = {}
     try {
-      var rq = imgDB.transaction('imgs', 'readonly').objectStore('imgs').get(key)
-      rq.onsuccess = function () {
-        var u = ''
-        if (rq.result) {
-          try { u = window.URL.createObjectURL(rq.result) } catch (e) {}
-          if (u) blobMem[key] = u
-        }
-        cb(u)
+      var dels = []
+      for (var i = 0; i < localStorage.length; i++) {
+        var kk = localStorage.key(i)
+        if (kk && kk.indexOf(LS_PREFIX) === 0) dels.push(kk)
       }
-      rq.onerror = function () { cb('') }
-    } catch (e) { cb('') }
-  }
-  function cacheWarm(key, url) {
-    if (!canBlobURL || !url) return
-    if (warmFail[key] && Date.now() - warmFail[key] < 10 * 60 * 1000) return
-    var xhr = new XMLHttpRequest()
-    if (!('responseType' in xhr)) return // 老内核不支持 blob 响应：放弃缓存，回退直链续期
-    xhr.open('GET', url, true)
-    xhr.responseType = 'blob'
-    xhr.onload = function () {
-      if (xhr.status >= 200 && xhr.status < 300 && xhr.response) {
-        warmFail[key] = 0
-        try {
-          var u = window.URL.createObjectURL(xhr.response)
-          if (u) blobMem[key] = u
-        } catch (e) {}
-        if (imgDB) {
-          try { imgDB.transaction('imgs', 'readwrite').objectStore('imgs').put(xhr.response, key) } catch (e) {}
-        }
-      } else {
-        warmFail[key] = Date.now()
-      }
-    }
-    xhr.onerror = function () { warmFail[key] = Date.now() } // CORS 拦截/网络失败：冷却 10 分钟再试
-    try { xhr.send() } catch (e) {}
-  }
-  // 幻灯片取显示 src：缓存命中用 objectURL（零网络），否则签名直链 + 后台暖缓存
-  function slideSrc(b, cb) {
-    var key = b.file_id || b.id
-    cacheLoad(key, function (u) {
-      if (u) { cb(u); return }
-      cb(b.url)
-      cacheWarm(key, b.url)
-    })
-  }
-  // 清理：删除已下架图片的持久化 blob，缓存库只留当前轮播集（上限 10 张，天然有界）
-  function cachePrune(keys) {
-    if (!imgDB) return
-    try {
-      var os = imgDB.transaction('imgs', 'readwrite').objectStore('imgs')
-      if (!os.getAllKeys) return
-      var rq = os.getAllKeys()
-      rq.onsuccess = function () {
-        var all = rq.result || []
-        for (var i = 0; i < all.length; i++) {
-          if (keys.indexOf(all[i]) < 0) { try { os.delete(all[i]) } catch (e) {} }
-        }
-      }
+      for (var j = 0; j < dels.length; j++) localStorage.removeItem(dels[j])
     } catch (e) {}
+  }
+  // 取图：缓存命中 data URI 零网络；未命中走云函数 image_data 内网拉取并持久化；
+  // 拉取失败（云端未连接/图超 1MB 被拦）兜底签名直链（浏览器原生 img 请求总能显示）
+  function fetchImage(it, cb) {
+    var key = it.file_id || it.id
+    var cached = imgCacheGet(key)
+    if (cached) { cb(cached); return }
+    var p
+    try { p = window.AppCloud.call('manageBanners', { action: 'image_data', file_id: key }) } catch (e) { p = null }
+    if (!p || typeof p.then !== 'function') { cb(it.url); return }
+    p.then(function (d) {
+      if (d && d.base64) {
+        var uri = 'data:' + (d.mime || 'image/jpeg') + ';base64,' + d.base64
+        imgCacheSet(key, uri)
+        cb(uri)
+        return
+      }
+      cb(it.url)
+    }, function () { cb(it.url) })
   }
 
   // 幻灯片与常驻元素（占位/指示点/管理入口）同居 #bn-stage：只清幻灯片，且新片插到常驻元素之前保持层叠序
@@ -236,8 +242,8 @@
       slide.className = 'bn-slide'
       var img = document.createElement('img')
       img.setAttribute('draggable', 'false') // 鼠标拖拽切图不拖出系统图片（配合 CSS -webkit-user-drag）
-      // 缓存优先取 src：objectURL 零网络零闪烁；未缓存用签名直链并后台暖缓存
-      slideSrc(it, function (u) { img.src = u || it.url })
+      // 缓存优先取 src：data URI 零网络零闪烁；未缓存走 image_data 拉取并持久化
+      fetchImage(it, function (u) { img.src = u || it.url })
       img.alt = it.title || ('轮播图 ' + (i + 1))
       img.onerror = function () {
         it.bad = 1
@@ -354,7 +360,7 @@
       // 全局切换效果热更新（URL ?effect= 锁定时不跟随云端）
       if (!fxLock && data.settings && EFFECTS[data.settings.effect]) applyFx(data.settings.effect)
       var list = (data.banners || []).filter(function (b) { return !!b.url })
-      cachePrune(list.map(function (b) { return b.file_id || b.id })) // 下架/清空图的持久化 blob 一并清理
+      imgCachePrune(list.map(function (b) { return b.file_id || b.id })) // 下架/清空图的本地缓存一并清理
       if (!list.length) {
         items = []
         sig = ''
@@ -363,9 +369,9 @@
       }
       var nextSig = list.map(function (b) { return b.id }).join(',')
       if (nextSig === sig && items.length) {
-        // 图序未变：就地合并。file_id 未变且展示正常 → 缓存命中返回稳定 objectURL，src 相同零操作
-        // （60s 签名续期不再重下载）；暖缓存完成后直链就地换 objectURL（同图无闪烁）；
-        // 换图（file_id 变）或坏图恢复 → 按缓存优先重载 src 并清除 bad 标记
+        // 图序未变：就地合并。file_id 未变且展示正常 → 缓存命中返回稳定 data URI，src 相同零操作
+        // （60s 签名续期不再重下载，页面刷新也不重下）；换图（file_id 变）或坏图恢复 →
+        // 按缓存优先重载 src 并清除 bad 标记
         var domImgs = stage.querySelectorAll('.bn-slide img')
         items.forEach(function (it, i) {
           if (!list[i]) return
@@ -376,15 +382,15 @@
           var im = domImgs[i]
           if (!im) return
           if (sameImg && !it.bad) {
-            slideSrc(list[i], function (u) {
+            fetchImage(list[i], function (u) {
               if (!u || im.getAttribute('src') === u) return
-              im.src = u // 暖缓存完成后的一次性 objectURL 就地切换，此后每轮稳定零操作
+              im.src = u // 首次直链兜底后 data URI 就绪的一次性就地切换，此后每轮稳定零操作
             })
             return
           }
           // 换图或坏图恢复：重置坏标记，缓存优先重载
           it.bad = 0
-          slideSrc(list[i], function (u) {
+          fetchImage(list[i], function (u) {
             im.src = u || list[i].url
             if (im.parentNode) im.parentNode.style.display = ''
             if (current === i) { showStage(); restartRotate() } // 全坏转占位后救回：复播
@@ -449,9 +455,22 @@
     swipeEnd(e.clientX, e.clientY)
   })
 
+  // ── 主动刷新：清本地图片缓存 + 清签名强制完整重建，重新拉取最新图片 ──
+  var refreshBtn = document.getElementById('bn-refresh')
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', function (e) {
+      e.stopPropagation() // 不触发舞台点按换图
+      imgCacheClear()
+      sig = '' // 强制下轮 refresh 走完整 render（逐图重新 fetchImage 下载）
+      refresh()
+      refreshBtn.classList.add('bn-busy') // 2 秒高亮反馈，防连点
+      setTimeout(function () { refreshBtn.classList.remove('bn-busy') }, 2000)
+    })
+  }
+
   // 触摸/点击手动切换下一张（展示设备点按即可换图；角落按钮与刚完成的滑动不触发）
   stage.addEventListener('click', function (e) {
-    if (e.target.closest && (e.target.closest('#bn-admin') || e.target.closest('#bn-mode') || e.target.closest('#bn-full'))) return
+    if (e.target.closest && (e.target.closest('#bn-admin') || e.target.closest('#bn-mode') || e.target.closest('#bn-full') || e.target.closest('#bn-refresh'))) return
     if (Date.now() - clickBlock < 400) return // 滑动手势已切图，吞掉紧随的合成 click
     if (items.length > 1) next()
   })
