@@ -366,6 +366,23 @@
     }).join('')
   }
 
+  // 用云端 save_page 返回的覆盖项合并回内存 pages（保留标题/目录方向等只读字段）
+  function mergePageLocal(url, d) {
+    var idx = pages.findIndex(function (x) { return x.url === url })
+    if (idx < 0 || !d) return
+    pages[idx] = {
+      url: url,
+      title: pages[idx].title,
+      catalog_orientation: pages[idx].catalog_orientation,
+      enabled: d.enabled,
+      duration: d.duration,
+      orientation: d.orientation,
+      browse_mode: d.browse_mode,
+      updated_by_name: d.updated_by_name || '',
+      updated_at: d.updated_at || 0
+    }
+  }
+
   bpMode.addEventListener('change', syncNWrap)
 
   bpSaveGlobal.addEventListener('click', async function () {
@@ -390,8 +407,14 @@
       settings.insert_mode = payload.insert_mode
       settings.insert_n = payload.insert_n || 1
       settings.jump_fallback = payload.jump_fallback
+      // 只更新全局控件与提示，不整段 renderPages()：避免冲掉用户刚勾选/刚改但尚未单卡保存的页面状态
+      bpEnabled.checked = payload.pages_enabled
+      bpJump.checked = payload.jump_fallback !== false
+      bpMode.value = payload.insert_mode
+      if (payload.insert_n) bpN.value = payload.insert_n
+      syncNWrap()
+      bpMeta.textContent = '策略已保存 · 展示页 1 分钟内自动生效'
       toast('随机页面策略已保存，展示页 1 分钟内自动生效', 'success')
-      renderPages()
     } catch (err) {
       toast('保存失败：' + (err.message || err), 'error')
     } finally {
@@ -399,12 +422,39 @@
     }
   })
 
-  bpList.addEventListener('change', function (e) {
+  // 勾选/取消即时保存该页（连同卡片当前的时长/方向/浏览方式一并提交），
+  // 避免用户只点顶部「保存策略」导致勾选未入库、列表重建后被重置的困惑
+  bpList.addEventListener('change', async function (e) {
     if (!e.target.classList.contains('bp-check')) return
     var card = e.target.closest('.bp-card')
-    if (card) {
-      card.classList.toggle('is-on', e.target.checked)
-      card.classList.toggle('is-off', !e.target.checked)
+    if (!card) return
+    var url = card.getAttribute('data-url')
+    var p = pages.find(function (x) { return x.url === url })
+    if (!p) return
+    var check = e.target
+    var want = check.checked
+    card.classList.toggle('is-on', want)
+    card.classList.toggle('is-off', !want)
+    check.disabled = true
+    try {
+      var res = await callWrite({
+        action: 'save_page',
+        url: url,
+        enabled: want,
+        duration: p.duration,
+        orientation: p.orientation,
+        browse_mode: p.browse_mode
+      })
+      mergePageLocal(url, res.data)
+      toast('「' + p.title + '」已' + (want ? '加入' : '移出') + '随机展示', 'success')
+    } catch (err) {
+      // 失败回滚勾选与卡片高亮
+      check.checked = !want
+      card.classList.toggle('is-on', !want)
+      card.classList.toggle('is-off', want)
+      toast('保存失败：' + (err.message || err), 'error')
+    } finally {
+      check.disabled = false
     }
   })
 
@@ -436,18 +486,7 @@
         orientation: orientation,
         browse_mode: browse_mode
       })
-      var idx = pages.findIndex(function (x) { return x.url === url })
-      pages[idx] = {
-        url: url,
-        title: p.title,
-        catalog_orientation: p.catalog_orientation,
-        enabled: res.data.enabled,
-        duration: res.data.duration,
-        orientation: res.data.orientation,
-        browse_mode: res.data.browse_mode,
-        updated_by_name: res.data.updated_by_name || '',
-        updated_at: res.data.updated_at || 0
-      }
+      mergePageLocal(url, res.data)
       toast('「' + p.title + '」配置已保存', 'success')
       btn.textContent = '已保存'
       setTimeout(function () { btn.textContent = '保存'; btn.disabled = false }, 1200)
