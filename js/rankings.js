@@ -271,22 +271,22 @@
       var total = (m.wins || 0) + (m.losses || 0)
       if (state.scopeKey === 'practice') {
         html += '<tr data-id="' + m._id + '" style="cursor:pointer;">' +
-          '<td class="col-rank">' + badge + '</td>' +
-          '<td>' + U.escapeHtml(m.name || '未命名') + '</td>' +
-          '<td class="col-points">' + (m.goals != null ? m.goals : 0) + '</td>' +
-          '<td class="col-season">' + (m.sessions || 0) + ' 次</td>' +
-          '<td class="col-clears">+' + (m.today || 0) + '</td>' +
-          '<td class="col-winrate">' + practiceAvg(m) + '</td>' +
-          '<td>' + practiceLast(m) + '</td></tr>'
+          '<td class="col-rank" data-label="排名">' + badge + '</td>' +
+          '<td data-label="会员">' + U.escapeHtml(m.name || '未命名') + '</td>' +
+          '<td class="col-points" data-label="进球">' + (m.goals != null ? m.goals : 0) + '</td>' +
+          '<td class="col-season" data-label="练球次数">' + (m.sessions || 0) + ' 次</td>' +
+          '<td class="col-clears" data-label="今日">+' + (m.today || 0) + '</td>' +
+          '<td class="col-winrate" data-label="均值">' + practiceAvg(m) + '</td>' +
+          '<td data-label="最近">' + practiceLast(m) + '</td></tr>'
       } else {
         html += '<tr data-id="' + m._id + '" style="cursor:pointer;">' +
-          '<td class="col-rank">' + badge + '</td>' +
-          '<td>' + U.escapeHtml(m.name || '未命名') + '</td>' +
-          '<td class="col-points">' + (m.points != null ? m.points : 0) + '</td>' +
-          '<td class="col-season">' + (m.wins || 0) + ' / ' + total + '</td>' +
-          '<td class="col-clears">' + (m.clears || 0) + '</td>' +
-          '<td class="col-winrate">' + (m.winRate || 0) + '%</td>' +
-          '<td>' + trendHtml(m) + '</td></tr>'
+          '<td class="col-rank" data-label="排名">' + badge + '</td>' +
+          '<td data-label="会员">' + U.escapeHtml(m.name || '未命名') + '</td>' +
+          '<td class="col-points" data-label="总积分">' + (m.points != null ? m.points : 0) + '</td>' +
+          '<td class="col-season" data-label="胜/总场">' + (m.wins || 0) + ' / ' + total + '</td>' +
+          '<td class="col-clears" data-label="清台">' + (m.clears || 0) + '</td>' +
+          '<td class="col-winrate" data-label="胜率">' + (m.winRate || 0) + '%</td>' +
+          '<td data-label="趋势">' + trendHtml(m) + '</td></tr>'
       }
       if (collapsible && !prevSame) {
         var open = !!state.expandedTies[m.rank]

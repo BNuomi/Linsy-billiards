@@ -1,6 +1,8 @@
 /*
  * 轮播图管理页：列表（上移/下移/删除/改时长）+ 全局切换效果设置 + 本地上传 + 微信扫码上传
- * 本地上传/删除/排序/改时长/改效果走 AppAuth.callAuthed('banner_admin', ...)：首次自动弹扫码授权，
+ * 随机展示页面（#196）：勾选白名单页面加入轮播随机插入，每页独立停留时长/方向/浏览方式，
+ *   全局总开关/插入时机/整页跳转兜底；不占 10 张图片名额
+ * 本地上传/删除/排序/改时长/改效果/页面配置走 AppAuth.callAuthed('banner_admin', ...)：首次自动弹扫码授权，
  * 云端二次校验管理员/裁判角色；401/403 时 AppAuth 自动清缓存，下次操作重新扫码。
  * 微信扫码上传出码免授权：码无敏感性，上传权限由小程序端 + 云端 OPENID 角色校验把控
  */
@@ -27,6 +29,8 @@
   var max = 10
   var settings = { effect: 'fade' }
   var defaults = { duration: 5000 }
+  var pages = []
+  var pageDefaults = null
 
   function toast(msg, type) { window.AppUI.toast(msg, type) }
   function esc(s) { return window.AppUI.escapeHtml(s) }
@@ -44,8 +48,11 @@
       max = data.max || 10
       settings = data.settings || { effect: 'fade' }
       if (data.defaults && data.defaults.duration) defaults.duration = data.defaults.duration
+      pages = data.pages || []
+      pageDefaults = data.page_defaults || null
       render()
       renderSettings()
+      renderPages()
     } catch (e) {
       errText.textContent = '轮播图加载失败：' + (e.message || e)
       errEl.style.display = 'block'
@@ -300,6 +307,156 @@
   })
 
   document.getElementById('ba-retry').addEventListener('click', load)
+
+  // ---------- 随机展示页面配置（#196） ----------
+  var bpSection = document.getElementById('bp-section')
+  var bpList = document.getElementById('bp-list')
+  var bpEnabled = document.getElementById('bp-enabled')
+  var bpJump = document.getElementById('bp-jump')
+  var bpMode = document.getElementById('bp-insert-mode')
+  var bpN = document.getElementById('bp-insert-n')
+  var bpNWrap = document.getElementById('bp-n-wrap')
+  var bpNSuffix = document.getElementById('bp-n-suffix')
+  var bpSaveGlobal = document.getElementById('bp-save-global')
+  var bpMeta = document.getElementById('bp-meta')
+
+  var ORIENT_LABEL = { both: '横竖屏', landscape: '仅横屏', portrait: '仅竖屏' }
+  var BROWSE_LABEL = { segments: '随机段落跳视', scroll: '平滑滚动', static: '不滚动' }
+
+  function syncNWrap() {
+    var mode = bpMode.value
+    bpNWrap.style.display = mode === 'after_cycle' ? 'none' : 'inline-flex'
+    bpNSuffix.textContent = mode === 'probability' ? '% 概率' : '张图后'
+  }
+
+  function renderPages() {
+    if (!pageDefaults || !bpSection) return
+    bpSection.style.display = 'block'
+    bpEnabled.checked = settings.pages_enabled === true
+    bpJump.checked = settings.jump_fallback !== false
+    bpMode.value = settings.insert_mode || pageDefaults.insert_mode
+    bpN.value = settings.insert_n || pageDefaults.insert_n
+    syncNWrap()
+    bpMeta.textContent = settings.pages_updated_by_name
+      ? '策略最近保存：' + esc(settings.pages_updated_by_name) + ' · ' + window.AppUI.fmtDate(settings.pages_updated_at)
+      : '当前为默认策略（每轮图片后插 1 页）'
+
+    var minS = Math.round(pageDefaults.min_duration / 1000)
+    var maxS = Math.round(pageDefaults.max_duration / 1000)
+    bpList.innerHTML = pages.map(function (p) {
+      var sec = p.duration / 1000
+      var orientOpts = pageDefaults.orientations.map(function (o) {
+        return '<option value="' + o + '"' + (o === p.orientation ? ' selected' : '') + '>' + ORIENT_LABEL[o] + '</option>'
+      }).join('')
+      var browseOpts = pageDefaults.browse_modes.map(function (m) {
+        return '<option value="' + m + '"' + (m === p.browse_mode ? ' selected' : '') + '>' + BROWSE_LABEL[m] + '</option>'
+      }).join('')
+      return '<div class="bp-card ' + (p.enabled ? 'is-on' : 'is-off') + '" data-url="' + esc(p.url) + '">' +
+        '<div class="bp-row1">' +
+        '<input type="checkbox" class="bp-check" ' + (p.enabled ? 'checked' : '') + ' aria-label="加入随机展示">' +
+        '<span class="bp-name">' + esc(p.title) + '</span>' +
+        '<span class="bp-tag">' + ORIENT_LABEL[p.catalog_orientation] + '</span>' +
+        '</div>' +
+        '<div class="bp-controls">' +
+        '<label>停留 <input type="number" class="bp-dur" min="' + minS + '" max="' + maxS + '" step="1" value="' + sec + '"> 秒</label>' +
+        '<label>方向 <select class="bp-orient">' + orientOpts + '</select></label>' +
+        '<label>浏览 <select class="bp-browse">' + browseOpts + '</select></label>' +
+        '<button class="btn bp-save" type="button">保存</button>' +
+        '</div></div>'
+    }).join('')
+  }
+
+  bpMode.addEventListener('change', syncNWrap)
+
+  bpSaveGlobal.addEventListener('click', async function () {
+    var payload = {
+      action: 'update_pages_settings',
+      pages_enabled: bpEnabled.checked,
+      insert_mode: bpMode.value,
+      jump_fallback: bpJump.checked
+    }
+    if (bpMode.value !== 'after_cycle') {
+      var n = Number(bpN.value)
+      if (!Number.isFinite(n) || n < 1 || n > 100) {
+        toast(bpMode.value === 'probability' ? '概率需为 1~100 的整数' : 'N 需为 1~100 的整数', 'error')
+        return
+      }
+      payload.insert_n = Math.round(n)
+    }
+    bpSaveGlobal.disabled = true
+    try {
+      await callWrite(payload)
+      settings.pages_enabled = payload.pages_enabled
+      settings.insert_mode = payload.insert_mode
+      settings.insert_n = payload.insert_n || 1
+      settings.jump_fallback = payload.jump_fallback
+      toast('随机页面策略已保存，展示页 1 分钟内自动生效', 'success')
+      renderPages()
+    } catch (err) {
+      toast('保存失败：' + (err.message || err), 'error')
+    } finally {
+      bpSaveGlobal.disabled = false
+    }
+  })
+
+  bpList.addEventListener('change', function (e) {
+    if (!e.target.classList.contains('bp-check')) return
+    var card = e.target.closest('.bp-card')
+    if (card) {
+      card.classList.toggle('is-on', e.target.checked)
+      card.classList.toggle('is-off', !e.target.checked)
+    }
+  })
+
+  bpList.addEventListener('click', async function (e) {
+    var btn = e.target.closest('.bp-save')
+    if (!btn || btn.disabled) return
+    var card = btn.closest('.bp-card')
+    var url = card && card.getAttribute('data-url')
+    var p = pages.find(function (x) { return x.url === url })
+    if (!p) return
+    var enabled = card.querySelector('.bp-check').checked
+    var sec = Number(card.querySelector('.bp-dur').value)
+    var minS = pageDefaults.min_duration / 1000
+    var maxS = pageDefaults.max_duration / 1000
+    if (!Number.isFinite(sec) || sec < minS || sec > maxS) {
+      toast('停留时长需在 ' + minS + ' ~ ' + maxS + ' 秒之间', 'error')
+      return
+    }
+    var orientation = card.querySelector('.bp-orient').value
+    var browse_mode = card.querySelector('.bp-browse').value
+    btn.disabled = true
+    btn.textContent = '保存中'
+    try {
+      var res = await callWrite({
+        action: 'save_page',
+        url: url,
+        enabled: enabled,
+        duration: Math.round(sec * 1000),
+        orientation: orientation,
+        browse_mode: browse_mode
+      })
+      var idx = pages.findIndex(function (x) { return x.url === url })
+      pages[idx] = {
+        url: url,
+        title: p.title,
+        catalog_orientation: p.catalog_orientation,
+        enabled: res.data.enabled,
+        duration: res.data.duration,
+        orientation: res.data.orientation,
+        browse_mode: res.data.browse_mode,
+        updated_by_name: res.data.updated_by_name || '',
+        updated_at: res.data.updated_at || 0
+      }
+      toast('「' + p.title + '」配置已保存', 'success')
+      btn.textContent = '已保存'
+      setTimeout(function () { btn.textContent = '保存'; btn.disabled = false }, 1200)
+    } catch (err) {
+      btn.disabled = false
+      btn.textContent = '保存'
+      toast('保存失败：' + (err.message || err), 'error')
+    }
+  })
 
   window.AppUI.fixNav('')
   load()

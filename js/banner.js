@@ -37,10 +37,13 @@
   function applyMode(mode) {
     var landscape = mode === 'landscape'
     document.body.classList.toggle('bn-landscape', landscape)
+    document.body.classList.toggle('bn-portrait', !landscape)
     if (modeBtn) {
       modeBtn.textContent = landscape ? '9:16' : '16:9'
       modeBtn.title = landscape ? '当前横屏 16:9，点击切回竖屏 9:16' : '当前竖屏 9:16，点击切换到横屏 16:9'
     }
+    // 方向切换后当前页面若不再匹配（仅竖屏页在横屏等），立即结束回图片
+    if (pageOn && activePage && !pageAllowed(activePage)) endPage()
   }
   var urlMode = qs('mode')
   var savedMode = null
@@ -151,6 +154,42 @@
   var refreshTimer = null
   var sig = ''          // 列表签名，避免无变化时重建 DOM
 
+  // ── 随机展示页面（#196）──────────────────────────────────────
+  // 图片整轮播完（或按每 N 张/概率）后，从已勾选且方向匹配的白名单页面中随机取一页，
+  // 用无导航 iframe 嵌入展示；长页面按「随机段落跳视」把停留时间均分 3 段，随机定位
+  // 顶部/中部/底部。iframe 加载或同源控制失败且开关允许时，自动整页跳转兜底（embed 页到时返回）。
+  var pageLayer = document.getElementById('bn-page')
+  var pageFrame = document.getElementById('bn-page-frame')
+  var pageHt = document.getElementById('bn-page-ht')
+  var pageCfg = []        // list 返回的页面合并配置
+  var pageSettings = { pages_enabled: false, insert_mode: 'after_cycle', insert_n: 1, jump_fallback: true }
+  var pageOn = false      // 当前是否正在展示页面
+  var activePage = null   // 当前展示页配置
+  var imgSincePage = 0    // 自上次插页后已展示图片数（every_n 计数）
+  var lastPageUrl = ''    // 避免连续随机到同一页
+  var segTimers = []      // 段落跳视定时器
+  var pageReady = false   // iframe 是否 load 成功
+  var pageFailTimer = null
+  var pageTimer = null    // 页面停留总时长定时器（独立于图片 rotateTimer）
+  var pageStartTime = 0
+
+  function isPortrait() { return document.body.classList.contains('bn-portrait') }
+
+  // 方向匹配：both 通用；portrait 仅竖屏；landscape 仅横屏
+  function pageAllowed(p) {
+    if (!p.enabled) return false
+    if (p.orientation === 'portrait') return isPortrait()
+    if (p.orientation === 'landscape') return !isPortrait()
+    return true
+  }
+
+  function clearSegTimers() {
+    for (var i = 0; i < segTimers.length; i++) clearTimeout(segTimers[i])
+    segTimers = []
+    if (pageFailTimer) { clearTimeout(pageFailTimer); pageFailTimer = null }
+    if (pageTimer) { clearTimeout(pageTimer); pageTimer = null }
+  }
+
   // ── 图片本地缓存（刷新页面零下载）────────────────────────────
   // list 每次刷新都换发新签名 URL，直接用 URL 必随续期反复重下载。
   // 方案：云函数 image_data 内网取图转 base64（云函数→存储内网、前端→云函数走 SDK，均无 CORS，
@@ -255,8 +294,10 @@
       var dot = document.createElement('i')
       dotsBox.appendChild(dot)
     })
+    // 指示点仅代表图片：单图时不显示（随机页面不计入点）
     dotsBox.style.display = items.length > 1 ? 'flex' : 'none'
     current = -1
+    imgSincePage = 0
     showStage()
     next()
   }
@@ -339,11 +380,150 @@
     return (d >= 1000 && d <= 120000) ? d : DEFAULT_MS
   }
 
+  // ── 随机页面调度：图片时隙结束 → 计数 +1 → 满足插入策略则切页面，否则下一张图 ──
+  function pickPage() {
+    var pool = pageCfg.filter(pageAllowed)
+    if (!pool.length) return null
+    // 多于一个候选时排除上一轮页面，避免连续重复
+    if (pool.length > 1 && lastPageUrl) {
+      var rest = pool.filter(function (p) { return p.url !== lastPageUrl })
+      if (rest.length) pool = rest
+    }
+    return pool[Math.floor(Math.random() * pool.length)]
+  }
+
+  function shouldInsertPage() {
+    if (!pageSettings.pages_enabled || !pageCfg.length || !items.length) return false
+    var mode = pageSettings.insert_mode || 'after_cycle'
+    if (mode === 'every_n') return imgSincePage >= Math.max(1, Number(pageSettings.insert_n) || 1)
+    if (mode === 'probability') return Math.random() * 100 < Math.max(1, Number(pageSettings.insert_n) || 1)
+    return imgSincePage >= items.length // after_cycle：整轮图片播完
+  }
+
+  function onSlotEnd() {
+    imgSincePage++
+    if (shouldInsertPage()) showPage()
+    else next()
+  }
+
   function restartRotate() {
     if (rotateTimer) { clearTimeout(rotateTimer); rotateTimer = null }
-    if (items.length > 1 && !document.hidden) {
-      rotateTimer = setTimeout(next, currentDuration())
+    // 单张图片也允许转动：随机页面需要「图→页→图」循环
+    if (items.length >= 1 && !document.hidden && !pageOn) {
+      rotateTimer = setTimeout(onSlotEnd, currentDuration())
     }
+  }
+
+  // ── 页面展示：iframe 无导航嵌入 + 段落跳视 + 加载/控制失败整页跳转兜底 ──
+  function pageUrl(p, extra) {
+    var base = location.href.replace(/[^/]*$/, '')
+    return base + p.url + (p.url.indexOf('?') >= 0 ? '&' : '?') + 'embed=1&dur=' + p.duration + (extra || '')
+  }
+
+  function doJumpFallback(p) {
+    // 整页跳转：离开轮播页，embed 页到时 location.replace 回本页（不产生历史回环）
+    try { sessionStorage.setItem('bn_embed_jump', '1') } catch (e) {}
+    location.href = pageUrl(p, '&jump=1')
+  }
+
+  function scrollFrameTo(win, ratio) {
+    try {
+      var doc = win.document
+      var max = Math.max(0, doc.documentElement.scrollHeight - win.innerHeight)
+      win.scrollTo(0, Math.round(max * ratio))
+    } catch (e) { /* 跨域不可控：保持静态 */ }
+  }
+
+  function shuffle3(a) {
+    var arr = a.slice()
+    for (var i = arr.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1))
+      var t = arr[i]; arr[i] = arr[j]; arr[j] = t
+    }
+    return arr
+  }
+
+  // 长页面浏览：segments 停留均分 3 段、随机顶/中/底；scroll 线性平滑；static 不滚动
+  function startBrowse(p, win) {
+    var dur = p.duration
+    if (p.browse_mode === 'static') { scrollFrameTo(win, 0); return }
+    if (p.browse_mode === 'scroll') {
+      scrollFrameTo(win, 0)
+      var t0 = Date.now()
+      ;(function smooth() {
+        if (!pageOn) return
+        var k = Math.min(1, (Date.now() - t0) / dur)
+        try {
+          var doc = win.document
+          var max = Math.max(0, doc.documentElement.scrollHeight - win.innerHeight)
+          win.scrollTo(0, Math.round(max * k))
+        } catch (e) { return }
+        if (k < 1) segTimers.push(setTimeout(smooth, 200))
+      })()
+      return
+    }
+    var ratios = shuffle3([0, 0.5, 1])
+    var seg = dur / 3
+    scrollFrameTo(win, ratios[0])
+    segTimers.push(setTimeout(function () { if (pageOn) scrollFrameTo(win, ratios[1]) }, seg))
+    segTimers.push(setTimeout(function () { if (pageOn) scrollFrameTo(win, ratios[2]) }, seg * 2))
+  }
+
+  function showPage() {
+    var p = pickPage()
+    if (!p) { next(); return }
+    activePage = p
+    lastPageUrl = p.url
+    imgSincePage = 0
+    pageOn = true
+    pageReady = false
+    clearSegTimers()
+    if (rotateTimer) { clearTimeout(rotateTimer); rotateTimer = null }
+    document.body.classList.add('bn-page-on')
+    pageLayer.classList.add('is-active', 'is-loading')
+    pageHt.textContent = '正在加载「' + p.title + '」'
+    pageStartTime = Date.now()
+    pageFrame.onload = function () {
+      pageReady = true
+      if (pageFailTimer) { clearTimeout(pageFailTimer); pageFailTimer = null }
+      pageLayer.classList.remove('is-loading')
+      var win = null
+      try {
+        win = pageFrame.contentWindow
+        if (!win || !win.document || !win.document.body) throw new Error('inaccessible')
+      } catch (e) {
+        // 同源策略阻止控制：允许兜底则整页跳转，否则静态展示到时
+        if (pageSettings.jump_fallback !== false) doJumpFallback(activePage)
+        return
+      }
+      startBrowse(activePage, win)
+    }
+    pageFrame.onerror = function () {
+      if (pageReady || !pageOn) return
+      if (pageSettings.jump_fallback !== false) doJumpFallback(activePage)
+      else endPage()
+    }
+    pageFrame.src = pageUrl(p)
+    // 加载看门狗：4 秒未 load（XFO/网络/老内核）按兜底策略处理
+    pageFailTimer = setTimeout(function () {
+      if (pageReady) return
+      if (pageSettings.jump_fallback !== false) doJumpFallback(activePage)
+      else endPage()
+    }, 4000)
+    // 页面停留总时长（与 embed 页自身返回计时互为保险）
+    pageTimer = setTimeout(endPage, p.duration)
+  }
+
+  function endPage() {
+    if (!pageOn) return
+    pageOn = false
+    clearSegTimers()
+    activePage = null
+    pageReady = false
+    pageLayer.classList.remove('is-active', 'is-loading')
+    document.body.classList.remove('bn-page-on')
+    try { pageFrame.src = 'about:blank' } catch (e) {}
+    next()
   }
 
   // 不用 async/await（ES2017，Chrome 55 以下整页脚本语法报错）：Promise 链全兼容
@@ -359,6 +539,15 @@
     p.then(function (data) {
       // 全局切换效果热更新（URL ?effect= 锁定时不跟随云端）
       if (!fxLock && data.settings && EFFECTS[data.settings.effect]) applyFx(data.settings.effect)
+      // 随机页面配置热更新（正在展示的当页不受影响，下次插页用新配置）
+      if (Array.isArray(data.pages)) pageCfg = data.pages
+      var ps = data.settings || {}
+      pageSettings = {
+        pages_enabled: ps.pages_enabled === true,
+        insert_mode: ps.insert_mode || 'after_cycle',
+        insert_n: ps.insert_n || 1,
+        jump_fallback: ps.jump_fallback !== false
+      }
       var list = (data.banners || []).filter(function (b) { return !!b.url })
       imgCachePrune(list.map(function (b) { return b.file_id || b.id })) // 下架/清空图的本地缓存一并清理
       if (!list.length) {
@@ -417,9 +606,10 @@
   document.addEventListener('visibilitychange', function () {
     if (document.hidden) {
       if (rotateTimer) { clearTimeout(rotateTimer); rotateTimer = null }
+      if (pageTimer) { clearTimeout(pageTimer); pageTimer = null }
     } else {
       refresh() // 恢复可见立即刷新（临时链接可能已过期）
-      restartRotate()
+      if (pageOn) { pageTimer = setTimeout(endPage, 3000) } else restartRotate()
     }
   })
 
@@ -432,7 +622,7 @@
     swiping = false
     var dx = x - swipeX, dy = y - swipeY
     // 横向位移超 40px 且水平占优才判定为滑动（轻点/纵向手势不误切）
-    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) && items.length > 1) {
+    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) && items.length > 1 && !pageOn) {
       clickBlock = Date.now()
       if (dx < 0) next(); else prev()
     }
@@ -472,8 +662,12 @@
   stage.addEventListener('click', function (e) {
     if (e.target.closest && (e.target.closest('#bn-admin') || e.target.closest('#bn-mode') || e.target.closest('#bn-full') || e.target.closest('#bn-refresh'))) return
     if (Date.now() - clickBlock < 400) return // 滑动手势已切图，吞掉紧随的合成 click
-    if (items.length > 1) next()
+    if (items.length >= 1) next()
   })
+  // 页面展示中点按页面层（非 iframe 可触区域，如加载层）：提前结束回图片
+  if (pageLayer) {
+    pageLayer.addEventListener('click', function () { if (pageOn && !pageReady) endPage() })
+  }
 
   refresh()
   restartRefresh()

@@ -132,6 +132,65 @@ window.AppUI = (function () {
     })
   }
 
+  // ---------- embed 展示模式（#196 随机页面：轮播页 iframe 嵌入/整页跳转兜底） ----------
+  // URL 带 embed=1 时：隐藏导航/页脚/云端状态条/主题切换，禁用链接与交互控件，
+  // 竖屏 9:16 下注入 kiosk 样式；?dur= 到时自动 location.replace 回轮播页（整页跳转兜底路径）。
+  // 整页跳转路径额外带 jump=1，history 已在轮播页，返回时不残留 embed 页历史。
+  function qsParam(name) {
+    var m = new RegExp('[?&]' + name + '=([^&]*)').exec(location.search)
+    return m ? decodeURIComponent(m[1]) : ''
+  }
+
+  function mountEmbedMode() {
+    if (qsParam('embed') !== '1') return
+    var style = document.createElement('style')
+    style.id = 'app-embed-style'
+    style.textContent =
+      'html,body{overflow:hidden !important;}' +
+      '.rk-nav,.webbar,.page-footer,footer,.app-cloud-bar,#contact-qr-pop,.qr-pop,#qr-pop{display:none !important;}' +
+      'a{pointer-events:none !important;cursor:default !important;}' +
+      'button,input,select,textarea{pointer-events:none !important;}' +
+      'main{height:100% !important;overflow:auto !important;-webkit-overflow-scrolling:touch;}' +
+      // 竖屏 9:16 kiosk：内容单列、紧凑、横向不溢出；宽表格卡片化
+      '@media (max-aspect-ratio: 3/4){' +
+      'body{font-size:13px;}' +
+      '.page-container,.rk-container,.container{max-width:100% !important;padding:10px !important;}' +
+      '.hero-section,.rk-hero{padding-top:6px !important;margin-bottom:8px !important;}' +
+      '.hero-title{font-size:22px !important;margin-bottom:4px !important;}' +
+      '.hero-subtitle,.rk-hero p{font-size:12px !important;line-height:1.5 !important;}' +
+      '.filter-bar,.rk-filter-bar{flex-wrap:wrap !important;gap:6px !important;margin-bottom:8px !important;}' +
+      '.match-grid{grid-template-columns:1fr !important;gap:8px !important;}' +
+      '.rk-stats,.rk-podium{gap:8px !important;margin-bottom:10px !important;}' +
+      '.rk-stats{grid-template-columns:repeat(2,1fr) !important;}' +
+      '.rk-podium{grid-template-columns:1fr !important;}' +
+      '.rk-scope-tabs,.rk-pills,.filter-pills{flex-wrap:wrap !important;}' +
+      '.pagination-section,.rk-pagination,#comp-entry,.rk-comp-entry,.qr-anchor,.rk-scope-tip{display:none !important;}' +
+      // 积分榜宽表格 → 卡片化行：表头隐藏，每格带列名标签，整行一张卡片
+      '.rk-table-wrap{overflow:visible !important;border:0 !important;background:transparent !important;}' +
+      '.rk-table thead{display:none !important;}' +
+      '.rk-table,.rk-table tbody,.rk-table tr,.rk-table td{display:block !important;width:100% !important;}' +
+      '.rk-table tbody tr{background:var(--card,#fff);border:1px solid var(--border,#e5e5ea);border-radius:12px;margin-bottom:8px;padding:8px 10px !important;}' +
+      '.rk-table td{border:0 !important;padding:3px 0 !important;text-align:right !important;white-space:normal !important;}' +
+      '.rk-table td::before{content:attr(data-label);float:left;font-weight:700;color:var(--muted-foreground,#8e8e93);}' +
+      '.rk-table td.col-rank,.rk-table td:first-child{text-align:left !important;font-size:16px !important;font-weight:800 !important;}' +
+      '}'
+    document.head.appendChild(style)
+    document.documentElement.classList.add('is-embed')
+
+    var dur = parseInt(qsParam('dur'), 10)
+    if (dur >= 3000 && dur <= 120000) {
+      setTimeout(function () {
+        var base = location.href.replace(/[^/]*$/, '')
+        location.replace(base + 'banner.html?embedback=1')
+      }, dur)
+    }
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', mountEmbedMode)
+  } else {
+    mountEmbedMode()
+  }
+
   // ---------- 窄竖屏（1080×1920 等 1:2~9:16 长条设备）兼容：全站统一注入 ----------
   // 导航项增至 5 个后 360-540px 宽竖屏必溢出：收窄内边距/字号/间距，rail 横向可滑（保留全部入口可达）
   function mountResponsiveCompat() {

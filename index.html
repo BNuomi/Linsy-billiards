@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="refresh" content="0;url=./rankings.html">
+<meta http-equiv="refresh" content="0;url=./rankings.html" id="idx-meta">
 <title>台球协会积分管理系统</title>
 <style>
   body {
@@ -22,6 +22,14 @@
 </head>
 <body>
 <p>正在进入积分排行榜… <a href="./rankings.html">点击直接进入</a></p>
-<script>window.location.replace('./rankings.html');</script>
+<script>
+// 透传 embed/dur 等展示参数（#196 随机页面以首页为入口时不能丢 kiosk 上下文）
+;(function () {
+  var qs = location.search || ''
+  var m = document.getElementById('idx-meta')
+  if (m) m.setAttribute('content', '0;url=./rankings.html' + qs)
+  window.location.replace('./rankings.html' + qs)
+})()
+</script>
 </body>
 </html>

@@ -171,10 +171,54 @@
       .ba-qr-tip { font-size: 13px; color: var(--muted-foreground); text-align: center; line-height: 1.8; }
 
       .page-footer { margin-top: 48px; padding: 24px 20px; border-top: 1px solid var(--border); color: var(--muted-foreground); font-size: 12px; text-align: center; }
+
+      /* ── 随机展示页面配置（#196） ── */
+      .bp-section { margin-top: 34px; }
+      .bp-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+      .bp-title { font-size: 19px; font-weight: 800; letter-spacing: -.01em; }
+      .bp-sub { margin: 6px 0 0; font-size: 13px; color: var(--muted-foreground); line-height: 1.7; }
+      .bp-global {
+        margin-top: 14px; padding: 14px 16px; border-radius: var(--radius);
+        background: var(--card); border: 1px solid var(--border); box-shadow: var(--shadow-sm);
+        display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+      }
+      .bp-switch { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; cursor: pointer; }
+      .bp-switch input { width: 17px; height: 17px; accent-color: var(--primary); margin: 0; }
+      .bp-global select {
+        height: 30px; border-radius: 8px; border: 1px solid var(--border);
+        background: var(--background); color: var(--foreground); font-size: 13px; padding: 0 8px; font-family: var(--font-sans);
+      }
+      .bp-global .bp-n { width: 56px; height: 30px; border-radius: 8px; border: 1px solid var(--border); background: var(--background); color: var(--foreground); font-size: 13px; padding: 0 6px; font-family: var(--font-sans); }
+      .bp-global-label { font-size: 13px; color: var(--muted-foreground); display: inline-flex; align-items: center; gap: 6px; }
+      .bp-meta { font-size: 12px; color: var(--muted-foreground); margin-left: auto; }
+      .bp-list { margin-top: 14px; display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
+      .bp-card {
+        background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+        box-shadow: var(--shadow-sm); padding: 12px 14px; display: flex; flex-direction: column; gap: 10px;
+      }
+      .bp-card.is-on { border-color: var(--primary); }
+      .bp-row1 { display: flex; align-items: center; gap: 10px; }
+      .bp-check { width: 18px; height: 18px; accent-color: var(--primary); margin: 0; flex: none; }
+      .bp-name { font-size: 14px; font-weight: 700; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .bp-tag { font-size: 11px; color: var(--muted-foreground); border: 1px solid var(--border); border-radius: 999px; padding: 1px 8px; flex: none; }
+      .bp-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding-left: 28px; }
+      .bp-controls label { font-size: 12px; color: var(--muted-foreground); display: inline-flex; align-items: center; gap: 4px; }
+      .bp-controls input[type=number] {
+        width: 58px; height: 26px; padding: 0 6px; font-size: 12px; border-radius: 8px;
+        border: 1px solid var(--border); background: var(--background); color: var(--foreground); font-family: var(--font-sans);
+      }
+      .bp-controls select {
+        height: 26px; font-size: 12px; border-radius: 8px; border: 1px solid var(--border);
+        background: var(--background); color: var(--foreground); padding: 0 4px; font-family: var(--font-sans);
+      }
+      .bp-save { margin-left: auto; height: 26px; padding: 0 12px; font-size: 11px; }
+      .bp-card.is-off .bp-controls { opacity: .55; }
+      .bp-loading { padding: 24px; text-align: center; color: var(--muted-foreground); font-size: 13px; }
       /* 窄屏导航兼容由 common.js 全站统一注入（横向可滑，保留全部入口） */
       @media (max-width: 640px) {
         .hero-title { font-size: 24px; }
         .ba-thumb { width: 54px; height: 108px; }
+        .bp-meta { margin-left: 0; width: 100%; }
       }
     </style>
 </head>
@@ -240,6 +284,31 @@
 
       <div class="ba-list" id="ba-list"></div>
       <div class="ba-empty" id="ba-empty" style="display:none;">暂无轮播图，点击上方按钮上传第一张</div>
+
+      <!-- 随机展示页面：图片轮播之外，随机插入网站页面（独立配置，不占 10 张图片名额） -->
+      <section class="bp-section" id="bp-section" style="display:none;">
+        <div class="bp-head">
+          <span class="bp-title">随机展示页面</span>
+        </div>
+        <p class="bp-sub">整轮图片播完后，随机插入一个已勾选页面在电子板上展示；独立配置，<b>不占用上方 10 张轮播图名额</b>。页面以无导航的展示模式嵌入，长页面会随机跳视到不同段落。</p>
+
+        <div class="bp-global">
+          <label class="bp-switch"><input type="checkbox" id="bp-enabled"> 启用随机页面</label>
+          <span class="bp-global-label">插入时机
+            <select id="bp-insert-mode">
+              <option value="after_cycle">每轮图片播完后</option>
+              <option value="every_n">每 N 张图片</option>
+              <option value="probability">按概率</option>
+            </select>
+          </span>
+          <span class="bp-global-label" id="bp-n-wrap" style="display:none;"><input type="number" class="bp-n" id="bp-insert-n" min="1" max="100" step="1"> <span id="bp-n-suffix">页</span></span>
+          <label class="bp-switch"><input type="checkbox" id="bp-jump"> 老式设备允许整页跳转兜底</label>
+          <button class="btn btn-primary" id="bp-save-global" type="button" style="height:30px;">保存策略</button>
+          <span class="bp-meta" id="bp-meta"></span>
+        </div>
+
+        <div class="bp-list" id="bp-list"><div class="bp-loading">页面配置加载中…</div></div>
+      </section>
     </div>
 
     <footer class="page-footer">© 2026 台球协会. 保留所有权利.</footer>
@@ -249,9 +318,9 @@
   <script>lucide.createIcons();</script>
   <script src="./js/cloud.js?v=20260926a"></script>
   <script src="./js/fallback-data.js?v=20261008b"></script>
-  <script src="./js/common.js?v=20261102b"></script>
+  <script src="./js/common.js?v=20261105a"></script>
   <script src="./js/auth.js?v=20261101b"></script>
-  <script src="./js/banner-admin.js?v=20261103a"></script>
+  <script src="./js/banner-admin.js?v=20261105a"></script>
   <script>
   /* 主题切换：更新 <html> class + localStorage 记忆，并广播 themechange 事件 */
   (function () {
