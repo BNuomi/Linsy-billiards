@@ -516,11 +516,53 @@
   var SHOT_H = 1920
   var SHOT_WAIT_MS = 3200     // iframe load 后再等云函数数据渲染
   var SHOT_TIMEOUT_MS = 20000 // 单页整体超时（加载+等待+渲染）
+  var SHOT_STORE_KEY = 'bn-shot-pages' // 参与截图的页面勾选，存本机 localStorage（管理工具配置，不走云端）
 
   var bsList = document.getElementById('bs-list')
   var bsMeta = document.getElementById('bs-meta')
   var bsRefresh = document.getElementById('bs-refresh')
+  var bsConfig = document.getElementById('bs-config')
   var downloadBtn = document.getElementById('ba-download')
+
+  // 勾选配置：null = 未配置过 = 默认全选
+  function loadShotEnabled() {
+    try {
+      var raw = localStorage.getItem(SHOT_STORE_KEY)
+      if (!raw) return null
+      var arr = JSON.parse(raw)
+      return Array.isArray(arr) ? arr : null
+    } catch (e) { return null }
+  }
+
+  function shotPool() {
+    var saved = loadShotEnabled()
+    if (!saved) return SHOT_PAGES.slice()
+    return SHOT_PAGES.filter(function (p) { return saved.indexOf(p.file) >= 0 })
+  }
+
+  function renderShotConfig() {
+    var saved = loadShotEnabled()
+    bsConfig.innerHTML = '<span class="bs-cfg-label">参与随机截图的页面（保存在本机浏览器）：</span>' +
+      SHOT_PAGES.map(function (p) {
+        var on = !saved || saved.indexOf(p.file) >= 0
+        return '<label><input type="checkbox" data-file="' + esc(p.file) + '"' + (on ? ' checked' : '') + '> ' + esc(p.name) + '</label>'
+      }).join('')
+  }
+
+  bsConfig.addEventListener('change', function (e) {
+    var cb = e.target
+    if (!cb || cb.type !== 'checkbox') return
+    var checked = Array.prototype.slice.call(bsConfig.querySelectorAll('input:checked')).map(function (x) {
+      return x.getAttribute('data-file')
+    })
+    if (!checked.length) {
+      cb.checked = true
+      toast('至少保留 1 个页面参与截图', 'error')
+      return
+    }
+    try { localStorage.setItem(SHOT_STORE_KEY, JSON.stringify(checked)) } catch (err) {}
+    startShots() // 按新候选池立即重新随机生成
+  })
 
   var shots = []                    // [{ file, name, blob, thumbUrl, state: pending|ok|err }]
   var shotsGen = 0                  // 代际令牌：换一批时作废旧队列迟到的回调
@@ -584,12 +626,12 @@
   function startShots() {
     shotsGen++
     var gen = shotsGen
-    var pool = SHOT_PAGES.slice()
+    var pool = shotPool()
     for (var i = pool.length - 1; i > 0; i--) {
       var j = Math.floor(Math.random() * (i + 1))
       var t = pool[i]; pool[i] = pool[j]; pool[j] = t
     }
-    shots = pool.slice(0, 5).map(function (p) {
+    shots = pool.slice(0, Math.min(5, pool.length)).map(function (p) {
       return { file: p.file, name: p.name, blob: null, thumbUrl: '', state: 'pending' }
     })
     renderShots()
@@ -664,5 +706,6 @@
 
   window.AppUI.fixNav('')
   load()
+  renderShotConfig()
   startShots()
 })()

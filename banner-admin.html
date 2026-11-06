@@ -186,6 +186,16 @@
       .bs-state { font-size: 11px; color: var(--muted-foreground); margin-top: 2px; }
       .bs-state.err { color: var(--state-error); }
       .bs-state.ok { color: var(--success); }
+      /* 截图候选页配置：checkbox 胶囊组，勾选存本机 localStorage */
+      .bs-config { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+      .bs-config .bs-cfg-label { font-size: 12px; color: var(--muted-foreground); }
+      .bs-config label {
+        display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 999px;
+        border: 1px solid var(--border); cursor: pointer; font-size: 12px;
+        transition: background-color .15s ease;
+      }
+      .bs-config input[type=checkbox] { margin: 0; accent-color: var(--primary); }
+      .bs-config label:has(input:checked) { background: var(--secondary); border-color: var(--primary); color: var(--foreground); }
 
       .page-footer { margin-top: 48px; padding: 24px 20px; border-top: 1px solid var(--border); color: var(--muted-foreground); font-size: 12px; text-align: center; }
 
@@ -341,7 +351,8 @@
           </button>
           <span class="bs-meta" id="bs-meta"></span>
         </div>
-        <p class="bs-sub">每次进入本页自动随机截取 5 个站内页面的竖屏首屏（1080×1920，仅展示用、不入库），点上方「打包下载」时与轮播图原图一起导出为 zip；生成失败的页面会自动跳过。</p>
+        <p class="bs-sub">每次进入本页自动从勾选页面中随机截取 5 个竖屏首屏（1080×1920，仅展示用、不入库），点上方「打包下载」时与轮播图原图一起导出为 zip；生成失败的页面会自动跳过。勾选不足 5 个时按实际数量截取。</p>
+        <div class="bs-config" id="bs-config"></div>
         <div class="bs-list" id="bs-list"></div>
       </section>
     </div>
@@ -357,7 +368,7 @@
   <script src="./js/auth.js?v=20261101b"></script>
   <script src="./js/vendor/jszip.min.js?v=20261106a"></script>
   <script src="./js/vendor/html-to-image.min.js?v=20261106a"></script>
-  <script src="./js/banner-admin.js?v=20261106a"></script>
+  <script src="./js/banner-admin.js?v=20261106b"></script>
   <script>
   /* 主题切换：更新 <html> class + localStorage 记忆，并广播 themechange 事件 */
   (function () {
