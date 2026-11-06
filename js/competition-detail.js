@@ -75,7 +75,13 @@
     if (comp.game_type) rows.push(['对局类型', GAME_TYPE_LABEL[comp.game_type] || comp.game_type])
     // 赛制行：小组赛制展示分组/出线/台数；逐轮抽签仅在显式设置时展示
     var tables = Number.isInteger(Number(comp.table_count)) && Number(comp.table_count) > 0 ? Number(comp.table_count) : 4
-    if (comp.format === 'groups_knockout' && comp.game_type !== 'nine_ball') {
+    if (comp.format === 'free_round') {
+      rows.push(['赛制', '自由循环约赛 · 手动创建对局关联 · 按胜场/净胜局排名'])
+    } else if (comp.format === 'round_robin') {
+      rows.push(['赛制', '循环赛 · 全员单循环 · 按胜场/净胜局排名'])
+    } else if (comp.format === 'knockout') {
+      rows.push(['赛制', '淘汰赛 · 单败签表胜者晋级 · 一场定胜负'])
+    } else if (comp.format === 'groups_knockout' && comp.game_type !== 'nine_ball') {
       var gs = Number(comp.group_size) > 0 ? Number(comp.group_size) : 4
       var adv = Number(comp.advance_count) > 0 ? Number(comp.advance_count) : 2
       rows.push(['赛制', '小组赛+淘汰赛 · ' + gs + ' 人小组前 ' + adv + ' 出线 · ' + tables + ' 台同开'])

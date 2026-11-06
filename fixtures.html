@@ -1236,9 +1236,9 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
           <div id="fx-roster"></div>
         </section>
 
-        <!-- 小组积分榜 · 晋级名单（小组赛制抽签完成后展示） -->
+        <!-- 积分榜：小组赛制=小组积分榜·晋级名单；自由循环约赛=全局循环积分榜 -->
         <section class="section" id="fx-adv-section" style="display:none;">
-          <div class="section-eyebrow">小组积分榜 · 晋级名单</div>
+          <div class="section-eyebrow" id="fx-adv-title">小组积分榜 · 晋级名单</div>
           <div class="fx-adv-grid" id="fx-adv"></div>
         </section>
 
@@ -1511,7 +1511,7 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
     <script src="./js/cloud.js?v=20260926a"></script>
     <script src="./js/fallback-data.js?v=20261008b"></script>
     <script src="./js/common.js?v=20261105a"></script>
-    <script src="./js/competition-admin.js?v=20261014a"></script>
+    <script src="./js/competition-admin.js?v=20261105a"></script>
     <script src="./js/fixtures.js?v=20261014b"></script>
     <script>
     /* 主题切换：更新 <html> class + localStorage 记忆，并广播 themechange 事件 */

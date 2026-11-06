@@ -82,6 +82,19 @@
     return comp && comp.format === 'groups_knockout' && comp.game_type !== 'nine_ball'
   }
 
+  // 自由循环约赛：不抽签，手动创建对局关联比赛，云端 getFixtures 返回虚拟对阵 + 全局积分榜
+  function isFree(comp) {
+    return comp && comp.format === 'free_round'
+  }
+  // 循环赛：全员单循环，一次排阵生成全部对阵 + 全局积分榜
+  function isRR(comp) { return comp && comp.format === 'round_robin' }
+  // 淘汰赛：单败签表
+  function isKO(comp) { return comp && comp.format === 'knockout' }
+  // 完整签表赛制（一次抽签生成，不可逐轮补抽）
+  function isBracket(comp) { return isRR(comp) || isKO(comp) || isGK(comp) }
+  // 全局积分榜赛制（自由约赛/循环赛）
+  function isGlobalBoard(comp) { return isFree(comp) || isRR(comp) }
+
   // 解析 score_text 为与选手同序的分数数组：中八「3:1」按 ':' 拆；九球「王建国 +12 / 李志强 -5」取段尾带符号数
   function parseScores(scoreText, playerCount) {
     if (!scoreText) return null
@@ -123,15 +136,33 @@
     return chips
   }
 
-  // 赛制说明：「4 人小组 × 4 组 · 前 2 出线 · 共 31 场（小组 24 + 淘汰 7）」
+  // 赛制说明：循环赛 / 淘汰赛 / 自由约赛 / 小组+淘汰
   function formatDesc(comp, participantCount) {
+    var n = participantCount || 0
+    if (isFree(comp)) {
+      if (!n) return '报名后自行约赛 · 手动创建对局关联比赛 · 按胜场/净胜局排名'
+      return n + ' 人自由约赛 · 约 ' + (n * (n - 1) / 2) + ' 场 · 手动创建对局关联 · 胜场/净胜局排名'
+    }
+    if (isRR(comp)) {
+      if (!n) return '全员单循环 · 每人与其他人各赛一场 · 按胜场/净胜局排名'
+      var rounds = n % 2 === 0 ? n - 1 : n
+      return n + ' 人单循环 · ' + rounds + ' 轮共 ' + (n * (n - 1) / 2) + ' 场 · 胜场/净胜分/相互战绩排名'
+    }
+    if (isKO(comp)) {
+      if (!n) return '单败淘汰 · 一次生成签表，胜者晋级负者出局'
+      var cap = 1; while (cap < n) cap *= 2
+      var bye = cap - n
+      var matches = n - 1 + (cap === n && n >= 4 ? 1 : 0)
+      return n + ' 人单败淘汰 · 共 ' + matches + ' 场' + (bye ? '（首轮 ' + bye + ' 人轮空）' : '') +
+        (cap === n && n >= 4 ? '（含季军赛）' : '') + ' · 一场定胜负'
+    }
     if (!isGK(comp)) return ''
     var gs = Number(comp.group_size) > 1 ? Number(comp.group_size) : 4
     var adv = Number(comp.advance_count) > 0 ? Number(comp.advance_count) : 2
-    if (!participantCount) return gs + ' 人小组循环 · 前 ' + adv + ' 出线进淘汰赛'
-    var nGroups = Math.max(1, Math.round(participantCount / gs))
-    var base = Math.floor(participantCount / nGroups)
-    var rem = participantCount - base * nGroups
+    if (!n) return gs + ' 人小组循环 · 前 ' + adv + ' 出线进淘汰赛'
+    var nGroups = Math.max(1, Math.round(n / gs))
+    var base = Math.floor(n / nGroups)
+    var rem = n - base * nGroups
     var groupMatches = 0
     for (var i = 0; i < nGroups; i++) {
       var size = base + (rem-- > 0 ? 1 : 0)
@@ -215,12 +246,27 @@
     var chipsHtml = function (list) {
       return list.map(function (p) { return '<span class="fx-chip">' + U.escapeHtml(p.name) + '</span>' }).join('')
     }
-    var roster = groupRosterOf(fixtures, participants)
+    var free = isFree(comp)
+    var rr = isRR(comp)
+    var ko = isKO(comp)
+    var bracket = isBracket(comp)
+    var globalBoard = isGlobalBoard(comp)
+    // 自由约赛/循环赛名单始终平铺（不分组不晋级）
+    var roster = (free || rr) ? null : groupRosterOf(fixtures, participants)
     var drawn = !!(roster && participants.length)
     var standings0 = d.group_standings || []
-    el('fx-part-title').textContent = drawn ? '晋级名单' : '报名名单（' + participants.length + ' 人）'
+    el('fx-part-title').textContent = (free || rr)
+      ? '报名名单（' + participants.length + ' 人）'
+      : (drawn ? '晋级名单' : '报名名单（' + participants.length + ' 人）')
     var rosterHtml
-    if (drawn) {
+    if (free || rr) {
+      rosterHtml = participants.length
+        ? '<div class="fx-chips">' + chipsHtml(participants) + '</div>'
+        : '<div class="fx-empty-inline">暂无报名</div>'
+      rosterHtml += '<div class="fx-format">' + U.escapeHtml(formatDesc(comp, participants.length) || '') + '</div>'
+      el('fx-roster').innerHTML = rosterHtml
+      el('fx-part-section').style.display = ''
+    } else if (drawn) {
       rosterHtml = standings0.length
         ? '<div class="fx-advsum">' + standings0.map(function (g) {
             var names
@@ -240,52 +286,79 @@
         ? '<div class="fx-chips">' + chipsHtml(participants) + '</div>'
         : '<div class="fx-empty-inline">暂无报名</div>'
     }
-    // 赛制说明（小组赛制）
+    // 赛制说明（自由约赛/循环赛分支已内联说明，避免重复）
     var fd = formatDesc(comp, participants.length)
-    if (fd) rosterHtml += '<div class="fx-format">赛制：' + U.escapeHtml(fd) + '</div>'
-    el('fx-roster').innerHTML = rosterHtml
-    el('fx-part-section').style.display = ''
+    if (fd && !(free || rr)) rosterHtml += '<div class="fx-format">赛制：' + U.escapeHtml(fd) + '</div>'
+    if (!(free || rr)) {
+      el('fx-roster').innerHTML = rosterHtml
+      el('fx-part-section').style.display = ''
+    }
 
-    // 抽签按钮状态（与小程序端同口径）：小组赛制首抽「小组抽签」，签表生成后禁用；逐轮制「开始抽签/抽下一轮」
+    // 抽签按钮状态：完整签表赛制首抽后禁用；逐轮制可逐轮补抽
     var gk = isGK(comp)
     var drawBtn = el('fx-draw-btn')
-    if (drawBtn) {
+    // 自由循环约赛：隐藏抽签/重抽/抽签条件按钮（不抽签、不排期）
+    if (free) {
+      drawBtn.style.display = 'none'
+      var rb0 = el('fx-redraw-btn'); if (rb0) rb0.style.display = 'none'
+      var dc0 = el('fx-drawcfg-btn'); if (dc0) dc0.style.display = 'none'
+    }
+    if (drawBtn && !free) {
       var groupSize = comp.game_type === 'nine_ball' ? 3 : 2
       var maxRound = fixtures.reduce(function (mx, f) { return Math.max(mx, f.round || 0) }, 0)
       var drawLabel = '开始抽签'
       var drawDisabled = participants.length < groupSize
       if (gk) {
-        if (maxRound > 0) {
-          drawLabel = '签表已生成'
-          drawDisabled = true
-        } else {
-          drawLabel = '小组抽签'
-        }
+        if (maxRound > 0) { drawLabel = '签表已生成'; drawDisabled = true } else { drawLabel = '小组抽签' }
+      } else if (rr) {
+        drawLabel = maxRound > 0 ? '对阵已生成' : '循环赛排阵'
+        if (maxRound > 0) drawDisabled = true
+      } else if (ko) {
+        drawLabel = maxRound > 0 ? '签表已生成' : '淘汰赛抽签'
+        if (maxRound > 0) drawDisabled = true
       } else if (fixtures.length) {
         drawLabel = '抽下一轮'
       }
       el('fx-draw-label').textContent = drawLabel
       drawBtn.disabled = drawDisabled
     }
-    // 重抽按钮（与小程序端同口径）：有对阵即显示；小组赛制须全部对阵未开打（清空整份签表重建），
-    // 逐轮制须最新一轮未开打（重抽本轮）；已开打则禁用，云端二次校验
+    // 重抽按钮：完整签表赛制须全部对阵未开打（清空重建）；逐轮制须最新一轮未开打
     var redrawBtn = el('fx-redraw-btn')
-    if (redrawBtn) {
-      var canRedraw = maxRound > 0 && (gk
+    if (redrawBtn && !free) {
+      var canRedraw = maxRound > 0 && (bracket
         ? fixtures.every(function (f) { return !f.match_id })
         : fixtures.filter(function (f) { return f.round === maxRound }).every(function (f) { return !f.match_id }))
       redrawBtn.style.display = fixtures.length ? '' : 'none'
       redrawBtn.disabled = !canRedraw
-      el('fx-redraw-label').textContent = gk ? '重新抽签' : '重抽本轮'
+      el('fx-redraw-label').textContent = bracket ? '重新抽签' : '重抽本轮'
     }
     // 抽签条件入口：仅小组赛制（条件按组别/半区生效）
     var drawcfgBtn = el('fx-drawcfg-btn')
     if (drawcfgBtn) drawcfgBtn.style.display = gk ? '' : 'none'
 
-    // 小组积分榜 · 晋级名单（小组赛制）：小组完赛自动推断前 adv 名晋级；手动调整的名单带「手动」标记
+    // 积分榜：自由约赛/循环赛=全局积分榜（无晋级/无调整）；小组赛制=小组积分榜·晋级名单
     var compDone0 = !!(comp.end_date && todayStr() > comp.end_date)
     var standings = d.group_standings || []
-    if (gk && standings.length) {
+    if (globalBoard && standings.length) {
+      el('fx-adv').innerHTML = standings.map(function (g) {
+        var rowsHtml = g.rows.map(function (p, i) {
+          return '<div class="fx-stand-row">' +
+            '<span class="fx-stand-rank">' + (i + 1) + '</span>' +
+            '<span class="fx-stand-name">' + U.escapeHtml(p.name) + '</span>' +
+            '<span class="fx-stand-stat">' + p.wins + ' 胜 · 净' + (p.net >= 0 ? '+' : '') + p.net + ' · ' + p.played + ' 场</span></div>'
+        }).join('')
+        var meta = g.complete
+          ? '循环已完赛'
+          : '已赛 ' + g.played_matches + ' 场（全员循环共 ' + g.total_matches + ' 场）'
+        return '<div class="fx-stand-card">' +
+          '<div class="fx-stand-head"><span class="fx-stand-title">全员排名</span>' +
+          '<span class="fx-stand-meta">' + meta + '</span></div>' +
+          '<div class="fx-stand-rows">' + rowsHtml + '</div></div>'
+      }).join('')
+      el('fx-adv-section').style.display = ''
+      var advTitle = document.getElementById('fx-adv-title')
+      if (advTitle) advTitle.textContent = free ? '循环约赛积分榜' : '循环赛积分榜'
+    } else if (gk && standings.length) {
       el('fx-adv').innerHTML = standings.map(function (g) {
         var chipOf = function (i) {
           if (!g.complete && !g.played_matches) return ''
@@ -317,9 +390,11 @@
       el('fx-adv-section').style.display = 'none'
     }
 
-    // 比赛日
+    // 比赛日（自由循环约赛无排期，整区隐藏）
+    var daysSection = document.getElementById('fx-days-section')
+    if (daysSection && free) daysSection.style.display = 'none'
     var days = comp.match_days || []
-    if (days.length) {
+    if (!free && days.length) {
       var tables = Number(comp.table_count) > 0 ? Number(comp.table_count) : 4
       el('fx-days').innerHTML = days.map(function (d0) {
         return '<div class="fx-day-row"><span class="fx-day-date">' + U.escapeHtml(d0.date) + '</span>' +
@@ -329,21 +404,23 @@
       el('fx-days-section').style.display = ''
     }
 
-    // 对阵：未抽签
+    // 对阵：无记录（自由约赛=还没有约赛对局；传统赛制=尚未抽签）
     if (!fixtures.length) {
-      el('fx-empty').style.display = ''
+      var emptyEl = el('fx-empty')
+      if (free) emptyEl.textContent = '还没有约赛记录，请约好对手后由裁判/管理员创建对局并关联本比赛'
+      emptyEl.style.display = ''
       el('fx-search-bar').style.display = 'none'
       refreshIcons()
       return
     }
     el('fx-search-bar').style.display = ''
 
-    // 赛程进度
+    // 赛程进度（自由约赛不显示待排期告警）
     var real = fixtures.filter(function (f) { return f.status !== 'bye' })
     if (real.length) {
       var done = real.filter(function (f) { return f.match_status === 'done' }).length
       var live = real.filter(function (f) { return f.match_status === 'ongoing' }).length
-      var unscheduled = real.filter(function (f) { return !f.match_id && !f.slot_at }).length
+      var unscheduled = free ? 0 : real.filter(function (f) { return !f.match_id && !f.slot_at }).length
       el('fx-progress').innerHTML = '共 <b>' + real.length + '</b> 场 · 已结束 <b>' + done + '</b> · 进行中 <b>' + live + '</b> · 预告 <b>' + (real.length - done - live) + '</b>' +
         (unscheduled ? '<span class="warn">（' + unscheduled + ' 场待排期）</span>' : '')
       el('fx-progress').style.display = ''
@@ -371,6 +448,10 @@
         key = 'ko_' + f.round
         title = '淘汰赛 · ' + (STAGE_LABEL[f.stage] || ('第' + f.round + '轮'))
         order = 100 + f.round
+      } else if (free) {
+        key = 'free_all'
+        title = '约赛记录'
+        order = 1
       } else {
         key = 'round_' + f.round
         title = '第 ' + f.round + ' 轮'

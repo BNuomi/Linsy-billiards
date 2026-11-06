@@ -497,6 +497,172 @@
     }
   })
 
+  // ---------- 网页截图（#198）：随机截 5 张站内页面首屏 + 打包下载 ----------
+  // 候选池：仅无参数即可独立打开的内容页；排除 banner/banner-admin（自身与展示页）、
+  // 带参详情页（match-detail/member-detail/competition-detail/fixtures/competition-live 空态）与 multi-watch（手表端）；
+  // practice-board 画板页经实测 html-to-image 序列化失败且首屏为空画布素材价值低，不纳入
+  var SHOT_PAGES = [
+    { file: 'index.html', name: '首页' },
+    { file: 'rankings.html', name: '积分榜' },
+    { file: 'match-records.html', name: '对战记录' },
+    { file: 'competitions.html', name: '比赛列表' },
+    { file: 'points.html', name: '积分说明' },
+    { file: 'rules.html', name: '赛事规则' },
+    { file: 'practice.html', name: '练球记录' },
+    { file: 'pursuit-score.html', name: '九球记分' },
+    { file: 'snooker-score.html', name: '斯诺克记分' }
+  ]
+  var SHOT_W = 1080
+  var SHOT_H = 1920
+  var SHOT_WAIT_MS = 3200     // iframe load 后再等云函数数据渲染
+  var SHOT_TIMEOUT_MS = 20000 // 单页整体超时（加载+等待+渲染）
+
+  var bsList = document.getElementById('bs-list')
+  var bsMeta = document.getElementById('bs-meta')
+  var bsRefresh = document.getElementById('bs-refresh')
+  var downloadBtn = document.getElementById('ba-download')
+
+  var shots = []                    // [{ file, name, blob, thumbUrl, state: pending|ok|err }]
+  var shotsGen = 0                  // 代际令牌：换一批时作废旧队列迟到的回调
+  var shotsDone = Promise.resolve() // 当前批次全部 settle 的 Promise，打包下载时 await
+
+  function renderShots() {
+    bsList.innerHTML = shots.map(function (s) {
+      var inner = s.state === 'ok'
+        ? '<img src="' + s.thumbUrl + '" alt="">'
+        : '<span class="bs-pending">' + (s.state === 'err' ? '生成失败' : '截图中…') + '</span>'
+      var cls = s.state === 'ok' ? 'ok' : (s.state === 'err' ? 'err' : '')
+      var label = s.state === 'ok' ? '已完成' : (s.state === 'err' ? '打包时自动跳过' : '正在生成')
+      return '<div class="bs-card"><div class="bs-thumb">' + inner + '</div>' +
+        '<div class="bs-info"><div class="bs-name">' + esc(s.name) + '</div>' +
+        '<div class="bs-state ' + cls + '">' + esc(s.file) + ' · ' + label + '</div></div></div>'
+    }).join('')
+  }
+
+  // 同域隐藏 iframe 加载目标页 → html-to-image（SVG foreignObject，CSS 变量/flex/grid 保真）截首屏
+  function shotOne(s, gen) {
+    return new Promise(function (resolve) {
+      var iframe = document.createElement('iframe')
+      iframe.style.cssText = 'position:fixed;left:-12000px;top:0;width:' + SHOT_W + 'px;height:' + SHOT_H + 'px;border:0;'
+      iframe.src = './' + s.file
+      var settled = false
+      function fin(state, blob) {
+        if (settled) return
+        settled = true
+        clearTimeout(timer)
+        if (iframe.parentNode) iframe.parentNode.removeChild(iframe)
+        if (gen !== shotsGen) return resolve() // 已换批，丢弃结果
+        s.state = state
+        if (state === 'ok' && blob) {
+          s.blob = blob
+          s.thumbUrl = URL.createObjectURL(blob)
+        }
+        renderShots()
+        resolve()
+      }
+      var timer = setTimeout(function () { fin('err') }, SHOT_TIMEOUT_MS)
+      iframe.onload = function () {
+        setTimeout(function () {
+          try {
+            var doc = iframe.contentDocument
+            if (!doc || !doc.body) { fin('err'); return }
+            window.htmlToImage.toBlob(doc.body, {
+              width: SHOT_W, height: SHOT_H, pixelRatio: 1,
+              canvasWidth: SHOT_W, canvasHeight: SHOT_H
+            }).then(function (blob) {
+              fin(blob ? 'ok' : 'err', blob)
+            }).catch(function () { fin('err') })
+          } catch (e) { fin('err') }
+        }, SHOT_WAIT_MS)
+      }
+      iframe.onerror = function () { fin('err') }
+      document.body.appendChild(iframe)
+    })
+  }
+
+  // 串行生成（并行多个重页面 + 截图渲染内存压力大）；进度实时落在 bs-meta
+  function startShots() {
+    shotsGen++
+    var gen = shotsGen
+    var pool = SHOT_PAGES.slice()
+    for (var i = pool.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1))
+      var t = pool[i]; pool[i] = pool[j]; pool[j] = t
+    }
+    shots = pool.slice(0, 5).map(function (p) {
+      return { file: p.file, name: p.name, blob: null, thumbUrl: '', state: 'pending' }
+    })
+    renderShots()
+    shotsDone = (async function () {
+      for (var k = 0; k < shots.length; k++) {
+        if (gen !== shotsGen) return
+        bsMeta.textContent = '截图生成中 ' + (k + 1) + ' / ' + shots.length + '…'
+        await shotOne(shots[k], gen)
+      }
+      var okN = shots.filter(function (s) { return s.state === 'ok' }).length
+      bsMeta.textContent = '已生成 ' + okN + ' / ' + shots.length + ' 张'
+    })()
+  }
+
+  bsRefresh.addEventListener('click', function () { startShots() })
+
+  // ---------- 打包下载（#198）：轮播图原图（image_data base64）+ 网页截图 → 单个 zip ----------
+  function pad2(n) { return n < 10 ? '0' + n : '' + n }
+  function safeFileName(s) {
+    return (String(s || '').replace(/[\\/:*?"<>|]/g, '').trim().slice(0, 40)) || 'banner'
+  }
+  function stamp() {
+    var d = new Date()
+    return d.getFullYear() + pad2(d.getMonth() + 1) + pad2(d.getDate()) + '-' + pad2(d.getHours()) + pad2(d.getMinutes())
+  }
+
+  downloadBtn.addEventListener('click', async function () {
+    if (downloadBtn.disabled) return
+    downloadBtn.disabled = true
+    var bannerN = 0
+    var shotN = 0
+    try {
+      var zip = new window.JSZip()
+      hintEl.textContent = '正在打包：获取轮播图列表…'
+      var data = await window.AppCloud.call('manageBanners', { action: 'list' })
+      var items = data.banners || []
+      for (var i = 0; i < items.length; i++) {
+        hintEl.textContent = '正在打包：轮播图 ' + (i + 1) + ' / ' + items.length + '…'
+        try {
+          var r = await window.AppCloud.call('manageBanners', { action: 'image_data', file_id: items[i].file_id })
+          var m = /\.(jpe?g|png|webp|gif)$/i.exec(items[i].file_id || '')
+          var ext = m ? m[1].toLowerCase().replace('jpeg', 'jpg') : 'jpg'
+          zip.file('banner-' + pad2(i + 1) + '-' + safeFileName(items[i].title) + '.' + ext, r.base64, { base64: true })
+          bannerN++
+        } catch (e) { /* 单图失败跳过，不阻塞整包 */ }
+      }
+      hintEl.textContent = '正在打包：等待网页截图生成…'
+      await shotsDone
+      for (var k = 0; k < shots.length; k++) {
+        if (shots[k].state !== 'ok' || !shots[k].blob) continue
+        shotN++
+        zip.file('shot-' + pad2(shotN) + '-' + shots[k].file.replace(/\.html$/, '') + '.png', shots[k].blob)
+      }
+      if (!bannerN && !shotN) { toast('没有可下载的内容', 'error'); return }
+      hintEl.textContent = '正在生成 zip…'
+      var blob = await zip.generateAsync({ type: 'blob' })
+      var a = document.createElement('a')
+      a.href = URL.createObjectURL(blob)
+      a.download = 'banner-pack-' + stamp() + '.zip'
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      setTimeout(function () { URL.revokeObjectURL(a.href) }, 30000)
+      toast('已导出 ' + bannerN + ' 张轮播图 + ' + shotN + ' 张网页截图', 'success')
+    } catch (e) {
+      toast('打包失败：' + (e.message || e), 'error')
+    } finally {
+      hintEl.textContent = ''
+      downloadBtn.disabled = false
+    }
+  })
+
   window.AppUI.fixNav('')
   load()
+  startShots()
 })()

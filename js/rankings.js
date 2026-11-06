@@ -279,13 +279,18 @@
           '<td class="col-winrate" data-label="均值">' + practiceAvg(m) + '</td>' +
           '<td data-label="最近">' + practiceLast(m) + '</td></tr>'
       } else {
+        // 赛事榜：胜率列追加净胜分（净胜局/净胜分差），与积分排序次级键一致
+        var isComp = state.scopeKey === 'competition'
+        var winCell = isComp
+          ? (m.winRate || 0) + '%<span class="rk-net">净' + ((m.net || 0) >= 0 ? '+' : '') + (m.net || 0) + '</span>'
+          : (m.winRate || 0) + '%'
         html += '<tr data-id="' + m._id + '" style="cursor:pointer;">' +
           '<td class="col-rank" data-label="排名">' + badge + '</td>' +
           '<td data-label="会员">' + U.escapeHtml(m.name || '未命名') + '</td>' +
           '<td class="col-points" data-label="总积分">' + (m.points != null ? m.points : 0) + '</td>' +
           '<td class="col-season" data-label="胜/总场">' + (m.wins || 0) + ' / ' + total + '</td>' +
           '<td class="col-clears" data-label="清台">' + (m.clears || 0) + '</td>' +
-          '<td class="col-winrate" data-label="胜率">' + (m.winRate || 0) + '%</td>' +
+          '<td class="col-winrate" data-label="胜率">' + winCell + '</td>' +
           '<td data-label="趋势">' + trendHtml(m) + '</td></tr>'
       }
       if (collapsible && !prevSame) {

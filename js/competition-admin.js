@@ -11,7 +11,7 @@ window.CompAdmin = (function () {
 
   var ctx = { getComp: null, onChanged: null }
   var authing = false // 授权弹窗是否打开（防止并发创建会话）
-  var pendingAction = null // 授权完成后要执行的动作：'edit' | 'import' | 'days' | 'draw' | 'redraw' | 'drawcfg' | 'reorder' | 'advance'
+  var pendingAction = null // 授权完成后要执行的动作：'create' | 'edit' | 'import' | 'days' | 'draw' | 'redraw' | 'drawcfg' | 'reorder' | 'advance'
   var pendingFixture = null // reorder 动作的目标对阵
   var pendingGroup = null // advance 动作的目标小组（group_no）
 
@@ -235,9 +235,60 @@ window.CompAdmin = (function () {
     }, 2000)
   }
 
+  // ---------- 创建比赛（比赛列表页入口；尚无比赛上下文） ----------
+  function openCreate() {
+    var card = openModal('创建比赛', function (body) {
+      body.innerHTML =
+        '<form class="wa-form" id="wa-create-form">' +
+        '<label class="wa-field"><span class="wa-label">比赛名称 *</span>' +
+        '<input class="wa-input" name="name" type="text" maxlength="20" placeholder="1-20 个字符"></label>' +
+        '<label class="wa-field"><span class="wa-label">对局类型</span>' +
+        '<select class="wa-input" name="game_type">' +
+        '<option value="c8">中八</option>' +
+        '<option value="nine_ball">九球追分</option>' +
+        '<option value="snooker">斯诺克</option>' +
+        '</select></label>' +
+        '<div class="wa-import-tip" style="margin:0;">创建后可进入比赛详情继续完善日期、地点、赛制与报名信息；同名比赛会直接打开已有记录。</div>' +
+        '<div class="wa-foot"><button class="btn btn-primary" type="submit">创建比赛</button></div></form>'
+      body.querySelector('#wa-create-form').addEventListener('submit', function (ev) {
+        ev.preventDefault()
+        doCreate(card)
+      })
+    })
+  }
+
+  async function doCreate(card) {
+    var form = card.querySelector('#wa-create-form')
+    var name = form.querySelector('[name="name"]').value.trim()
+    var gameType = form.querySelector('[name="game_type"]').value
+    if (!name) { U.toast('请输入比赛名称', 'error'); return }
+    if (name.length > 20) { U.toast('比赛名称需为 1-20 个字符', 'error'); return }
+    var auth = readAuth()
+    if (!auth) { U.toast('授权已失效，请重新扫码', 'error'); startAuth('create'); return }
+    var btn = card.querySelector('button[type="submit"]')
+    btn.disabled = true
+    btn.textContent = '创建中…'
+    try {
+      var comp = await window.AppCloud.call('createCompetition', {
+        name: name,
+        game_type: gameType,
+        web_token: auth.token
+      })
+      closeModal()
+      U.toast('已创建：' + (comp.name || name), 'success')
+      // 进入详情页继续完善（同名幂等返回时同样直达已有比赛）
+      window.location.href = './competition-detail.html?id=' + encodeURIComponent(comp._id)
+    } catch (e) {
+      btn.disabled = false
+      btn.textContent = '创建比赛'
+      if (!handleAuthError(e)) U.toast('创建失败：' + (e.message || e), 'error')
+    }
+  }
+
   // ---------- 授权后的动作 ----------
   function openAction(action) {
-    if (action === 'edit') openEdit()
+    if (action === 'create') openCreate()
+    else if (action === 'edit') openEdit()
     else if (action === 'import') openImport()
     else if (action === 'days') openDays()
     else if (action === 'draw') openDraw()
@@ -268,7 +319,7 @@ window.CompAdmin = (function () {
   var EDIT_FIELDS = [
     { key: 'name', label: '比赛名称', type: 'text', required: true, max: 20 },
     { key: 'game_type', label: '对局类型', type: 'select', options: [['', '未设置'], ['c8', '中八'], ['nine_ball', '九球追分'], ['snooker', '斯诺克']] },
-    { key: 'format', label: '赛制（小组赛制仅中八；已抽对阵不可改）', type: 'select', options: [['rounds', '逐轮抽签'], ['groups_knockout', '小组赛+淘汰赛']] },
+    { key: 'format', label: '赛制（小组+淘汰/自由约赛仅中八；已抽对阵不可改）', type: 'select', options: [['rounds', '逐轮抽签'], ['knockout', '淘汰赛（单败签表）'], ['round_robin', '循环赛（全员单循环）'], ['groups_knockout', '小组赛+淘汰赛'], ['free_round', '自由循环约赛（手动对局关联）']] },
     { key: 'table_count', label: '同时开赛台数', type: 'number', placeholder: '默认 4' },
     { key: 'group_size', label: '小组人数（小组赛制）', type: 'number', placeholder: '默认 4' },
     { key: 'advance_count', label: '出线名额/组（小组赛制）', type: 'number', placeholder: '默认 2' },
@@ -1164,6 +1215,8 @@ window.CompAdmin = (function () {
   function init(opts) {
     ctx.getComp = opts && opts.getComp
     ctx.onChanged = opts && opts.onChanged
+    var createBtn = document.getElementById('cl-create-btn')
+    if (createBtn) createBtn.addEventListener('click', function () { startAuth('create') })
     var editBtn = document.getElementById('cd-edit-btn')
     var importBtn = document.getElementById('cd-import-btn')
     var daysBtn = document.getElementById('fx-days-edit-btn')

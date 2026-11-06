@@ -1206,9 +1206,16 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
       <div class="page-container">
         <!-- Hero / Title Section -->
         <section class="hero-section" style="padding-bottom: calc(var(--spacing) * 6);">
-          <div class="eyebrow" style="color: var(--primary); margin-bottom: calc(var(--spacing) * 3);">COMPETITIONS</div>
-          <h1 class="hero-title">比赛</h1>
-          <p class="hero-subtitle"><span id="cl-subtitle">加载中…</span></p>
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">
+            <div>
+              <div class="eyebrow" style="color: var(--primary); margin-bottom: calc(var(--spacing) * 3);">COMPETITIONS</div>
+              <h1 class="hero-title">比赛</h1>
+              <p class="hero-subtitle"><span id="cl-subtitle">加载中…</span></p>
+            </div>
+            <button class="btn btn-primary" id="cl-create-btn" type="button" style="display:inline-flex;align-items:center;gap:6px;flex-shrink:0;">
+              <i data-lucide="plus" style="width:16px;height:16px;"></i>创建比赛
+            </button>
+          </div>
         </section>
 
         <!-- 错误提示 -->
@@ -1303,7 +1310,12 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
     <script src="./js/cloud.js?v=20260926a"></script>
     <script src="./js/fallback-data.js?v=20261008b"></script>
     <script src="./js/common.js?v=20261105a"></script>
-    <script src="./js/competitions.js?v=20261007a"></script>
+    <script src="./js/competition-admin.js?v=20261105a"></script>
+    <script src="./js/competitions.js?v=20261105a"></script>
+    <script>
+    // 创建比赛入口：点击后由 CompAdmin 走扫码鉴权（仅管理员/裁判），授权态与详情页共用
+    window.CompAdmin.init({})
+    </script>
     <script>
     /* 主题切换：更新 <html> class + localStorage 记忆，并广播 themechange 事件 */
     (function () {
