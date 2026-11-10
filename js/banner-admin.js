@@ -651,8 +651,11 @@
   async function startShots() {
     if (genQueue) return // 防重入
     try {
-      await window.WebAuthSession.ensure('banner_admin')
-    } catch (e) { return } // 取消授权则不开始
+      await window.AppAuth.ensure(PURPOSE)
+    } catch (e) {
+      if (e && !/取消/.test(e.message || '')) toast('授权失败：' + (e.message || e), 'error')
+      return // 用户取消授权则不开始
+    }
     var pool = shotPool()
     for (var i = pool.length - 1; i > 0; i--) {
       var j = Math.floor(Math.random() * (i + 1))
@@ -672,7 +675,7 @@
         item.thumbUrl = dataUrl
         item.state = 'uploading'
         renderShots()
-        await window.WebAuthSession.callAuthed('banner_admin', 'manageBanners', {
+        await callWrite({
           action: 'save_shot',
           page_file: item.file,
           page_name: item.name,
