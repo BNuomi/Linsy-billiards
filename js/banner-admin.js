@@ -50,9 +50,12 @@
       if (data.defaults && data.defaults.duration) defaults.duration = data.defaults.duration
       pages = data.pages || []
       pageDefaults = data.page_defaults || null
+      cloudShots = data.shots || []
       render()
       renderSettings()
       renderPages()
+      renderShots()
+      if (!genQueue) bsMeta.textContent = cloudShots.length ? ('云端已存 ' + cloudShots.length + ' 张') : ''
     } catch (e) {
       errText.textContent = '轮播图加载失败：' + (e.message || e)
       errEl.style.display = 'block'
@@ -497,7 +500,9 @@
     }
   })
 
-  // ---------- 网页截图（#198）：随机截 5 张站内页面首屏 + 打包下载 ----------
+  // ---------- 网页截图（#198/#199）：手动触发截取站内页面首屏 → 云端持久化，任何设备直接显示 ----------
+  // 截图生成是重渲染（html-to-image），电子板等弱内核设备跑不动；
+  // 故生成动作手动触发（需 banner_admin 授权），结果上传云存储，查看时只读云端列表。
   // 候选池：仅无参数即可独立打开的内容页；排除 banner/banner-admin（自身与展示页）、
   // 带参详情页（match-detail/member-detail/competition-detail/fixtures/competition-live 空态）与 multi-watch（手表端）；
   // practice-board 画板页经实测 html-to-image 序列化失败且首屏为空画布素材价值低，不纳入
@@ -561,89 +566,130 @@
       return
     }
     try { localStorage.setItem(SHOT_STORE_KEY, JSON.stringify(checked)) } catch (err) {}
-    startShots() // 按新候选池立即重新随机生成
+    toast('已保存，点「重新生成」按新候选页截取', 'success')
   })
 
-  var shots = []                    // [{ file, name, blob, thumbUrl, state: pending|ok|err }]
-  var shotsGen = 0                  // 代际令牌：换一批时作废旧队列迟到的回调
-  var shotsDone = Promise.resolve() // 当前批次全部 settle 的 Promise，打包下载时 await
+  // 状态模型：常态显示云端列表（任何设备一致）；生成期间切换为队列视图，结束后回到云端视图
+  var cloudShots = []  // list 返回的云端截图 [{ page_file, page_name, file_id, url, updated_at }]
+  var genQueue = null  // null | [{ file, name, state: pending|capturing|uploading|ok|err, thumbUrl }]
+
+  function fmtShotTime(ts) {
+    if (!ts) return ''
+    var d = new Date(ts)
+    function p(n) { return n < 10 ? '0' + n : '' + n }
+    return p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes())
+  }
+
+  function shotCardHtml(inner, name, sub, cls) {
+    return '<div class="bs-card"><div class="bs-thumb">' + inner + '</div>' +
+      '<div class="bs-info"><div class="bs-name">' + esc(name) + '</div>' +
+      '<div class="bs-state ' + (cls || '') + '">' + esc(sub) + '</div></div></div>'
+  }
 
   function renderShots() {
-    bsList.innerHTML = shots.map(function (s) {
-      var inner = s.state === 'ok'
-        ? '<img src="' + s.thumbUrl + '" alt="">'
-        : '<span class="bs-pending">' + (s.state === 'err' ? '生成失败' : '截图中…') + '</span>'
-      var cls = s.state === 'ok' ? 'ok' : (s.state === 'err' ? 'err' : '')
-      var label = s.state === 'ok' ? '已完成' : (s.state === 'err' ? '打包时自动跳过' : '正在生成')
-      return '<div class="bs-card"><div class="bs-thumb">' + inner + '</div>' +
-        '<div class="bs-info"><div class="bs-name">' + esc(s.name) + '</div>' +
-        '<div class="bs-state ' + cls + '">' + esc(s.file) + ' · ' + label + '</div></div></div>'
+    if (genQueue) {
+      bsList.innerHTML = genQueue.map(function (s) {
+        var inner, label, cls
+        if (s.state === 'ok') { inner = '<img src="' + s.thumbUrl + '" alt="">'; label = '已上传云端'; cls = 'ok' }
+        else if (s.state === 'err') { inner = '<span class="bs-pending">生成失败</span>'; label = '已跳过'; cls = 'err' }
+        else {
+          inner = '<span class="bs-pending">' + (s.state === 'uploading' ? '上传中…' : (s.state === 'capturing' ? '截图中…' : '排队中…')) + '</span>'
+          label = s.file
+          cls = ''
+        }
+        return shotCardHtml(inner, s.name, (cls === '' ? s.file + ' · ' : '') + label, cls)
+      }).join('')
+      return
+    }
+    if (!cloudShots.length) {
+      bsList.innerHTML = '<div class="bs-card"><div class="bs-thumb"><span class="bs-pending">还没有云端截图</span></div>' +
+        '<div class="bs-info"><div class="bs-name">—</div><div class="bs-state">点右上角「重新生成」创建首批</div></div></div>'
+      return
+    }
+    bsList.innerHTML = cloudShots.map(function (s) {
+      var inner = s.url ? '<img src="' + esc(s.url) + '" alt="">' : '<span class="bs-pending">链接已过期</span>'
+      return shotCardHtml(inner, s.page_name || s.page_file, s.page_file + ' · ' + fmtShotTime(s.updated_at) + (s.updated_by_name ? ' · ' + s.updated_by_name : ''), 'ok')
     }).join('')
   }
 
-  // 同域隐藏 iframe 加载目标页 → html-to-image（SVG foreignObject，CSS 变量/flex/grid 保真）截首屏
-  function shotOne(s, gen) {
-    return new Promise(function (resolve) {
+  // 同域隐藏 iframe 加载目标页 → html-to-image toJpeg 直接拿 dataURL（q0.85 控体积 < 525KB，满足 save_shot base64 上限）
+  function capturePage(file) {
+    return new Promise(function (resolve, reject) {
       var iframe = document.createElement('iframe')
       iframe.style.cssText = 'position:fixed;left:-12000px;top:0;width:' + SHOT_W + 'px;height:' + SHOT_H + 'px;border:0;'
-      iframe.src = './' + s.file
+      iframe.src = './' + file
       var settled = false
-      function fin(state, blob) {
+      function fin(err, dataUrl) {
         if (settled) return
         settled = true
         clearTimeout(timer)
         if (iframe.parentNode) iframe.parentNode.removeChild(iframe)
-        if (gen !== shotsGen) return resolve() // 已换批，丢弃结果
-        s.state = state
-        if (state === 'ok' && blob) {
-          s.blob = blob
-          s.thumbUrl = URL.createObjectURL(blob)
-        }
-        renderShots()
-        resolve()
+        err ? reject(err) : resolve(dataUrl)
       }
-      var timer = setTimeout(function () { fin('err') }, SHOT_TIMEOUT_MS)
+      var timer = setTimeout(function () { fin(new Error('timeout')) }, SHOT_TIMEOUT_MS)
       iframe.onload = function () {
         setTimeout(function () {
           try {
             var doc = iframe.contentDocument
-            if (!doc || !doc.body) { fin('err'); return }
-            window.htmlToImage.toBlob(doc.body, {
+            if (!doc || !doc.body) { fin(new Error('no body')); return }
+            window.htmlToImage.toJpeg(doc.body, {
+              quality: 0.85, backgroundColor: '#ffffff',
               width: SHOT_W, height: SHOT_H, pixelRatio: 1,
               canvasWidth: SHOT_W, canvasHeight: SHOT_H
-            }).then(function (blob) {
-              fin(blob ? 'ok' : 'err', blob)
-            }).catch(function () { fin('err') })
-          } catch (e) { fin('err') }
+            }).then(function (dataUrl) {
+              fin(dataUrl ? null : new Error('empty'), dataUrl)
+            }).catch(function (e) { fin(e) })
+          } catch (e) { fin(e) }
         }, SHOT_WAIT_MS)
       }
-      iframe.onerror = function () { fin('err') }
+      iframe.onerror = function () { fin(new Error('load error')) }
       document.body.appendChild(iframe)
     })
   }
 
-  // 串行生成（并行多个重页面 + 截图渲染内存压力大）；进度实时落在 bs-meta
-  function startShots() {
-    shotsGen++
-    var gen = shotsGen
+  // 手动触发：需 banner_admin 授权（生成后要上传）；从勾选池随机抽 5 串行截图并逐张上传
+  async function startShots() {
+    if (genQueue) return // 防重入
+    try {
+      await window.WebAuthSession.ensure('banner_admin')
+    } catch (e) { return } // 取消授权则不开始
     var pool = shotPool()
     for (var i = pool.length - 1; i > 0; i--) {
       var j = Math.floor(Math.random() * (i + 1))
       var t = pool[i]; pool[i] = pool[j]; pool[j] = t
     }
-    shots = pool.slice(0, Math.min(5, pool.length)).map(function (p) {
-      return { file: p.file, name: p.name, blob: null, thumbUrl: '', state: 'pending' }
+    genQueue = pool.slice(0, Math.min(5, pool.length)).map(function (p) {
+      return { file: p.file, name: p.name, state: 'pending', thumbUrl: '' }
     })
     renderShots()
-    shotsDone = (async function () {
-      for (var k = 0; k < shots.length; k++) {
-        if (gen !== shotsGen) return
-        bsMeta.textContent = '截图生成中 ' + (k + 1) + ' / ' + shots.length + '…'
-        await shotOne(shots[k], gen)
+    for (var k = 0; k < genQueue.length; k++) {
+      var item = genQueue[k]
+      bsMeta.textContent = '正在生成 ' + (k + 1) + ' / ' + genQueue.length + '…'
+      item.state = 'capturing'
+      renderShots()
+      try {
+        var dataUrl = await capturePage(item.file)
+        item.thumbUrl = dataUrl
+        item.state = 'uploading'
+        renderShots()
+        await window.WebAuthSession.callAuthed('banner_admin', 'manageBanners', {
+          action: 'save_shot',
+          page_file: item.file,
+          page_name: item.name,
+          image_base64: dataUrl.split(',')[1] || '',
+          mime: 'image/jpeg'
+        })
+        item.state = 'ok'
+      } catch (e) {
+        item.state = 'err'
       }
-      var okN = shots.filter(function (s) { return s.state === 'ok' }).length
-      bsMeta.textContent = '已生成 ' + okN + ' / ' + shots.length + ' 张'
-    })()
+      renderShots()
+    }
+    var okN = genQueue.filter(function (s) { return s.state === 'ok' }).length
+    bsMeta.textContent = '已生成并上传 ' + okN + ' / ' + genQueue.length + ' 张'
+    genQueue = null
+    await load() // 回云端视图（list 会带回最新 shots）
+    bsMeta.textContent = '云端已存 ' + cloudShots.length + ' 张 · 上次生成 ' + okN + ' 张成功'
   }
 
   bsRefresh.addEventListener('click', function () { startShots() })
@@ -678,12 +724,15 @@
           bannerN++
         } catch (e) { /* 单图失败跳过，不阻塞整包 */ }
       }
-      hintEl.textContent = '正在打包：等待网页截图生成…'
-      await shotsDone
+      // 网页截图（#199）：云端 page_shots 走 image_data 取原图，与查看设备无关
+      var shots = data.shots || []
       for (var k = 0; k < shots.length; k++) {
-        if (shots[k].state !== 'ok' || !shots[k].blob) continue
-        shotN++
-        zip.file('shot-' + pad2(shotN) + '-' + shots[k].file.replace(/\.html$/, '') + '.png', shots[k].blob)
+        hintEl.textContent = '正在打包：网页截图 ' + (k + 1) + ' / ' + shots.length + '…'
+        try {
+          var sr = await window.AppCloud.call('manageBanners', { action: 'image_data', file_id: shots[k].file_id })
+          shotN++
+          zip.file('shot-' + pad2(shotN) + '-' + shots[k].page_file.replace(/\.html$/, '') + '.jpg', sr.base64, { base64: true })
+        } catch (e) { /* 单张失败跳过，不阻塞整包 */ }
       }
       if (!bannerN && !shotN) { toast('没有可下载的内容', 'error'); return }
       hintEl.textContent = '正在生成 zip…'
@@ -707,5 +756,5 @@
   window.AppUI.fixNav('')
   load()
   renderShotConfig()
-  startShots()
+  renderShots() // load 完成前先渲染空态
 })()

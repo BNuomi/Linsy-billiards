@@ -346,12 +346,12 @@
         <div class="bs-head">
           <span class="bs-title">网页截图</span>
           <button class="btn" id="bs-refresh" type="button" style="height:30px;">
-            <i data-lucide="shuffle" style="width:14px;height:14px;"></i>
-            换一批
+            <i data-lucide="refresh-cw" style="width:14px;height:14px;"></i>
+            重新生成
           </button>
           <span class="bs-meta" id="bs-meta"></span>
         </div>
-        <p class="bs-sub">每次进入本页自动从勾选页面中随机截取 5 个竖屏首屏（1080×1920，仅展示用、不入库），点上方「打包下载」时与轮播图原图一起导出为 zip；生成失败的页面会自动跳过。勾选不足 5 个时按实际数量截取。</p>
+        <p class="bs-sub">截图保存在云端，任何设备打开本页看到的都是同一批。点「重新生成」从下方勾选的页面中随机抽 5 个截取竖屏首屏（1080×1920）并上传覆盖——生成过程需要本机浏览器逐页渲染，请在性能正常的电脑上操作（电子板等弱设备只查看即可）；勾选不足 5 个时按实际数量截取。「打包下载」会将云端截图与轮播图原图一起导出为 zip。</p>
         <div class="bs-config" id="bs-config"></div>
         <div class="bs-list" id="bs-list"></div>
       </section>
@@ -368,7 +368,7 @@
   <script src="./js/auth.js?v=20261101b"></script>
   <script src="./js/vendor/jszip.min.js?v=20261106a"></script>
   <script src="./js/vendor/html-to-image.min.js?v=20261106a"></script>
-  <script src="./js/banner-admin.js?v=20261106b"></script>
+  <script src="./js/banner-admin.js?v=20261110a"></script>
   <script>
   /* 主题切换：更新 <html> class + localStorage 记忆，并广播 themechange 事件 */
   (function () {
