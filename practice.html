@@ -120,6 +120,102 @@
       font-size: clamp(14px, 4vw, 17px);
     }
 
+    /* ---------- 时钟式连进数字盘（长按主按钮弹出，12 点位环形布局） ---------- */
+    .dial-mask {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, .55);
+      backdrop-filter: blur(2px);
+      -webkit-backdrop-filter: blur(2px);
+      z-index: 80;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .18s ease;
+    }
+    .dial-mask.is-show { opacity: 1; pointer-events: auto; }
+    /* 数字盘容器：JS 按主按钮中心动态定位，尺寸随小屏缩放 */
+    .dial {
+      position: fixed;
+      width: var(--dial-size, 248px);
+      height: var(--dial-size, 248px);
+      margin-left: calc(var(--dial-size, 248px) / -2);
+      margin-top: calc(var(--dial-size, 248px) / -2);
+      z-index: 81;
+      pointer-events: none;
+      transform: scale(.82);
+      opacity: 0;
+      transition: transform .18s cubic-bezier(.2, .9, .3, 1.2), opacity .15s ease;
+    }
+    .dial.is-show { transform: scale(1); opacity: 1; }
+    /* 中心提示圈（主按钮投影位置），展示当前选中的连进数 */
+    .dial__hub {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 42%;
+      height: 42%;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      background: rgba(28, 28, 30, .92);
+      border: 1px solid rgba(48, 209, 88, .5);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+      box-shadow: 0 0 24px rgba(48, 209, 88, .25);
+    }
+    .dial__hub-num {
+      font-size: clamp(26px, 9vw, 40px);
+      font-weight: 800;
+      color: #30d158;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+    .dial__hub-label {
+      font-size: clamp(9px, 2.6vw, 11px);
+      color: #8e8e93;
+      margin-top: 3px;
+    }
+    /* 12 个数字按钮：绝对定位，left/top 由 JS 按表盘角度写入 */
+    .dial__key {
+      position: absolute;
+      width: var(--key-size, 52px);
+      height: var(--key-size, 52px);
+      margin-left: calc(var(--key-size, 52px) / -2);
+      margin-top: calc(var(--key-size, 52px) / -2);
+      border-radius: 50%;
+      border: 1px solid #3a3a3c;
+      background: rgba(28, 28, 30, .96);
+      color: #fff;
+      font-size: clamp(16px, 5vw, 22px);
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-variant-numeric: tabular-nums;
+      transition: transform .1s ease, background .1s ease, color .1s ease, border-color .1s ease;
+    }
+    .dial__key.is-active {
+      background: #30d158;
+      border-color: #30d158;
+      color: #04160a;
+      transform: scale(1.18);
+      box-shadow: 0 4px 18px rgba(48, 209, 88, .5);
+    }
+    /* 连进数 ≥2 的键位加小圆点，提示「连进」语义 */
+    .dial__key.is-streak::after {
+      content: '';
+      position: absolute;
+      right: 14%;
+      top: 14%;
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: #ff9f0a;
+    }
+    .dial__key.is-active.is-streak::after { background: #04160a; }
+
     /* ---------- 状态提示 ---------- */
     .toast {
       position: fixed;
@@ -190,6 +286,9 @@
       .btn-add-sub { height: 48px; font-size: 18px; border-radius: 14px; }
       .btn-undo { height: 48px; font-size: 17px; border-radius: 14px; }
       .btn-undo.is-confirm { font-size: 13px; }
+      /* 手表窄屏：环形盘整体收缩，保证 12 个键位不超出视口 */
+      .dial { --dial-size: 208px; --key-size: 42px; }
+      .dial__hub-num { font-size: 24px; }
     }
   </style>
 </head>
@@ -223,7 +322,16 @@
   <div class="toast" id="toast"></div>
   <div class="loading-mask" id="loading">连接中…</div>
 
+  <!-- 长按主按钮弹出的时钟式连进数字盘（1~12，12 点位环形布局；JS 动态定位与生成键位） -->
+  <div class="dial-mask" id="dial-mask"></div>
+  <div class="dial" id="dial" aria-hidden="true">
+    <div class="dial__hub">
+      <div class="dial__hub-num" id="dial-hub-num">1</div>
+      <div class="dial__hub-label">拖到数字松手</div>
+    </div>
+  </div>
+
   <script src="./js/cloud.js?v=20260919d"></script>
-  <script src="./js/practice.js?v=20261027b"></script>
+  <script src="./js/practice.js?v=20261111a"></script>
 </body>
 </html>

@@ -3,10 +3,15 @@
  * - token 即凭证：URL ?token= 读取后存 localStorage，后续免参数直接打开
  * - 乐观更新：点击立即更新本地数字，云端返回快照后校正；失败回滚
  * - 撤销防误触：第一次点击进入 3s 确认态（按钮变红「确认撤销？」）
+ * - 时钟式连进盘：长按主按钮（≥350ms）在按钮周围按表盘 12 点位弹出 1~12 数字键，
+ *   拖动到数字松手即一次记 N 球；不移动直接松手仍为单击 +1
  */
 ;(function () {
   var TOKEN_KEY = 'practice_token'
   var UNDO_CONFIRM_MS = 3000
+  var LONG_PRESS_MS = 350       // 长按开盘阈值
+  var DIAL_KEYS = 12            // 表盘 12 个键位（1~12）
+  var HIT_PAD = 10              // 命中半径补偿（px，手指遮挡下更易选中）
 
   function el(id) { return document.getElementById(id) }
 
@@ -81,7 +86,7 @@
         action: 'add', token: state.token, goals: goals, source: state.source
       })
       render(snap)
-      toast('+' + goals + ' 已记录')
+      toast((goals >= 2 ? '连进 ' : '+') + goals + ' 已记录')
     } catch (e) {
       el('today-num').textContent = state.today // 回滚
       toast(e.message || '记录失败，请重试', true)
@@ -122,6 +127,203 @@
     }
   }
 
+  /* =====================================================================
+   * 时钟式连进数字盘（长按主按钮）
+   * 手势状态机：idle → waiting(按下计时) → open(盘已开，拖动选数) → 提交/取消
+   * 键位按真实表盘：12 在正上方，顺时针 1..12，角度 = n*30° - 90°
+   * ===================================================================== */
+  var dial = {
+    root: null,
+    mask: null,
+    hubNum: null,
+    keys: [],          // [{n, x, y, r, node}]（x/y 为相对盘心坐标）
+    open: false,
+    timer: null,
+    pointerId: null,
+    startX: 0,
+    startY: 0,
+    moved: false,
+    active: 0,         // 当前高亮数字（0=无）
+    centerX: 0,
+    centerY: 0,
+    half: 124,         // 盘半径（尺寸/2），buildDial 时按视口写入
+    keyR: 26           // 键半径
+  }
+
+  function haptic(style) {
+    // 手表/手机 WebKit 支持振动时给轻反馈；不支持时静默
+    try {
+      if (navigator.vibrate) navigator.vibrate(style === 'success' ? 18 : 8)
+    } catch (_) { /* noop */ }
+  }
+
+  // 按视口宽度决定盘与键的尺寸（与 CSS 变量口径一致）
+  function dialMetrics() {
+    var small = Math.min(window.innerWidth, window.innerHeight) <= 250
+    var size = small ? 208 : 248
+    var key = small ? 42 : 52
+    return { size: size, key: key, radius: size / 2 - key / 2 - 4 }
+  }
+
+  function buildDial() {
+    dial.root = el('dial')
+    dial.mask = el('dial-mask')
+    dial.hubNum = el('dial-hub-num')
+    var m = dialMetrics()
+    dial.half = m.size / 2
+    dial.keyR = m.key / 2
+    dial.root.style.setProperty('--dial-size', m.size + 'px')
+    dial.root.style.setProperty('--key-size', m.key + 'px')
+
+    // 生成 12 个键位（12 点位正上方起，顺时针 1..12），坐标以盘心为原点
+    for (var n = 1; n <= DIAL_KEYS; n++) {
+      var angle = (n * 30 - 90) * Math.PI / 180
+      var x = m.radius * Math.cos(angle)
+      var y = m.radius * Math.sin(angle)
+      var node = document.createElement('div')
+      node.className = 'dial__key' + (n >= 2 ? ' is-streak' : '')
+      node.textContent = String(n)
+      node.style.left = (dial.half + x) + 'px'
+      node.style.top = (dial.half + y) + 'px'
+      dial.root.appendChild(node)
+      dial.keys.push({ n: n, x: x, y: y, r: dial.keyR, node: node })
+    }
+    // 遮罩仅作视觉层：指针已被主按钮 setPointerCapture 捕获，松手统一由 onMainUp 收口
+  }
+
+  // 以主按钮中心为盘心；贴近视口边缘时平移，保证整盘不溢出
+  function positionDial() {
+    var btn = el('btn-add-1')
+    var rect = btn.getBoundingClientRect()
+    var m = dialMetrics()
+    var half = m.size / 2
+    var cx = rect.left + rect.width / 2
+    var cy = rect.top + rect.height / 2
+    var minLeft = half + 6
+    var maxLeft = window.innerWidth - half - 6
+    var minTop = half + 6
+    var maxTop = window.innerHeight - half - 6
+    cx = Math.max(minLeft, Math.min(maxLeft, cx))
+    cy = Math.max(minTop, Math.min(maxTop, cy))
+    dial.centerX = cx
+    dial.centerY = cy
+    dial.root.style.left = cx + 'px'
+    dial.root.style.top = cy + 'px'
+  }
+
+  function openDial() {
+    positionDial()
+    dial.open = true
+    dial.active = 0
+    dial.hubNum.textContent = '1'
+    dial.root.classList.add('is-show')
+    dial.mask.classList.add('is-show')
+    dial.root.setAttribute('aria-hidden', 'false')
+    haptic('open')
+  }
+
+  function closeDialogSilent() {
+    dial.root.classList.remove('is-show')
+    dial.mask.classList.remove('is-show')
+    dial.root.setAttribute('aria-hidden', 'true')
+    dial.keys.forEach(function (k) { k.node.classList.remove('is-active') })
+    dial.open = false
+    dial.active = 0
+    if (dial.timer) { clearTimeout(dial.timer); dial.timer = null }
+  }
+
+  // 松手收口：命中数字 → 连进 N；未命中（中心/盘外）→ 回退单击 +1
+  function closeDial(pick) {
+    var wasOpen = dial.open
+    closeDialogSilent()
+    if (!wasOpen) return
+    if (pick >= 1) {
+      haptic('success')
+      add(pick)
+    } else {
+      add(1)
+    }
+  }
+
+  // 指针坐标 → 命中键（键位坐标以盘心为原点；取距离最近且在命中半径内的键）
+  function hitKey(x, y) {
+    var dx = x - dial.centerX
+    var dy = y - dial.centerY
+    var best = null
+    var bestDist = Infinity
+    for (var i = 0; i < dial.keys.length; i++) {
+      var k = dial.keys[i]
+      var ddx = dx - k.x
+      var ddy = dy - k.y
+      var dist = Math.sqrt(ddx * ddx + ddy * ddy)
+      if (dist <= k.r + HIT_PAD && dist < bestDist) {
+        best = k
+        bestDist = dist
+      }
+    }
+    return best
+  }
+
+  function setActive(k) {
+    var n = k ? k.n : 0
+    if (n === dial.active) return
+    dial.keys.forEach(function (item) { item.node.classList.toggle('is-active', !!k && item.n === n) })
+    dial.active = n
+    if (n) {
+      dial.hubNum.textContent = String(n)
+      haptic('tick')
+    }
+  }
+
+  function onMainDown(e) {
+    if (state.pending > 0) return
+    // 仅主键（鼠标左键/触摸/笔）响应，避免右键干扰
+    if (e.pointerType === 'mouse' && e.button !== 0) return
+    e.preventDefault()
+    dial.pointerId = e.pointerId
+    dial.startX = e.clientX
+    dial.startY = e.clientY
+    dial.moved = false
+    el('btn-add-1').setPointerCapture && el('btn-add-1').setPointerCapture(e.pointerId)
+    // 长按计时：到点开盘；期间松手则走单击
+    dial.timer = setTimeout(function () {
+      dial.timer = null
+      openDial()
+    }, LONG_PRESS_MS)
+  }
+
+  function onMainMove(e) {
+    if (dial.pointerId !== e.pointerId) return
+    if (Math.abs(e.clientX - dial.startX) + Math.abs(e.clientY - dial.startY) > 8) dial.moved = true
+    if (!dial.open) return
+    e.preventDefault()
+    setActive(hitKey(e.clientX, e.clientY))
+  }
+
+  function onMainUp(e) {
+    if (dial.pointerId !== e.pointerId) return
+    dial.pointerId = null
+    if (dial.open) {
+      // 盘已开：命中数字提交连进 N；未命中（停在中心/划到盘外）回退 +1
+      closeDial(dial.active)
+    } else {
+      // 未到长按时长松手：清计时器，单击 +1
+      if (dial.timer) { clearTimeout(dial.timer); dial.timer = null }
+      add(1)
+    }
+  }
+
+  function onMainCancel(e) {
+    if (dial.pointerId !== (e && e.pointerId)) return
+    dial.pointerId = null
+    closeDialogSilent() // 系统打断（来电/手势）：一律不记分
+  }
+
+  // 窗口尺寸变化（旋转/分屏）时，若盘正开则重定位
+  window.addEventListener('resize', function () {
+    if (dial.open) positionDial()
+  })
+
   // ---------- 初始化 ----------
   async function boot() {
     state.token = readToken()
@@ -148,7 +350,15 @@
   }
 
   document.addEventListener('DOMContentLoaded', function () {
-    el('btn-add-1').addEventListener('click', function () { add(1) })
+    buildDial()
+    var mainBtn = el('btn-add-1')
+    // 主按钮：Pointer Events 统一触摸/鼠标/笔；单击 +1、长按开盘拖拽连进
+    mainBtn.addEventListener('pointerdown', onMainDown)
+    mainBtn.addEventListener('pointermove', onMainMove)
+    mainBtn.addEventListener('pointerup', onMainUp)
+    mainBtn.addEventListener('pointercancel', onMainCancel)
+    // 屏蔽长按系统菜单/双击缩放，保证手势不被浏览器打断
+    mainBtn.addEventListener('contextmenu', function (e) { e.preventDefault() })
     document.querySelectorAll('.btn-add-sub').forEach(function (b) {
       b.addEventListener('click', function () { add(Number(b.getAttribute('data-goals')) || 1) })
     })

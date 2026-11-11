@@ -25,6 +25,8 @@ window.PracticeBoard = (function () {
   var HP_R = 48 // 击球点控件母球半径
   var SHOT_KEY = 'practice-board-shots-v1'
   var STATE_KEY = 'practice-board-state-v1'
+  var SKILL_SEL_KEY = 'practice-board-skill-ids-v1'
+  var MAX_SKILL_LINKS = 5
   var STATE_VER = 3 // v2：顶部控件区 170；v3：控件区加高至 254（新增杆速条），球/线 y 坐标随控件区高度迁移
   var MAX_SHOTS = 30
 
@@ -940,6 +942,56 @@ window.PracticeBoard = (function () {
       btn.title = '扫码授权后，保存截图自动同步到云端截图库'
     }
   }
+  /* ── 关联杆法（目录来自 skillPractice.getCatalog，公开可匿名） ── */
+  function readSelectedSkills() {
+    try {
+      var arr = JSON.parse(localStorage.getItem(SKILL_SEL_KEY) || '[]')
+      return Array.isArray(arr) ? arr.slice(0, MAX_SKILL_LINKS) : []
+    } catch (e) { return [] }
+  }
+  function writeSelectedSkills(ids) {
+    try { localStorage.setItem(SKILL_SEL_KEY, JSON.stringify(ids.slice(0, MAX_SKILL_LINKS))) } catch (e) {}
+  }
+  function renderSkillCount() {
+    var el = document.getElementById('pb-skill-count')
+    if (el) el.textContent = readSelectedSkills().length ? ('已选 ' + readSelectedSkills().length + ' 项') : '未选择'
+  }
+  function loadSkillCatalog() {
+    if (!window.AppCloud || !window.AppCloud.call) return Promise.resolve()
+    return window.AppCloud.call('skillPractice', { action: 'getCatalog' }).then(function (data) {
+      var select = document.getElementById('pb-skill-select')
+      if (!select) return
+      var tierLabel = (data.tier_label || { basic: '基础', intermediate: '进阶', advanced: '高阶' })
+      var groups = { basic: [], intermediate: [], advanced: [] }
+      ;(data.skills || []).forEach(function (s) { (groups[s.tier] || groups.basic).push(s) })
+      var selected = readSelectedSkills()
+      var html = Object.keys(groups).map(function (tier) {
+        if (!groups[tier].length) return ''
+        var opts = groups[tier].map(function (s) {
+          var on = selected.indexOf(s.skill_id) >= 0 ? ' selected' : ''
+          return '<option value="' + s.skill_id + '"' + on + '>' + s.skill_id + ' ' + s.name + '</option>'
+        }).join('')
+        return '<optgroup label="' + (tierLabel[tier] || tier) + '">' + opts + '</optgroup>'
+      }).join('')
+      select.innerHTML = html || '<option>暂无杆法项</option>'
+      renderSkillCount()
+      select.addEventListener('change', function () {
+        var ids = Array.prototype.map.call(select.selectedOptions || select.querySelectorAll('option:checked'), function (o) { return o.value })
+        if (ids.length > MAX_SKILL_LINKS) {
+          toast('单张球形图最多关联 ' + MAX_SKILL_LINKS + ' 项', 'error')
+          // 回退超限选择
+          ids.slice(0, MAX_SKILL_LINKS).forEach(function (id) {
+            Array.prototype.forEach.call(select.options, function (o) { if (o.value === id) o.selected = true })
+          })
+          Array.prototype.forEach.call(select.options, function (o) { if (ids.indexOf(o.value) >= MAX_SKILL_LINKS) o.selected = false })
+          ids = ids.slice(0, MAX_SKILL_LINKS)
+        }
+        writeSelectedSkills(ids)
+        renderSkillCount()
+      })
+    }).catch(function () { /* 目录加载失败不阻塞画板 */ })
+  }
+
   function syncShotToCloud(dataUrl) {
     var auth = cloudAuth()
     if (!auth) return
@@ -949,9 +1001,10 @@ window.PracticeBoard = (function () {
       action: 'upload',
       image_base64: base64,
       width: LOGICAL_W * 2,
-      height: LOGICAL_H * 2
+      height: LOGICAL_H * 2,
+      skill_ids: readSelectedSkills()
     }).then(function () {
-      toast('已同步到云端截图库', 'success')
+      toast(readSelectedSkills().length ? '已同步并关联杆法' : '已同步到云端截图库', 'success')
     }).catch(function (e) {
       toast(e && e.message ? e.message : '云端同步失败，截图已存本地', 'error')
       renderCloudBtn()
@@ -1032,6 +1085,7 @@ window.PracticeBoard = (function () {
     }
     renderCloudBtn()
 
+    loadSkillCatalog()
     renderShots()
     render()
 

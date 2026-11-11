@@ -133,7 +133,7 @@
     if (ths.length < 7) return
     ths[3].textContent = isPractice ? '练球次数' : '胜场 / 总场次'
     ths[4].textContent = isPractice ? '今日进球' : '清台'
-    ths[5].textContent = isPractice ? '场均' : '胜率'
+    ths[5].textContent = isPractice ? '连进概率' : '胜率'
     ths[6].textContent = isPractice ? '最近练球' : '趋势'
   }
 
@@ -193,7 +193,7 @@
       var meta = isPractice
         ? '<div class="podium-meta-item"><div class="podium-meta-value">' + (m.sessions || 0) + '</div><div class="podium-meta-label">练球次数</div></div>' +
           '<div class="podium-meta-item"><div class="podium-meta-value">+' + (m.today || 0) + '</div><div class="podium-meta-label">今日进球</div></div>' +
-          '<div class="podium-meta-item"><div class="podium-meta-value">' + practiceAvg(m) + '</div><div class="podium-meta-label">场均</div></div>'
+          '<div class="podium-meta-item"><div class="podium-meta-value">' + practiceStreakRate(m) + '</div><div class="podium-meta-label">连进概率</div></div>'
         : '<div class="podium-meta-item"><div class="podium-meta-value">' + (m.winRate || 0) + '%</div><div class="podium-meta-label">胜率</div></div>' +
           '<div class="podium-meta-item"><div class="podium-meta-value">' + total + '</div><div class="podium-meta-label">对战场次</div></div>' +
           '<div class="podium-meta-item"><div class="podium-meta-value">' + (m.clears || 0) + '</div><div class="podium-meta-label">一杆清台</div></div>'
@@ -210,11 +210,10 @@
     refreshIcons()
   }
 
-  // 进球数榜：场均进球（练球次数为 0 时显示 -）
-  function practiceAvg(m) {
-    var n = m.sessions || 0
-    if (!n) return '-'
-    return Math.round(((m.goals || 0) / n) * 10) / 10
+  // 进球数榜：连进概率 = 单次记录 goals≥2 的条数占比（云端 streak_rate 已保留 1 位小数）
+  function practiceStreakRate(m) {
+    if (m.streak_rate === null || m.streak_rate === undefined) return '-'
+    return m.streak_rate + '%'
   }
 
   function practiceLast(m) {
@@ -276,7 +275,7 @@
           '<td class="col-points" data-label="进球">' + (m.goals != null ? m.goals : 0) + '</td>' +
           '<td class="col-season" data-label="练球次数">' + (m.sessions || 0) + ' 次</td>' +
           '<td class="col-clears" data-label="今日">+' + (m.today || 0) + '</td>' +
-          '<td class="col-winrate" data-label="均值">' + practiceAvg(m) + '</td>' +
+          '<td class="col-winrate" data-label="连进概率">' + practiceStreakRate(m) + '</td>' +
           '<td data-label="最近">' + practiceLast(m) + '</td></tr>'
       } else {
         // 赛事榜：胜率列追加净胜分（净胜局/净胜分差），与积分排序次级键一致

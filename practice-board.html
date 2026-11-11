@@ -719,6 +719,12 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
       .pb-cloud-btn:hover { border-color: var(--primary); color: var(--primary); }
       .pb-cloud-btn.is-on { border-color: var(--primary); background: var(--primary); color: var(--primary-foreground); }
 
+      /* 关联杆法选择器 */
+      .pb-skill-select { width: 100%; min-height: 118px; border: 1px solid var(--border); border-radius: 10px; background: var(--background); color: var(--foreground); font-size: 12px; padding: 6px; font-family: inherit; }
+      .pb-skill-select option { padding: 4px 6px; border-radius: 6px; }
+      .pb-skill-select option:checked { background: var(--primary); color: var(--primary-foreground); }
+      .pb-skill-tip { font-size: 11px; color: var(--muted-foreground); line-height: 1.5; margin-top: 8px; }
+
       /* 球子面板 */
       .pb-palette { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; justify-items: center; }
       .pb-ball { position: relative; width: 46px; height: 46px; border-radius: 50%; border: none; padding: 0; cursor: grab; box-shadow: inset -3px -4px 7px rgba(0,0,0,.3), 0 2px 6px rgba(0,0,0,.18); transition: transform .15s ease; touch-action: none; }
@@ -1324,6 +1330,12 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
             </section>
 
             <section class="pb-section">
+              <div class="pb-section-title">关联杆法<span class="count" id="pb-skill-count">未选择</span></div>
+              <select class="pb-skill-select" id="pb-skill-select" multiple size="5" title="按住 Ctrl/⌘ 可多选，最多关联 5 项"></select>
+              <div class="pb-skill-tip">保存截图时将把所选杆法一起同步，小程序杆法手册可查看该示范球形</div>
+            </section>
+
+            <section class="pb-section">
               <div class="pb-section-title">操作</div>
               <div class="pb-actions">
                 <button class="btn btn-secondary" id="pb-undo" type="button">撤销</button>
@@ -1364,7 +1376,7 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
     <script src="./js/cloud.js?v=20260919c"></script>
     <script src="./js/common.js?v=20261111a"></script>
     <script src="./js/auth.js?v=20261102a"></script>
-    <script src="./js/practice-board.js?v=20261103d"></script>
+    <script src="./js/practice-board.js?v=20261111a"></script>
     <script>lucide.createIcons();</script>
     <script>
     /* 主题切换：更新 <html> class + localStorage 记忆，并广播 themechange 事件 */
