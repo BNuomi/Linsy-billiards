@@ -751,6 +751,8 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
       .pb-color { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--border); cursor: pointer; padding: 0; flex: none; transition: transform .15s ease; }
       .pb-color:hover { transform: scale(1.12); }
       .pb-color.is-active { border-color: var(--primary); box-shadow: 0 0 0 2px var(--card), 0 0 0 4px var(--primary); }
+      .pb-color-hint { font-size: 11px; color: var(--muted-foreground); line-height: 1.5; margin-top: 8px; }
+      .pb-color-hint.is-on { color: var(--primary); }
 
       /* 操作按钮 */
       .pb-actions { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -1327,6 +1329,7 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
               <div class="pb-colors" id="pb-colors">
                 <span class="lbl">颜色</span>
               </div>
+              <div class="pb-color-hint" id="pb-color-hint">选择移动工具点选线条后，可在此修改其颜色</div>
             </section>
 
             <section class="pb-section">
@@ -1376,7 +1379,7 @@ body{margin:0;padding:12px;background:var(--background);color:var(--foreground);
     <script src="./js/cloud.js?v=20260919c"></script>
     <script src="./js/common.js?v=20261111a"></script>
     <script src="./js/auth.js?v=20261102a"></script>
-    <script src="./js/practice-board.js?v=20261111a"></script>
+    <script src="./js/practice-board.js?v=20261111b"></script>
     <script>lucide.createIcons();</script>
     <script>
     /* 主题切换：更新 <html> class + localStorage 记忆，并广播 themechange 事件 */

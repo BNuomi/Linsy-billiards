@@ -410,6 +410,30 @@ window.PracticeBoard = (function () {
     ctx.setTransform(canvas._dpr, 0, 0, canvas._dpr, 0, 0)
     paint(ctx, false)
     ctx.restore()
+    syncColorUI()
+  }
+
+  /* 颜色面板高亮：选中线条时跟随该线当前颜色，未选中时跟随新线默认色 state.lineColor */
+  function syncColorUI() {
+    var hasLineSelected = !!(state.selected && state.selected.kind === 'line')
+    var activeColor = state.lineColor
+    if (hasLineSelected) {
+      var sel = state.lines.filter(function (l) { return l.id === state.selected.id })[0]
+      if (sel) activeColor = sel.color
+    }
+    var colors = document.getElementById('pb-colors')
+    if (colors) {
+      colors.querySelectorAll('.pb-color').forEach(function (b) {
+        b.classList.toggle('is-active', b.title === activeColor)
+      })
+    }
+    var hint = document.getElementById('pb-color-hint')
+    if (hint) {
+      hint.classList.toggle('is-on', hasLineSelected)
+      hint.textContent = hasLineSelected
+        ? '已选中一条线条，点击颜色即可更新（支持撤销）'
+        : '选择移动工具点选线条后，可在此修改其颜色'
+    }
   }
 
   /* ── 命中检测 ── */
@@ -809,8 +833,21 @@ window.PracticeBoard = (function () {
       b.style.background = c
       b.title = c
       b.addEventListener('click', function () {
+        // 已选中画布上的线条（含画笔笔迹）：直接更新该线条颜色，可撤销
+        if (state.selected && state.selected.kind === 'line') {
+          var target = state.lines.filter(function (l) { return l.id === state.selected.id })[0]
+          if (target && target.color !== c) {
+            snapshot()
+            target.color = c
+            saveState()
+            render()
+            toast('已更新线条颜色', 'success')
+          }
+          return
+        }
+        // 未选中线条：设置后续新画线条的默认颜色
         state.lineColor = c
-        colors.querySelectorAll('.pb-color').forEach(function (x) { x.classList.toggle('is-active', x === b) })
+        syncColorUI()
       })
       colors.appendChild(b)
     })
