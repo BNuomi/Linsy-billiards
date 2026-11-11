@@ -5,6 +5,7 @@
  *   member_admin 会员管理（仅管理员）—— 网页端暂无使用方（会员管理仅小程序端 role-manage 页），预留
  *   banner_admin 轮播图管理（管理员/裁判，任务 182）
  *   practice_admin 练球图截图同步（管理员/裁判，任务 190）
+ *   skill_admin  杆法目录管理（管理员/裁判，杆法手册统计页）
  *   competition_admin 沿用各页既有实现（本模块不接管，避免回归）
  *   data_admin   与 common.js 状态栏共享存储 key（wa_data_auth），一次扫码两处通用（任务 182）
  * token 存 sessionStorage（按用途分 key），2 小时有效；云端 403 时调用方应 clear() 后重新授权
@@ -15,13 +16,15 @@ window.AppAuth = (function () {
     member_admin: 'wa_member_admin',
     banner_admin: 'wa_banner_admin',
     practice_admin: 'wa_practice_admin',
+    skill_admin: 'wa_skill_admin',
     data_admin: 'wa_data_auth' // 与 common.js 状态栏「数据管理」同一存储键，授权互通
   }
   var PURPOSE_TIP = {
     match_ops: '在册会员扫码授权后，可在网页端创建对局 / 记分 / 结束对局（以本人身份执行）',
     member_admin: '仅管理员可授权；授权后可在网页端管理会员角色、删除会员、级联改名',
     banner_admin: '仅管理员、裁判可授权；授权后可在网页端上传 / 删除 / 排序轮播图',
-    practice_admin: '仅管理员、裁判可授权；授权后保存画板截图时自动同步到云端截图库，小程序端可浏览'
+    practice_admin: '仅管理员、裁判可授权；授权后保存画板截图时自动同步到云端截图库，小程序端可浏览',
+    skill_admin: '仅管理员、裁判可授权；授权后可在网页端新增 / 编辑 / 下架杆法项'
   }
 
   function keyOf(purpose) { return KEYS[purpose] || ('wa_' + purpose) }

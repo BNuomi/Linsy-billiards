@@ -8,19 +8,23 @@ window.AppUI = (function () {
     { key: 'competitions', label: '比赛', href: './competitions.html' },
     { key: 'banner', label: '轮播图', href: './banner.html' },
     { key: 'practice', label: '练球图', href: './practice-board.html' },
+    { key: 'skill', label: '杆法管理', href: './skill-admin.html' },
     { key: 'member', label: '会员详情', href: './member-detail.html' },
     { key: 'home', label: '首页', href: './index.html' }
   ]
 
   // 将设计稿中的占位导航（href="#"）替换为真实链接，并高亮当前页
+  // 同时按 NAV_ITEMS 标准顺序自动补齐页面中缺失的导航项（如后加的「杆法管理」）
   function fixNav(activeKey) {
     var rails = document.querySelectorAll('nav .rail, .rk-nav .rail, .webbar .rail')
     rails.forEach(function (rail) {
       var links = rail.querySelectorAll('a.link')
+      var labelMap = {}
       links.forEach(function (a) {
         var text = a.textContent.trim()
         var item = NAV_ITEMS.filter(function (n) { return n.label === text })[0]
         if (item) {
+          labelMap[item.key] = a
           a.setAttribute('href', item.href)
           if (item.key === activeKey) {
             a.classList.add('is-active')
@@ -32,6 +36,34 @@ window.AppUI = (function () {
             a.removeAttribute('aria-current')
           }
         }
+      })
+
+      // 补齐缺失项：只增不重排，已有链接位置与顺序保持不变
+      NAV_ITEMS.forEach(function (item, idx) {
+        if (labelMap[item.key]) return
+        var a = document.createElement('a')
+        a.className = 'link'
+        a.setAttribute('href', item.href)
+        a.textContent = item.label
+        if (item.key === activeKey) {
+          a.classList.add('is-active')
+          a.classList.add('active')
+          a.setAttribute('aria-current', 'page')
+        }
+        // 插入锚点：NAV_ITEMS 中排在它之后、页面里已存在的第一个链接
+        var anchor = null
+        for (var i = idx + 1; i < NAV_ITEMS.length; i++) {
+          if (labelMap[NAV_ITEMS[i].key]) { anchor = labelMap[NAV_ITEMS[i].key]; break }
+        }
+        if (anchor) {
+          rail.insertBefore(a, anchor)
+        } else {
+          // 后面没有现成链接时，插到主题切换按钮之前（按钮始终留在最右）
+          var toggle = rail.querySelector('.theme-toggle')
+          if (toggle) rail.insertBefore(a, toggle)
+          else rail.appendChild(a)
+        }
+        labelMap[item.key] = a
       })
     })
   }

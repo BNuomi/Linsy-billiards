@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>杆法统计与管理</title>
+  <script>
+  /* 主题初始化：localStorage 优先，其次跟随系统深浅色偏好（渲染前执行，避免闪白） */
+  (function () {
+    var saved = null
+    try { saved = localStorage.getItem('billiards-theme') } catch (e) {}
+    var theme = saved === 'dark' || saved === 'light'
+      ? saved
+      : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+    var root = document.documentElement
+    root.classList.remove('light', 'dark')
+    root.classList.add(theme)
+  })()
+  </script>
+  <style>
+    :root {
+      --background-50: #ffffff; --background-100: #f7f7fa; --background-200: #f2f2f7;
+      --background-300: #e5e5ea; --background-700: #3a3a3c; --background-800: #1c1c1e;
+      --text-400: #8e8e93; --text-800: #1d1d1f; --brand-500: #007aff;
+      --state-error: #ff3b30; --success: #34c759; --warning: #ff9500;
+      --background: var(--background-50);
+      --foreground: var(--text-800);
+      --card: var(--background-50);
+      --primary: var(--brand-500);
+      --primary-foreground: #ffffff;
+      --secondary: var(--background-200);
+      --muted-foreground: var(--text-400);
+      --border: var(--background-300);
+      --sidebar: var(--background-200);
+      --font-sans: DM Sans, ui-sans-serif, sans-serif, system-ui;
+      --radius: 1.2rem;
+      --shadow-sm: 0 1px 3px 0 rgba(0,0,0,.06);
+      --shadow-lg: 0 12px 28px -8px rgba(0,0,0,.12);
+    }
+    .dark {
+      --background: #1c1c1e; --foreground: #f5f5f7; --card: #2c2c2e;
+      --primary: #3dd685; --primary-foreground: #0a1f14; --secondary: #2c2c2e;
+      --muted-foreground: #8e8e93; --border: #3a3a3c; --state-error: #ff453a;
+      --sidebar: #1c1c1e;
+      --shadow-sm: 0 1px 3px 0 rgba(0,0,0,.3);
+      --shadow-lg: 0 12px 28px -8px rgba(0,0,0,.4);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh;
+      background: var(--background); color: var(--foreground);
+      font-family: var(--font-sans); font-size: 14px; line-height: 1.45;
+      -webkit-font-smoothing: antialiased;
+    }
+    main { padding-bottom: 64px; }
+    .page-container { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
+
+    .rail { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+    .link {
+      display: inline-flex; align-items: center; justify-content: center;
+      height: 32px; padding: 0 10px; border-radius: 999px;
+      color: inherit; text-decoration: none; white-space: nowrap; font-size: 13px; font-weight: 500;
+      transition: background-color .18s ease, color .18s ease;
+    }
+    .link:hover { background: var(--secondary); }
+    .rk-nav {
+      position: sticky; top: 0; z-index: 50;
+      display: flex; align-items: center; gap: 8px;
+      width: 100%; height: 52px;
+      padding: 0 max(16px, calc((100% - 1200px) / 2));
+      background: var(--sidebar);
+      border-bottom: 1px solid var(--border);
+      box-shadow: var(--shadow-sm);
+    }
+    .rk-nav .brand { color: var(--foreground); display: inline-flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 800; }
+    .brand-icon { width: 30px; height: 30px; flex: none; }
+    .rk-nav .link.is-active, .rk-nav .link.active { background: var(--primary); color: var(--primary-foreground); }
+    .theme-toggle {
+      border: 1px solid var(--border); background: var(--card); color: var(--muted-foreground);
+      width: 30px; height: 30px; border-radius: 999px; cursor: pointer; flex: none;
+      display: inline-flex; align-items: center; justify-content: center;
+    }
+    html:not(.dark) .theme-toggle .icon-sun { display: none; }
+    html.dark .theme-toggle .icon-moon { display: none; }
+    html.dark .rk-nav { background: rgba(28,28,30,.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
+
+    .hero-section { padding: 36px 0 18px; }
+    .eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .12em; color: var(--primary); text-transform: uppercase; }
+    .hero-title { font-size: 28px; font-weight: 800; margin: 8px 0 6px; }
+    .hero-subtitle { color: var(--muted-foreground); margin: 0 0 18px; max-width: 720px; }
+    .hero-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      height: 36px; padding: 0 16px; border-radius: 999px;
+      border: 1px solid var(--border); background: var(--card); color: var(--foreground);
+      font-size: 13px; font-weight: 600; cursor: pointer; text-decoration: none;
+    }
+    .btn:hover { background: var(--secondary); }
+    .btn-primary { background: var(--primary); color: var(--primary-foreground); border-color: var(--primary); }
+    .btn-primary:hover { opacity: .9; background: var(--primary); }
+    .btn-danger { color: var(--state-error); }
+    .btn[disabled] { opacity: .5; cursor: not-allowed; }
+
+    .tier-tabs { display: flex; gap: 8px; margin: 18px 0 16px; flex-wrap: wrap; }
+    .tier-tab {
+      padding: 8px 18px; border-radius: 999px; border: 1px solid var(--border);
+      background: var(--card); color: var(--foreground); cursor: pointer; font-size: 13px; font-weight: 600;
+    }
+    .tier-tab.is-active { background: var(--primary); color: var(--primary-foreground); border-color: var(--primary); }
+
+    .table-wrap {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow-sm);
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { padding: 14px 16px; text-align: left; border-bottom: 1px solid var(--border); vertical-align: top; }
+    th { color: var(--muted-foreground); font-weight: 600; background: var(--background-100); white-space: nowrap; }
+    tr:last-child td { border-bottom: none; }
+    .sk-id { font-size: 12px; color: var(--muted-foreground); background: var(--secondary); border-radius: 6px; padding: 2px 8px; white-space: nowrap; }
+    .sk-name { font-weight: 700; }
+    .sk-rule { color: var(--muted-foreground); font-size: 12px; margin-top: 4px; max-width: 360px; }
+    .num { font-weight: 700; font-variant-numeric: tabular-nums; }
+    .num--ok { color: var(--success); }
+    .tier-tag { font-size: 12px; border-radius: 999px; padding: 2px 10px; background: var(--secondary); color: var(--muted-foreground); }
+    .tier-tag-basic { color: #0a7ea4; background: rgba(10,126,164,.12); }
+    .tier-tag-intermediate { color: #b25e09; background: rgba(255,149,0,.14); }
+    .tier-tag-advanced { color: var(--state-error); background: rgba(255,59,48,.12); }
+    .row-actions { display: flex; gap: 8px; white-space: nowrap; }
+    .link-btn { border: none; background: none; color: var(--primary); font-size: 13px; font-weight: 600; cursor: pointer; padding: 0; }
+    .link-btn.danger { color: var(--state-error); }
+
+    .empty, .loading-box { padding: 60px 0; text-align: center; color: var(--muted-foreground); }
+    .privacy-note {
+      margin: 12px 0 0; padding: 12px 16px; border-radius: 12px;
+      background: var(--background-100); color: var(--muted-foreground); font-size: 12px;
+    }
+
+    /* 编辑弹层 */
+    .modal-mask {
+      position: fixed; inset: 0; z-index: 999; background: rgba(0,0,0,.4);
+      display: flex; align-items: center; justify-content: center; padding: 20px;
+    }
+    .modal {
+      width: 520px; max-width: 100%; max-height: 90vh; overflow: auto;
+      background: var(--card); color: var(--foreground);
+      border: 1px solid var(--border); border-radius: 18px; padding: 24px;
+      box-shadow: var(--shadow-lg);
+    }
+    .modal h2 { margin: 0 0 18px; font-size: 18px; }
+    .field { margin-bottom: 16px; }
+    .field label { display: block; font-size: 12px; color: var(--muted-foreground); margin-bottom: 6px; font-weight: 600; }
+    .field input, .field select, .field textarea {
+      width: 100%; border: 1px solid var(--border); border-radius: 10px;
+      background: var(--background); color: var(--foreground);
+      padding: 10px 12px; font-size: 14px; font-family: inherit;
+    }
+    .field textarea { min-height: 72px; resize: vertical; }
+    .modal-ops { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+    .page-footer { text-align: center; color: var(--muted-foreground); font-size: 12px; padding: 32px 0 8px; }
+    .toast {
+      position: fixed; left: 50%; bottom: 40px; transform: translateX(-50%);
+      background: rgba(0,0,0,.82); color: #fff; padding: 10px 20px; border-radius: 999px;
+      font-size: 13px; z-index: 1200; opacity: 0; transition: opacity .2s; pointer-events: none;
+    }
+    .toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+  <main>
+    <nav class="webbar rk-nav" aria-label="台球协会主导航">
+      <span class="brand"><svg class="brand-icon" viewBox="0 0 36 36" aria-hidden="true"><rect width="36" height="36" rx="9" style="fill:var(--primary)"/><circle cx="18" cy="18" r="10.5" style="fill:#ffffff"/><circle cx="18" cy="18" r="5" style="fill:var(--primary)"/></svg>台球协会</span>
+      <div class="rail">
+        <a class="link" href="#">积分排行</a>
+        <a class="link" href="#">对战记录</a>
+        <a class="link" href="#">比赛</a>
+        <a class="link" href="#">轮播图</a>
+        <a class="link" href="#">练球图</a>
+        <a class="link" href="#">杆法管理</a>
+        <a class="link" href="#">会员详情</a>
+        <button class="theme-toggle" id="theme-toggle" type="button" aria-label="切换深色/浅色主题" title="切换深色/浅色主题">
+          <i data-lucide="moon" class="icon-moon" style="width:16px;height:16px;"></i>
+          <i data-lucide="sun" style="width:16px;height:16px;"></i>
+        </button>
+      </div>
+    </nav>
+
+    <div class="page-container">
+      <section class="hero-section">
+        <div class="eyebrow">SKILL ADMIN</div>
+        <h1 class="hero-title">杆法统计与管理</h1>
+        <p class="hero-subtitle">查看每项杆法的参与人数与掌握人数（仅聚合数字，不含任何用户信息）；管理员/裁判扫码授权后可新增、编辑、下架杆法项。</p>
+        <div class="hero-actions">
+          <button class="btn btn-primary" id="btn-add" type="button">＋ 新增杆法项</button>
+          <button class="btn" id="btn-refresh" type="button">刷新统计</button>
+        </div>
+        <p class="privacy-note">隐私说明：本页只展示人数统计，不展示、不导出任何会员姓名或身份信息；个人杆法明细遵循会员本人的隐私开关。</p>
+      </section>
+
+      <div class="tier-tabs" id="tier-tabs"></div>
+
+      <div class="loading-box" id="loading-box">加载中…</div>
+      <div class="table-wrap" id="table-wrap" style="display:none;">
+        <table>
+          <thead>
+            <tr>
+              <th>编号</th>
+              <th>杆法项 / 成功标准</th>
+              <th>层级</th>
+              <th>参与人数</th>
+              <th>掌握人数</th>
+              <th>状态</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <footer class="page-footer">© 2026 台球协会. 保留所有权利.</footer>
+  </main>
+
+  <!-- 编辑/新增弹层 -->
+  <div class="modal-mask" id="modal-mask" style="display:none;">
+    <div class="modal">
+      <h2 id="modal-title">编辑杆法项</h2>
+      <div class="field">
+        <label>编号（留空新增时自动生成）</label>
+        <input type="text" id="f-skill-id" maxlength="20" placeholder="如 B09 / I10，新增可留空">
+      </div>
+      <div class="field">
+        <label>层级</label>
+        <select id="f-tier">
+          <option value="basic">基础</option>
+          <option value="intermediate">进阶</option>
+          <option value="advanced">高阶</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>名称</label>
+        <input type="text" id="f-name" maxlength="30" placeholder="杆法名称">
+      </div>
+      <div class="field">
+        <label>动作说明</label>
+        <textarea id="f-desc" maxlength="200" placeholder="动作怎么做"></textarea>
+      </div>
+      <div class="field">
+        <label>单次成功标准</label>
+        <textarea id="f-rule" maxlength="200" placeholder="怎样算一次成功"></textarea>
+      </div>
+      <div class="field">
+        <label>同层排序值（越小越靠前）</label>
+        <input type="number" id="f-order" min="0" max="999" value="0">
+      </div>
+      <div class="modal-ops">
+        <button class="btn" id="modal-cancel" type="button">取消</button>
+        <button class="btn btn-primary" id="modal-save" type="button">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="https://unpkg.com/lucide@1.8.0/dist/umd/lucide.min.js"></script>
+  <script>lucide.createIcons();</script>
+  <script src="./js/cloud.js?v=20260926a"></script>
+  <script src="./js/common.js?v=20261111a"></script>
+  <script src="./js/auth.js?v=20261111a"></script>
+  <script src="./js/skill-admin.js?v=20261111a"></script>
+</body>
+</html>
