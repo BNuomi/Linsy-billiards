@@ -11,7 +11,7 @@ window.CompAdmin = (function () {
 
   var ctx = { getComp: null, onChanged: null }
   var authing = false // 授权弹窗是否打开（防止并发创建会话）
-  var pendingAction = null // 授权完成后要执行的动作：'create' | 'edit' | 'import' | 'days' | 'draw' | 'redraw' | 'drawcfg' | 'reorder' | 'advance'
+  var pendingAction = null // 授权完成后要执行的动作：'create' | 'edit' | 'import' | 'pick' | 'days' | 'draw' | 'redraw' | 'drawcfg' | 'reorder' | 'advance'
   var pendingFixture = null // reorder 动作的目标对阵
   var pendingGroup = null // advance 动作的目标小组（group_no）
 
@@ -98,7 +98,49 @@ window.CompAdmin = (function () {
       '.wa-dc-del:hover{color:var(--state-error);}' +
       '.wa-dc-del i{width:13px;height:13px;}' +
       '.wa-dc-empty{font-size:12px;color:var(--muted-foreground);padding:4px 0;}' +
-      '.wa-dc-add{flex:none;}'
+      '.wa-dc-add{flex:none;}' +
+      /* 会员选择器（对齐小程序创建对局的选择用户弹层：搜索 + 列表 + 临时用户兜底） */
+      '.wa-pick-search{position:relative;margin-bottom:12px;}' +
+      '.wa-pick-search input{padding-left:34px;}' +
+      '.wa-pick-search-icon{position:absolute;left:11px;top:50%;transform:translateY(-50%);width:15px;height:15px;color:var(--muted-foreground);}' +
+      '.wa-pick-search-clear{position:absolute;right:10px;top:50%;transform:translateY(-50%);border:none;background:var(--secondary);border-radius:999px;width:22px;height:22px;cursor:pointer;color:var(--muted-foreground);font-size:12px;line-height:1;}' +
+      '.wa-pick-list{max-height:42vh;overflow-y:auto;border:1px solid var(--border);border-radius:12px;margin-bottom:12px;}' +
+      '.wa-pick-item{display:flex;align-items:center;gap:10px;padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--border);}' +
+      '.wa-pick-item:last-child{border-bottom:none;}' +
+      '.wa-pick-item:hover{background:var(--secondary);}' +
+      '.wa-pick-item.is-taken{opacity:.45;cursor:not-allowed;}' +
+      '.wa-pick-item.is-checked{background:rgba(0,113,227,0.07);}' +
+      '.wa-pick-avatar{flex:none;width:32px;height:32px;border-radius:999px;background:var(--secondary);color:var(--foreground);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;overflow:hidden;}' +
+      '.wa-pick-avatar img{width:100%;height:100%;object-fit:cover;}' +
+      '.wa-pick-name{flex:1;min-width:0;font-size:13px;font-weight:600;}' +
+      '.wa-pick-sub{flex:none;font-size:12px;color:var(--muted-foreground);}' +
+      '.wa-pick-tag{flex:none;font-size:11px;padding:2px 8px;border-radius:999px;background:rgba(0,113,227,0.1);color:var(--primary);}' +
+      '.wa-pick-empty{padding:18px 12px;text-align:center;font-size:12px;color:var(--muted-foreground);}' +
+      '.wa-pick-temp{border-style:dashed;color:var(--primary);}' +
+      /* 当前报名名单（可移除） */
+      '.wa-roster-list{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;max-height:22vh;overflow-y:auto;}' +
+      '.wa-roster-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 8px 5px 12px;border-radius:999px;background:var(--secondary);font-size:12px;}' +
+      '.wa-roster-chip button{border:none;background:transparent;cursor:pointer;color:var(--muted-foreground);padding:0;display:inline-flex;line-height:1;border-radius:999px;}' +
+      '.wa-roster-chip button:hover{color:var(--state-error);}' +
+      '.wa-roster-empty{font-size:12px;color:var(--muted-foreground);margin-bottom:12px;}' +
+      /* 开关（组队积分机制） */
+      '.wa-switch-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;}' +
+      '.wa-switch-desc{font-size:12px;color:var(--muted-foreground);line-height:1.6;}' +
+      '.wa-switch{position:relative;flex:none;width:42px;height:24px;}' +
+      '.wa-switch input{position:absolute;opacity:0;width:100%;height:100%;margin:0;cursor:pointer;}' +
+      '.wa-switch i{position:absolute;inset:0;background:var(--secondary);border-radius:999px;transition:background .15s ease;}' +
+      '.wa-switch i::after{content:"";position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:999px;background:#fff;transition:transform .15s ease;box-shadow:0 1px 3px rgba(0,0,0,.25);}' +
+      '.wa-switch input:checked + i{background:var(--primary);}' +
+      '.wa-switch input:checked + i::after{transform:translateX(18px);}' +
+      /* 分阶段配置：每行 阶段名 + 抢局数 + 阶段积分 */
+      '.wa-stage-grid{display:flex;flex-direction:column;gap:8px;}' +
+      '.wa-stage-row{display:flex;align-items:center;gap:10px;}' +
+      '.wa-stage-name{flex:none;width:84px;font-size:13px;font-weight:600;}' +
+      '.wa-stage-row .wa-input{margin-bottom:0;}' +
+      '.wa-stage-race{flex:1;}' +
+      '.wa-stage-pts{flex:1;}' +
+      '.wa-stage-tip{font-size:11px;color:var(--muted-foreground);margin:2px 0 8px;line-height:1.6;}' +
+      '.wa-section-title{font-size:13px;font-weight:700;margin:4px 0 2px;}'
     document.head.appendChild(style)
   }
 
@@ -290,6 +332,7 @@ window.CompAdmin = (function () {
     if (action === 'create') openCreate()
     else if (action === 'edit') openEdit()
     else if (action === 'import') openImport()
+    else if (action === 'pick') openPick()
     else if (action === 'days') openDays()
     else if (action === 'draw') openDraw()
     else if (action === 'redraw') openRedraw()
@@ -316,6 +359,7 @@ window.CompAdmin = (function () {
   }
 
   // ---------- 编辑比赛信息 ----------
+  // 基础字段（通用控件渲染）；组队开关/比赛规模/分阶段配置为自定义区块，见 openEdit
   var EDIT_FIELDS = [
     { key: 'name', label: '比赛名称', type: 'text', required: true, max: 20 },
     { key: 'game_type', label: '对局类型', type: 'select', options: [['', '未设置'], ['c8', '中八'], ['nine_ball', '九球追分'], ['snooker', '斯诺克']] },
@@ -323,9 +367,6 @@ window.CompAdmin = (function () {
     { key: 'table_count', label: '同时开赛台数', type: 'number', placeholder: '默认 4' },
     { key: 'group_size', label: '小组人数（小组赛制）', type: 'number', placeholder: '默认 4' },
     { key: 'advance_count', label: '出线名额/组（小组赛制）', type: 'number', placeholder: '默认 2' },
-    { key: 'race_group', label: '小组赛抢局（中八）', type: 'select', options: [['', '未设置'], ['3', '抢 3'], ['4', '抢 4'], ['5', '抢 5'], ['6', '抢 6'], ['7', '抢 7']] },
-    { key: 'race_semi', label: '半决赛抢局（中八）', type: 'select', options: [['', '未设置'], ['3', '抢 3'], ['4', '抢 4'], ['5', '抢 5'], ['6', '抢 6'], ['7', '抢 7']] },
-    { key: 'race_final', label: '决赛抢局（中八）', type: 'select', options: [['', '未设置'], ['3', '抢 3'], ['4', '抢 4'], ['5', '抢 5'], ['6', '抢 6'], ['7', '抢 7']] },
     { key: 'start_date', label: '开始日期', type: 'date' },
     { key: 'end_date', label: '结束日期', type: 'date' },
     { key: 'venue', label: '比赛地点', type: 'text', max: 50 },
@@ -348,6 +389,71 @@ window.CompAdmin = (function () {
   // 名次积分表单键 ↔ points_scheme 字段
   var SCHEME_KEYS = ['p1', 'p2', 'p3', 'p4', 'p8', 'p16', 'pother']
 
+  // 全阶段定义：key=race_* 字段 / stage=stage_points 键；按比赛规模决定展示哪些阶段
+  // 4 人：半决赛+决赛(+季军赛)；8 人：1/4决赛起；16 人：16强赛起；未选规模展示全部阶段
+  var STAGE_DEFS = [
+    { race: 'race_qualifier', stage: 'qualifier', label: '附加赛' },
+    { race: 'race_group', stage: 'group', label: '小组赛' },
+    { race: 'race_r16', stage: 'r16', label: '16强赛' },
+    { race: 'race_qf', stage: 'qf', label: '1/4决赛' },
+    { race: 'race_semi', stage: 'semi', label: '半决赛' },
+    { race: 'race_third', stage: 'third', label: '季军赛' },
+    { race: 'race_final', stage: 'final', label: '决赛' }
+  ]
+  // 规模 → 需要配置的阶段（淘汰路径按 2 幂推导；小组赛/附加赛始终可选，默认折叠在「全部阶段」）
+  var SCALE_STAGES = {
+    4: ['semi', 'third', 'final'],
+    8: ['qf', 'semi', 'third', 'final'],
+    16: ['r16', 'qf', 'semi', 'third', 'final']
+  }
+  var RACE_SELECT_OPTS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+
+  function fieldHtml(f, val) {
+    var html = '<label class="wa-field"><span class="wa-label">' + f.label + (f.required ? ' *' : '') + '</span>'
+    if (f.type === 'textarea') {
+      html += '<textarea class="wa-input" name="' + f.key + '" rows="3" maxlength="' + f.max + '">' + U.escapeHtml(val) + '</textarea>'
+    } else if (f.type === 'select') {
+      html += '<select class="wa-input" name="' + f.key + '">' +
+        f.options.map(function (o) {
+          return '<option value="' + o[0] + '"' + (o[0] === val ? ' selected' : '') + '>' + o[1] + '</option>'
+        }).join('') + '</select>'
+    } else {
+      html += '<input class="wa-input" name="' + f.key + '" type="' + f.type + '" maxlength="' + (f.max || 100) + '"' +
+        ' value="' + U.escapeHtml(val) + '"' + (f.placeholder ? ' placeholder="' + f.placeholder + '"' : '') + '>'
+    }
+    return html + '</label>'
+  }
+
+  // 分阶段配置区块：每行「抢几局（先抢 N 局）+ 阶段积分」；随比赛规模联动显隐
+  function stageGridHtml(comp) {
+    var sp = (comp.stage_points && typeof comp.stage_points === 'object') ? comp.stage_points : {}
+    var rows = STAGE_DEFS.map(function (d) {
+      var raceVal = comp[d.race] == null ? '' : String(comp[d.race])
+      var ptsVal = sp[d.stage] == null ? '' : String(sp[d.stage])
+      var raceOpts = '<option value="">未设置</option>' + RACE_SELECT_OPTS.map(function (n) {
+        return '<option value="' + n + '"' + (String(n) === raceVal ? ' selected' : '') + '>抢 ' + n + '</option>'
+      }).join('')
+      return '<div class="wa-stage-row" data-stage="' + d.stage + '">' +
+        '<span class="wa-stage-name">' + d.label + '</span>' +
+        '<select class="wa-input wa-stage-race" name="' + d.race + '">' + raceOpts + '</select>' +
+        '<input class="wa-input wa-stage-pts" name="pts_' + d.stage + '" type="number" min="0" max="999" placeholder="阶段积分（可空）" value="' + U.escapeHtml(ptsVal) + '">' +
+        '</div>'
+    }).join('')
+    return '<div class="wa-section-title">分阶段局数与积分</div>' +
+      '<div class="wa-stage-tip">抢几局 = 该阶段先抢 N 局获胜（1-11）；阶段积分 = 该阶段名次/出场对应的积分（0-999，可空）。阶段行随上方比赛规模联动，未选规模时展示全部阶段。</div>' +
+      '<div class="wa-stage-grid" id="wa-stage-grid">' + rows + '</div>'
+  }
+
+  // 按比赛规模显隐阶段行：规模内淘汰阶段常显；小组赛/附加赛在选了规模时隐藏（未选规模全部展示）
+  function applyScaleStageVisibility(scopeEl) {
+    var scale = scopeEl.querySelector('[name="comp_scale"]').value
+    var showStages = scale ? SCALE_STAGES[Number(scale)] : STAGE_DEFS.map(function (d) { return d.stage })
+    var showSet = new Set(showStages || [])
+    scopeEl.querySelectorAll('.wa-stage-row').forEach(function (row) {
+      row.style.display = showSet.has(row.getAttribute('data-stage')) ? '' : 'none'
+    })
+  }
+
   function openEdit() {
     var comp = ctx.getComp ? (ctx.getComp() || {}) : {}
     var card = openModal('编辑比赛信息', function (body) {
@@ -357,28 +463,39 @@ window.CompAdmin = (function () {
         var raw = f.key.indexOf('scheme_') === 0
           ? (comp.points_scheme || {})[f.key.slice(7)]
           : comp[f.key]
-        var val = raw == null ? '' : String(raw)
-        html += '<label class="wa-field"><span class="wa-label">' + f.label + (f.required ? ' *' : '') + '</span>'
-        if (f.type === 'textarea') {
-          html += '<textarea class="wa-input" name="' + f.key + '" rows="3" maxlength="' + f.max + '">' + U.escapeHtml(val) + '</textarea>'
-        } else if (f.type === 'select') {
-          html += '<select class="wa-input" name="' + f.key + '">' +
-            f.options.map(function (o) {
-              return '<option value="' + o[0] + '"' + (o[0] === val ? ' selected' : '') + '>' + o[1] + '</option>'
-            }).join('') + '</select>'
-        } else {
-          html += '<input class="wa-input" name="' + f.key + '" type="' + f.type + '" maxlength="' + (f.max || 100) + '"' +
-            ' value="' + U.escapeHtml(val) + '"' + (f.placeholder ? ' placeholder="' + f.placeholder + '"' : '') + '>'
-        }
-        html += '</label>'
+        html += fieldHtml(f, raw == null ? '' : String(raw))
       })
+
+      // 组队积分机制开关
+      html += '<div class="wa-section-title">组队积分机制</div>' +
+        '<div class="wa-switch-row"><div><div style="font-size:13px;font-weight:600;">启用组队积分</div>' +
+        '<div class="wa-switch-desc">开启后可在对阵中设定队友与组队分，详情页展示组队积分榜</div></div>' +
+        '<label class="wa-switch"><input type="checkbox" name="team_mode"' + (comp.team_mode ? ' checked' : '') + '><i></i></label></div>'
+
+      // 比赛规模
+      var scaleVal = comp.comp_scale == null ? '' : String(comp.comp_scale)
+      html += '<label class="wa-field" style="margin-top:12px;"><span class="wa-label">比赛规模（控制下方需要配置的阶段）</span>' +
+        '<select class="wa-input" name="comp_scale">' +
+        '<option value="">未指定（展示全部阶段）</option>' +
+        [4, 8, 16].map(function (n) {
+          return '<option value="' + n + '"' + (String(n) === scaleVal ? ' selected' : '') + '>' + n + ' 人赛</option>'
+        }).join('') + '</select></label>'
+
+      // 分阶段局数与积分
+      html += stageGridHtml(comp)
+
       html += '<div class="wa-foot"><button class="btn btn-primary" type="submit">保存</button></div></form>'
       body.innerHTML = html
-      body.querySelector('#wa-edit-form').addEventListener('submit', function (ev) {
+      var form = body.querySelector('#wa-edit-form')
+      form.querySelector('[name="comp_scale"]').addEventListener('change', function () {
+        applyScaleStageVisibility(body)
+      })
+      applyScaleStageVisibility(body)
+      form.addEventListener('submit', function (ev) {
         ev.preventDefault()
         saveEdit(card)
       })
-    })
+    }, { wide: true })
   }
 
   async function saveEdit(card) {
@@ -412,10 +529,25 @@ window.CompAdmin = (function () {
       prize: get('prize')
     }
     if (get('game_type')) payload.game_type = get('game_type')
-    // 局数设定全量传：数字字符串云端转数值落库，空串清除
-    payload.race_group = get('race_group')
-    payload.race_semi = get('race_semi')
-    payload.race_final = get('race_final')
+    // 全阶段局数设定全量传：数字字符串云端转数值落库，空串清除（隐藏行同样提交，保证规模切换后旧值可被清理）
+    STAGE_DEFS.forEach(function (d) { payload[d.race] = get(d.race) })
+    // 组队积分机制开关 + 比赛规模
+    payload.team_mode = form.querySelector('[name="team_mode"]').checked
+    payload.comp_scale = get('comp_scale')
+    // 阶段积分：有任一档填值则全量提交（0-999 整数）；全部留空时原本有配置传 '' 清除、原本无配置不传
+    var stagePoints = {}
+    for (var pi = 0; pi < STAGE_DEFS.length; pi++) {
+      var pv = get('pts_' + STAGE_DEFS[pi].stage)
+      if (pv === '') continue
+      var pn = Number(pv)
+      if (!Number.isInteger(pn) || pn < 0 || pn > 999) {
+        U.toast('阶段积分各档需为 0-999 的整数', 'error')
+        return
+      }
+      stagePoints[STAGE_DEFS[pi].stage] = pn
+    }
+    if (Object.keys(stagePoints).length > 0) payload.stage_points = stagePoints
+    else if (comp.stage_points) payload.stage_points = ''
     // 赛制与排期设定全量传（空串清除回落默认）
     payload.format = get('format')
     payload.table_count = get('table_count')
@@ -459,7 +591,7 @@ window.CompAdmin = (function () {
       body.innerHTML =
         '<div class="wa-import-tip">选择 JSON 文件（与小程序端同一格式）：' +
         '<code>{"competition":"比赛名（可选）","participants":[{"emp_no":"工号","phone":"手机","name":"昵称"}]}</code>' +
-        '单次最多 200 人，按 工号 → 手机 → 昵称 匹配已有会员，未匹配自动新建临时账号。</div>' +
+        '单次最多 200 人，按 工号 → 手机 → 昵称 匹配已有会员，未匹配自动新建临时账号。比赛结束前均可导入或调整名单。</div>' +
         '<div class="wa-file-row">' +
         '<label class="wa-file-btn" for="wa-file">选择 JSON 文件</label>' +
         '<span class="wa-file-name" id="wa-file-name">未选择文件</span>' +
@@ -559,6 +691,224 @@ window.CompAdmin = (function () {
         document.getElementById('wa-import-result').innerHTML =
           '<div class="wa-parse-err">导入失败：' + U.escapeHtml(e.message || String(e)) + '</div>'
       }
+    }
+  }
+
+  // ---------- 手动选择报名人员 ----------
+  // 交互对齐小程序「创建对局-选择用户」：半屏弹层内搜索会员、点击加入；搜索无结果可一键新建临时用户；
+  // 顶部展示当前报名名单（chip 可移除）。比赛结束前均可增删（云端 importSignups 仅拦截已完赛）
+  var pickState = { members: [], keyword: '', checked: new Set(), creating: false }
+
+  function openPick() {
+    var comp = ctx.getComp ? (ctx.getComp() || {}) : {}
+    pickState.keyword = ''
+    pickState.checked = new Set()
+    pickState.creating = false
+    var card = openModal('手动选择报名人员', function (body) {
+      body.innerHTML =
+        '<div class="wa-import-tip" style="margin-bottom:10px;">搜索会员后点击即可加入报名名单；搜索无结果可一键新建临时用户。比赛结束前均可调整名单。</div>' +
+        '<div class="wa-section-title">当前报名（<span id="wa-pick-roster-count">0</span> 人）</div>' +
+        '<div class="wa-roster-list" id="wa-pick-roster"></div>' +
+        '<div class="wa-pick-search">' +
+        '<i data-lucide="search" class="wa-pick-search-icon"></i>' +
+        '<input class="wa-input" id="wa-pick-keyword" type="text" maxlength="20" placeholder="搜索选手姓名（同小程序选择用户）" autocomplete="off">' +
+        '<button class="wa-pick-search-clear" id="wa-pick-clear" type="button" style="display:none;">✕</button></div>' +
+        '<div class="wa-pick-list" id="wa-pick-list"><div class="wa-pick-empty">正在加载会员…</div></div>' +
+        '<div class="wa-foot"><button class="btn btn-primary" id="wa-pick-save" type="button">加入报名名单</button></div>' +
+        '<div id="wa-pick-result"></div>'
+      renderRoster(body, comp)
+      loadMembers(body)
+      body.querySelector('#wa-pick-keyword').addEventListener('input', function (ev) {
+        pickState.keyword = ev.target.value.trim()
+        body.querySelector('#wa-pick-clear').style.display = pickState.keyword ? '' : 'none'
+        renderPickList(body)
+      })
+      body.querySelector('#wa-pick-clear').addEventListener('click', function () {
+        pickState.keyword = ''
+        body.querySelector('#wa-pick-keyword').value = ''
+        body.querySelector('#wa-pick-clear').style.display = 'none'
+        renderPickList(body)
+      })
+      body.querySelector('#wa-pick-list').addEventListener('click', function (ev) {
+        onPickListClick(ev, body)
+      })
+      body.querySelector('#wa-pick-roster').addEventListener('click', function (ev) {
+        onRosterRemove(ev, body)
+      })
+      body.querySelector('#wa-pick-save').addEventListener('click', function () { doPickAdd(card, body) })
+    }, { wide: true })
+  }
+
+  function rosterIds(comp) {
+    return new Set((Array.isArray(comp.participants) ? comp.participants : []).map(function (p) { return p.member_id }))
+  }
+
+  // 用云端返回的最新名单同步上下文（onChanged 负责页面级重载，弹层内用此快照即时重绘）
+  function syncRoster(participants) {
+    if (!Array.isArray(participants)) return
+    var comp = ctx.getComp ? (ctx.getComp() || {}) : {}
+    comp.participants = participants
+  }
+
+  function renderRoster(body, comp) {
+    var list = Array.isArray(comp.participants) ? comp.participants : []
+    var el = body.querySelector('#wa-pick-roster')
+    body.querySelector('#wa-pick-roster-count').textContent = list.length
+    if (!list.length) {
+      el.innerHTML = '<div class="wa-roster-empty">暂无报名人员</div>'
+      return
+    }
+    el.innerHTML = list.map(function (p) {
+      return '<span class="wa-roster-chip">' + U.escapeHtml(p.name || '未命名') +
+        '<button type="button" data-id="' + U.escapeHtml(p.member_id) + '" data-name="' + U.escapeHtml(p.name || '') +
+        '" aria-label="移除"><i data-lucide="x" style="width:13px;height:13px;"></i></button></span>'
+    }).join('')
+    if (window.lucide) window.lucide.createIcons()
+  }
+
+  async function loadMembers(body) {
+    try {
+      // getMembers 为公开读接口（未登录模式安全规则已放行），返回 { code:0, data: 积分前 100 名会员 }
+      var res = await window.AppCloud.call('getMembers', {})
+      var members = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : [])
+      pickState.members = members
+      renderPickList(body)
+    } catch (e) {
+      body.querySelector('#wa-pick-list').innerHTML =
+        '<div class="wa-pick-empty">会员加载失败：' + U.escapeHtml(e.message || '请稍后重试') + '</div>'
+    }
+  }
+
+  function renderPickList(body) {
+    var comp = ctx.getComp ? (ctx.getComp() || {}) : {}
+    var taken = rosterIds(comp)
+    var kw = pickState.keyword
+    var list = kw ? pickState.members.filter(function (m) { return (m.name || '').indexOf(kw) >= 0 }) : pickState.members
+    var html = ''
+    if (list.length) {
+      html = list.map(function (m) {
+        var isTaken = taken.has(m._id)
+        var isChecked = pickState.checked.has(m._id)
+        var initial = (m.name || '员').slice(0, 1)
+        var avatar = m.avatar
+          ? '<img src="' + U.escapeHtml(m.avatar) + '" alt="">'
+          : U.escapeHtml(initial)
+        return '<div class="wa-pick-item' + (isTaken ? ' is-taken' : '') + (isChecked ? ' is-checked' : '') +
+          '" data-id="' + U.escapeHtml(m._id) + '" data-action="' + (isTaken ? 'taken' : 'add') + '">' +
+          '<span class="wa-pick-avatar">' + avatar + '</span>' +
+          '<span class="wa-pick-name">' + U.escapeHtml(m.name || '未命名') + '</span>' +
+          '<span class="wa-pick-sub">' + (m.points != null ? m.points : 0) + ' 分</span>' +
+          (isTaken ? '<span class="wa-pick-tag">已报名</span>'
+            : (isChecked ? '<span class="wa-pick-tag">已选</span>' : '')) +
+          '</div>'
+      }).join('')
+    }
+    // 搜索无结果：一键新建临时用户（与小程序 onPickTempMember 同口径，走 createMember）
+    if (kw && list.length === 0 && /^[\u4e00-\u9fa5A-Za-z0-9·\s]{1,20}$/.test(kw)) {
+      html += '<div class="wa-pick-item wa-pick-temp" data-action="create-temp">' +
+        '<span class="wa-pick-avatar">＋</span>' +
+        '<span class="wa-pick-name">临时用户-' + U.escapeHtml(kw) + '</span>' +
+        '<span class="wa-pick-tag">点击创建并报名</span></div>'
+    } else if (kw && list.length === 0) {
+      html += '<div class="wa-pick-empty">未找到「' + U.escapeHtml(kw) + '」相关选手</div>'
+    } else if (!kw && pickState.members.length === 0) {
+      html += '<div class="wa-pick-empty">暂无会员</div>'
+    }
+    body.querySelector('#wa-pick-list').innerHTML = html
+  }
+
+  async function onPickListClick(ev, body) {
+    var item = ev.target.closest('.wa-pick-item')
+    if (!item) return
+    var action = item.getAttribute('data-action')
+    if (action === 'taken') { U.toast('该选手已在报名名单内', 'error'); return }
+    if (action === 'create-temp') {
+      if (pickState.creating) return
+      var auth0 = readAuth()
+      if (!auth0) { U.toast('授权已失效，请重新扫码', 'error'); startAuth('pick'); return }
+      pickState.creating = true
+      try {
+        var created = await window.AppCloud.call('createMember', { name: pickState.keyword, web_token: auth0.token })
+        // createMember 返回 { code:0, data: 会员对象 }，同名已存在时复用
+        var m = created && created.data ? created.data : created
+        if (!m || !m._id) throw new Error('创建失败')
+        pickState.members = [m].concat(pickState.members.filter(function (x) { return x._id !== m._id }))
+        pickState.checked.add(m._id)
+        U.toast('已创建临时用户：' + (m.name || pickState.keyword), 'success')
+        renderPickList(body)
+      } catch (e) {
+        if (!handleAuthError(e)) U.toast('创建失败：' + (e.message || e), 'error')
+      } finally { pickState.creating = false }
+      return
+    }
+    var id = item.getAttribute('data-id')
+    if (pickState.checked.has(id)) pickState.checked.delete(id)
+    else pickState.checked.add(id)
+    renderPickList(body)
+  }
+
+  async function onRosterRemove(ev, body) {
+    var btn = ev.target.closest('.wa-roster-chip button')
+    if (!btn) return
+    var comp = ctx.getComp ? (ctx.getComp() || {}) : {}
+    var auth = readAuth()
+    if (!auth) { U.toast('授权已失效，请重新扫码', 'error'); startAuth('pick'); return }
+    var id = btn.getAttribute('data-id')
+    var name = btn.getAttribute('data-name')
+    if (!window.confirm('确认将「' + name + '」移出报名名单？（会员档案保留）')) return
+    try {
+      var res = await window.AppCloud.call('importSignups', {
+        competition_id: comp._id,
+        mode: 'remove',
+        member_ids: [id],
+        web_token: auth.token
+      })
+      syncRoster(res.participants)
+      U.toast('已移除，名单共 ' + res.total + ' 人', 'success')
+      var latest0 = ctx.getComp ? (ctx.getComp() || {}) : {}
+      renderRoster(body, latest0)
+      renderPickList(body)
+      if (typeof ctx.onChanged === 'function') ctx.onChanged()
+    } catch (e) {
+      if (!handleAuthError(e)) U.toast('移除失败：' + (e.message || e), 'error')
+    }
+  }
+
+  async function doPickAdd(card, body) {
+    var comp = ctx.getComp ? (ctx.getComp() || {}) : {}
+    var auth = readAuth()
+    if (!auth) { U.toast('授权已失效，请重新扫码', 'error'); startAuth('pick'); return }
+    var ids = Array.from(pickState.checked)
+    if (!ids.length) { U.toast('请先勾选要加入的选手', 'error'); return }
+    var btn = body.querySelector('#wa-pick-save')
+    btn.disabled = true
+    btn.textContent = '提交中…'
+    try {
+      var res = await window.AppCloud.call('importSignups', {
+        competition_id: comp._id,
+        mode: 'manual',
+        member_ids: ids,
+        web_token: auth.token
+      })
+      pickState.checked = new Set()
+      syncRoster(res.participants)
+      body.querySelector('#wa-pick-result').innerHTML =
+        '<div class="wa-result-ok">已加入 ' + res.added + ' 人；已在名单 ' + res.existed + ' 人' +
+        (res.not_found && res.not_found.length ? '；无效 ' + res.not_found.length + ' 人' : '') +
+        '，名单共 ' + res.total + ' 人</div>'
+      U.toast('报名名单已更新', 'success')
+      var latest = ctx.getComp ? (ctx.getComp() || {}) : {}
+      renderRoster(body, latest)
+      renderPickList(body)
+      if (typeof ctx.onChanged === 'function') ctx.onChanged()
+    } catch (e) {
+      if (!handleAuthError(e)) {
+        body.querySelector('#wa-pick-result').innerHTML =
+          '<div class="wa-parse-err">加入失败：' + U.escapeHtml(e.message || String(e)) + '</div>'
+      }
+    } finally {
+      btn.disabled = false
+      btn.textContent = '加入报名名单'
     }
   }
 
@@ -1219,11 +1569,13 @@ window.CompAdmin = (function () {
     if (createBtn) createBtn.addEventListener('click', function () { startAuth('create') })
     var editBtn = document.getElementById('cd-edit-btn')
     var importBtn = document.getElementById('cd-import-btn')
+    var pickBtn = document.getElementById('cd-pick-btn')
     var daysBtn = document.getElementById('fx-days-edit-btn')
     var drawBtn = document.getElementById('fx-draw-btn')
     var drawcfgBtn = document.getElementById('fx-drawcfg-btn')
     if (editBtn) editBtn.addEventListener('click', function () { startAuth('edit') })
     if (importBtn) importBtn.addEventListener('click', function () { startAuth('import') })
+    if (pickBtn) pickBtn.addEventListener('click', function () { startAuth('pick') })
     if (daysBtn) daysBtn.addEventListener('click', function () { startAuth('days') })
     if (drawBtn) drawBtn.addEventListener('click', function () { startAuth('draw') })
     var redrawBtn = document.getElementById('fx-redraw-btn')

@@ -61,38 +61,39 @@
     }
     .season-line b { color: #98989f; font-weight: 600; }
 
-    /* ---------- 记分按钮（flex-shrink:0 防小屏纵向压缩变形） ---------- */
+    /* ---------- 记分按钮（flex-shrink:0 防小屏纵向压缩变形；34vw 收敛尺寸，给底部按钮留位） ---------- */
     .btn-add-main {
       flex-shrink: 0;
-      width: clamp(120px, 42vw, 200px);
-      height: clamp(120px, 42vw, 200px);
+      width: clamp(92px, 34vw, 184px);
+      height: clamp(92px, 34vw, 184px);
       border-radius: 50%;
       border: none;
       background: #30d158;
       color: #04160a;
-      font-size: clamp(40px, 13vw, 64px);
+      font-size: clamp(32px, 11vw, 56px);
       font-weight: 700;
       line-height: 1;
       cursor: pointer;
       box-shadow: 0 6px 28px rgba(48, 209, 88, .35);
       transition: transform .08s ease, opacity .15s ease;
+      touch-action: none; /* 阻止浏览器长按手势/缩放干扰数字盘拖拽 */
     }
     .btn-add-main:active { transform: scale(.94); }
     .btn-row {
       flex-shrink: 0;
       display: flex;
-      gap: 12px;
+      gap: 10px;
       width: 100%;
       justify-content: center;
     }
     .btn-add-sub {
       flex: 0 1 110px;
-      height: clamp(56px, 15vw, 72px);
-      border-radius: 18px;
+      height: clamp(48px, 13vw, 66px);
+      border-radius: 16px;
       border: 1px solid #2c2c2e;
       background: #1c1c1e;
       color: #30d158;
-      font-size: clamp(20px, 6vw, 28px);
+      font-size: clamp(18px, 5.5vw, 26px);
       font-weight: 700;
       cursor: pointer;
       transition: transform .08s ease, opacity .15s ease;
@@ -103,12 +104,12 @@
     /* 撤销并入按钮排第三格（参考表盘底部 complication 排布） */
     .btn-undo {
       flex: 0 1 110px;
-      height: clamp(56px, 15vw, 72px);
-      border-radius: 18px;
+      height: clamp(48px, 13vw, 66px);
+      border-radius: 16px;
       border: 1px solid #2c2c2e;
       background: #1c1c1e;
       color: #8e8e93;
-      font-size: clamp(18px, 5vw, 22px);
+      font-size: clamp(16px, 4.5vw, 20px);
       font-weight: 600;
       cursor: pointer;
       transition: transform .08s ease, opacity .15s ease;
@@ -166,7 +167,7 @@
       box-shadow: 0 0 24px rgba(48, 209, 88, .25);
     }
     .dial__hub-num {
-      font-size: clamp(26px, 9vw, 40px);
+      font-size: calc(var(--key-size, 52px) * 0.72);
       font-weight: 800;
       color: #30d158;
       line-height: 1;
@@ -188,7 +189,7 @@
       border: 1px solid #3a3a3c;
       background: rgba(28, 28, 30, .96);
       color: #fff;
-      font-size: clamp(16px, 5vw, 22px);
+      font-size: calc(var(--key-size, 52px) * 0.4);
       font-weight: 700;
       display: flex;
       align-items: center;
@@ -274,21 +275,26 @@
     }
     .loading-mask.is-hide { display: none; }
 
-    /* 手表等小屏：顶部预留 mini Safari chrome 高度（「关闭+域名」浮层约 70px），
-       内容从遮挡区下方起排；压缩间距保证一屏放下全部按钮 */
-    @media (max-width: 250px) {
-      .wrap { padding: 76px 8px 14px; gap: 7px; justify-content: flex-start; }
+    /* 手表等小屏（断点 320 覆盖全部 Apple Watch 视口）：
+       顶部预留 mini Safari「关闭」浮层高度，底部预留 home 指示条，压缩间距保证一屏放下全部按钮 */
+    @media (max-width: 320px) {
+      .wrap { padding: 48px 8px 16px; gap: 4px; justify-content: flex-start; }
       .member-name { font-size: 11px; }
-      .today-num { font-size: 52px; }
-      .today-label { font-size: 12px; margin-top: -4px; }
-      .season-line { font-size: 10px; margin-bottom: 2px; }
-      .btn-add-main { width: 108px; height: 108px; font-size: 36px; }
-      .btn-add-sub { height: 48px; font-size: 18px; border-radius: 14px; }
-      .btn-undo { height: 48px; font-size: 17px; border-radius: 14px; }
-      .btn-undo.is-confirm { font-size: 13px; }
-      /* 手表窄屏：环形盘整体收缩，保证 12 个键位不超出视口 */
-      .dial { --dial-size: 208px; --key-size: 42px; }
-      .dial__hub-num { font-size: 24px; }
+      .today-num { font-size: clamp(36px, 18vw, 46px); }
+      .today-label { font-size: 12px; margin-top: -2px; }
+      .season-line { font-size: 10px; margin-bottom: 0; }
+      .btn-add-main { width: clamp(78px, 37vw, 92px); height: clamp(78px, 37vw, 92px); font-size: 28px; }
+      .btn-row { gap: 8px; }
+      .btn-add-sub, .btn-undo { height: 42px; border-radius: 12px; }
+      .btn-add-sub { font-size: 16px; }
+      .btn-undo { font-size: 15px; }
+      .btn-undo.is-confirm { font-size: 11px; }
+      /* 数字盘尺寸/键位/字号均由 JS 按视口动态计算，此处不再写死，避免覆盖 */
+    }
+    /* 超矮手表视口（如 42mm 约 208×260）：隐藏次要赛季统计行、再收顶部留白，保证底部按钮不被裁切 */
+    @media (max-width: 320px) and (max-height: 280px) {
+      .wrap { padding-top: 42px; }
+      .season-line { display: none; }
     }
   </style>
 </head>
@@ -332,6 +338,6 @@
   </div>
 
   <script src="./js/cloud.js?v=20260919d"></script>
-  <script src="./js/practice.js?v=20261111a"></script>
+  <script src="./js/practice.js?v=20261111b"></script>
 </body>
 </html>

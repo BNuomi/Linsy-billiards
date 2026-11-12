@@ -40,12 +40,14 @@
       return
     }
     try {
-      var results = await Promise.all([
-        window.AppCloud.call('getCompetitionDetail', { competition_id: id }),
-        window.AppCloud.call('getRankings', { scope: 'competition', competition_id: id }),
-        window.AppCloud.call('getRankings', { scope: 'competition_team', competition_id: id })
-      ])
-      render(results[0] || {}, results[1] || [], results[2] || [])
+      var detail = await window.AppCloud.call('getCompetitionDetail', { competition_id: id })
+      var board = await window.AppCloud.call('getRankings', { scope: 'competition', competition_id: id })
+      // 组队积分榜仅在比赛开启组队积分机制时拉取
+      var teamBoard = []
+      if (detail && detail.competition && detail.competition.team_mode) {
+        teamBoard = await window.AppCloud.call('getRankings', { scope: 'competition_team', competition_id: id })
+      }
+      render(detail || {}, board || [], teamBoard || [])
     } catch (e) {
       showError(e.message || '加载失败，请稍后重试')
     }
@@ -88,13 +90,31 @@
     } else if (comp.format === 'rounds' || comp.table_count) {
       rows.push(['赛制', '逐轮抽签 · ' + tables + ' 台同开'])
     }
-    var raceParts = [['race_group', '小组赛'], ['race_semi', '半决赛'], ['race_final', '决赛']]
+    var RACE_LABELS = [
+      ['race_qualifier', '附加赛'], ['race_group', '小组赛'], ['race_r16', '16强赛'],
+      ['race_qf', '1/4决赛'], ['race_semi', '半决赛'], ['race_third', '季军赛'], ['race_final', '决赛']
+    ]
+    var raceParts = RACE_LABELS
       .map(function (p) {
         var v = Number(comp[p[0]])
         return Number.isInteger(v) && v > 0 ? p[1] + '抢' + v : ''
       })
       .filter(Boolean)
     if (raceParts.length) rows.push(['局数设定', raceParts.join(' · ')])
+    // 比赛规模
+    if (comp.comp_scale) rows.push(['比赛规模', String(comp.comp_scale) + ' 人赛'])
+    // 组队积分机制
+    if (comp.team_mode) rows.push(['组队积分', '已开启（对阵可设队友与组队分）'])
+    // 阶段积分（仅展示已配置档位）
+    var STAGE_PT_LABELS = [
+      ['qualifier', '附加赛'], ['group', '小组赛'], ['r16', '16强赛'], ['qf', '1/4决赛'],
+      ['semi', '半决赛'], ['third', '季军赛'], ['final', '决赛']
+    ]
+    if (comp.stage_points && typeof comp.stage_points === 'object') {
+      var spStr = STAGE_PT_LABELS.filter(function (p) { return comp.stage_points[p[0]] != null })
+        .map(function (p) { return p[1] + ' ' + comp.stage_points[p[0]] }).join(' · ')
+      if (spStr) rows.push(['阶段积分', spStr])
+    }
     if (comp.start_date || comp.end_date) {
       rows.push(['比赛时间', (comp.start_date || '未定') + ' 至 ' + (comp.end_date || '未定')])
     }
@@ -145,8 +165,11 @@
 
     renderBoard(board)
     el('cd-board-section').style.display = ''
-    renderTeamBoard(teamBoard)
-    el('cd-teamboard-section').style.display = ''
+    // 组队积分榜：仅开启组队积分机制的比赛展示
+    if (comp.team_mode) {
+      renderTeamBoard(teamBoard)
+      el('cd-teamboard-section').style.display = ''
+    }
     refreshIcons()
   }
 

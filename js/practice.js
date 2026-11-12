@@ -146,7 +146,7 @@
     active: 0,         // 当前高亮数字（0=无）
     centerX: 0,
     centerY: 0,
-    half: 124,         // 盘半径（尺寸/2），buildDial 时按视口写入
+    half: 124,         // 盘半径（尺寸/2），layoutDial 时按视口写入
     keyR: 26           // 键半径
   }
 
@@ -157,11 +157,12 @@
     } catch (_) { /* noop */ }
   }
 
-  // 按视口宽度决定盘与键的尺寸（与 CSS 变量口径一致）
+  // 按视口动态决定盘与键的尺寸：保证整盘（含键位）在任意手表宽度内完整可见
+  // 规则：盘体 = min(视口宽, 视口高) - 两侧安全边距(8)，钳制在 168~248；键位随盘等比（约盘体 1/5）
   function dialMetrics() {
-    var small = Math.min(window.innerWidth, window.innerHeight) <= 250
-    var size = small ? 208 : 248
-    var key = small ? 42 : 52
+    var edge = Math.min(window.innerWidth, window.innerHeight)
+    var size = Math.round(Math.max(168, Math.min(248, edge - 8)))
+    var key = Math.round(Math.max(32, Math.min(52, size / 5)))
     return { size: size, key: key, radius: size / 2 - key / 2 - 4 }
   }
 
@@ -169,42 +170,46 @@
     dial.root = el('dial')
     dial.mask = el('dial-mask')
     dial.hubNum = el('dial-hub-num')
+
+    // 一次性创建 12 个键位节点；位置/尺寸在每次开盘时由 layoutDial 重算（适配旋转/分屏）
+    for (var n = 1; n <= DIAL_KEYS; n++) {
+      var node = document.createElement('div')
+      node.className = 'dial__key' + (n >= 2 ? ' is-streak' : '')
+      node.textContent = String(n)
+      dial.root.appendChild(node)
+      dial.keys.push({ n: n, x: 0, y: 0, r: 26, node: node })
+    }
+    // 遮罩仅作视觉层：指针已被主按钮 setPointerCapture 捕获，松手统一由 onMainUp 收口
+  }
+
+  // 每次开盘按当前视口重算盘尺寸与 12 键坐标（12 点位正上方起，顺时针 1..12）
+  function layoutDial() {
     var m = dialMetrics()
     dial.half = m.size / 2
     dial.keyR = m.key / 2
     dial.root.style.setProperty('--dial-size', m.size + 'px')
     dial.root.style.setProperty('--key-size', m.key + 'px')
-
-    // 生成 12 个键位（12 点位正上方起，顺时针 1..12），坐标以盘心为原点
-    for (var n = 1; n <= DIAL_KEYS; n++) {
-      var angle = (n * 30 - 90) * Math.PI / 180
-      var x = m.radius * Math.cos(angle)
-      var y = m.radius * Math.sin(angle)
-      var node = document.createElement('div')
-      node.className = 'dial__key' + (n >= 2 ? ' is-streak' : '')
-      node.textContent = String(n)
-      node.style.left = (dial.half + x) + 'px'
-      node.style.top = (dial.half + y) + 'px'
-      dial.root.appendChild(node)
-      dial.keys.push({ n: n, x: x, y: y, r: dial.keyR, node: node })
+    for (var i = 0; i < dial.keys.length; i++) {
+      var k = dial.keys[i]
+      var angle = (k.n * 30 - 90) * Math.PI / 180
+      k.x = m.radius * Math.cos(angle)
+      k.y = m.radius * Math.sin(angle)
+      k.r = dial.keyR
+      k.node.style.left = (dial.half + k.x) + 'px'
+      k.node.style.top = (dial.half + k.y) + 'px'
     }
-    // 遮罩仅作视觉层：指针已被主按钮 setPointerCapture 捕获，松手统一由 onMainUp 收口
   }
 
-  // 以主按钮中心为盘心；贴近视口边缘时平移，保证整盘不溢出
+  // 盘心固定在视口几何中心（不再跟随中下部的 +1 按钮），整盘四周留白对称、绝不溢出；
+  // 垂直方向略下移，为手表 mini Safari 顶部「关闭」浮层让出顶部键位空间
   function positionDial() {
-    var btn = el('btn-add-1')
-    var rect = btn.getBoundingClientRect()
     var m = dialMetrics()
+    var cx = window.innerWidth / 2
+    var cy = window.innerHeight / 2 + Math.min(14, window.innerHeight * 0.04)
+    // 双保险：即便极端视口也钳制在可视区内
     var half = m.size / 2
-    var cx = rect.left + rect.width / 2
-    var cy = rect.top + rect.height / 2
-    var minLeft = half + 6
-    var maxLeft = window.innerWidth - half - 6
-    var minTop = half + 6
-    var maxTop = window.innerHeight - half - 6
-    cx = Math.max(minLeft, Math.min(maxLeft, cx))
-    cy = Math.max(minTop, Math.min(maxTop, cy))
+    cx = Math.max(half + 4, Math.min(window.innerWidth - half - 4, cx))
+    cy = Math.max(half + 4, Math.min(window.innerHeight - half - 4, cy))
     dial.centerX = cx
     dial.centerY = cy
     dial.root.style.left = cx + 'px'
@@ -212,6 +217,7 @@
   }
 
   function openDial() {
+    layoutDial()
     positionDial()
     dial.open = true
     dial.active = 0
@@ -319,9 +325,12 @@
     closeDialogSilent() // 系统打断（来电/手势）：一律不记分
   }
 
-  // 窗口尺寸变化（旋转/分屏）时，若盘正开则重定位
+  // 窗口尺寸变化（旋转/分屏）时，若盘正开则重算尺寸、键位与中心
   window.addEventListener('resize', function () {
-    if (dial.open) positionDial()
+    if (dial.open) {
+      layoutDial()
+      positionDial()
+    }
   })
 
   // ---------- 初始化 ----------
